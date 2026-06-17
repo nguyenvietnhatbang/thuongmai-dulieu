@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Project, ProjectTask, Schedule, InternalNote } from '@/features/projects/services/project.service';
-import { ListToolbar, PaginationControls, SortableHeader } from '@/components/ui/ListControls';
+import { ListToolbar } from '@/components/ui/ListControls';
+import { ProjectsTable } from './components/ProjectsTable';
 
 interface UserSession {
   id: string;
@@ -395,64 +396,24 @@ export function ProjectsClient({ currentUser }: { currentUser: UserSession }) {
         ]}
       />
 
-      {/* Projects Table */}
-      <div className="glass-panel rounded-xl overflow-hidden border border-border">
-        {loading ? (
-          <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-2">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            <p className="text-xs">Đang tải danh sách dự án...</p>
-          </div>
-        ) : projects.length === 0 ? (
-          <div className="py-20 text-center text-muted-foreground">
-            <p className="text-sm font-semibold">Chưa có dự án nào</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-border text-muted-foreground text-xs uppercase font-semibold">
-                  <th className="px-6 py-4"><SortableHeader label="Mã số" sortKey="code" activeSort={sort} order={order} onSort={handleSort} /></th>
-                  <th className="px-6 py-4"><SortableHeader label="Tên dự án" sortKey="name" activeSort={sort} order={order} onSort={handleSort} /></th>
-                  <th className="px-6 py-4">Hợp đồng</th>
-                  <th className="px-6 py-4"><SortableHeader label="Khách hàng" sortKey="customerName" activeSort={sort} order={order} onSort={handleSort} /></th>
-                  <th className="px-6 py-4"><SortableHeader label="Tiến độ công việc" sortKey="progressPercent" activeSort={sort} order={order} onSort={handleSort} /></th>
-                  <th className="px-6 py-4">PM Phụ trách</th>
-                  <th className="px-6 py-4"><SortableHeader label="Trạng thái" sortKey="status" activeSort={sort} order={order} onSort={handleSort} /></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {projects.map((p) => (
-                  <tr
-                    key={p.id}
-                    onClick={() => { setActiveProj(p); setWorkspaceTab('tasks'); setClosure({ ...closure, code: `CLOS-${p.code}` }); }}
-                    className="hover:bg-slate-50/50 transition-colors cursor-pointer"
-                  >
-                    <td className="px-6 py-4 font-mono text-xs font-semibold text-primary">{p.code}</td>
-                    <td className="px-6 py-4 font-bold text-foreground">{p.name}</td>
-                    <td className="px-6 py-4 text-xs font-mono">{p.contractNumber || '-'}</td>
-                    <td className="px-6 py-4 font-medium text-slate-700">{p.customerName}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 w-32">
-                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-primary h-full" style={{ width: `${p.progressPercent}%` }}></div>
-                        </div>
-                        <span className="text-xs font-bold font-mono">{p.progressPercent}%</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-xs font-medium text-slate-700">{p.projectManagerName || 'Chưa phân PM'}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(p.status)}`}>
-                        {getStatusText(p.status)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <PaginationControls page={page} limit={limit} total={total} onPageChange={setPage} />
-      </div>
+      <ProjectsTable
+        projects={projects}
+        loading={loading}
+        page={page}
+        limit={limit}
+        total={total}
+        sort={sort}
+        order={order}
+        onSort={handleSort}
+        onPageChange={setPage}
+        onOpenProject={(project) => {
+          setActiveProj(project);
+          setWorkspaceTab('tasks');
+          setClosure({ ...closure, code: `CLOS-${project.code}` });
+        }}
+        getStatusBadge={getStatusBadge}
+        getStatusText={getStatusText}
+      />
 
       {/* Project Workspace Panel */}
       {activeProj && (
