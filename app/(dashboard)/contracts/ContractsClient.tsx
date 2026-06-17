@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Contract, PaymentMilestone } from '@/features/contracts/services/contract.service';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Contract } from '@/features/contracts/services/contract.service';
 import { ListToolbar } from '@/components/ui/ListControls';
 import { ContractCreateFormState, ContractCreateModal, ContractSelectOption } from './components/ContractCreateModal';
-import { ContractDetailDrawer } from './components/ContractDetailDrawer';
 import { ContractsTable } from './components/ContractsTable';
 
 interface UserSession {
@@ -34,6 +34,7 @@ const buildInitialContractForm = (currentUserId: string): ContractCreateFormStat
 });
 
 export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
+  const router = useRouter();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -43,6 +44,7 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
   const [sort, setSort] = useState('createdAt');
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
   const limit = 20;
+
   const [customers, setCustomers] = useState<ContractSelectOption[]>([]);
   const [users, setUsers] = useState<ContractSelectOption[]>([]);
   const [approvedQuotes, setApprovedQuotes] = useState<ContractSelectOption[]>([]);
@@ -50,20 +52,7 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
   const [createSaving, setCreateSaving] = useState(false);
   const [createForm, setCreateForm] = useState(buildInitialContractForm(currentUser.id));
 
-  // Details
-  const [activeContract, setActiveContract] = useState<Contract | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-
-  // Milestone payment recording
-  const [collectingMilestoneId, setCollectingMilestoneId] = useState<string | null>(null);
-  const [paymentInput, setPaymentInput] = useState('');
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
-  const [notesInput, setNotesInput] = useState('');
-
-  // Permissions
   const canCreate = currentUser.roles.includes('system_management') || currentUser.permissions.includes('contracts.create.all');
-  const canSign = currentUser.roles.includes('system_management') || currentUser.permissions.includes('contracts.sign.all');
-  const canCollect = currentUser.roles.includes('system_management') || currentUser.permissions.includes('receivables.update_status.all');
 
   const fetchContracts = async () => {
     setLoading(true);
@@ -194,9 +183,7 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
 
       setIsCreateOpen(false);
       setCreateForm(buildInitialContractForm(currentUser.id));
-      setPage(1);
-      fetchContracts();
-      loadContractDetails(json.data.id);
+      router.push(`/contracts/${json.data.id}`);
     } catch (error) {
       console.error(error);
       alert('Lỗi khi tạo hợp đồng');
@@ -213,100 +200,6 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
       setOrder('asc');
     }
     setPage(1);
-  };
-
-  const loadContractDetails = async (contractId: string) => {
-    setDetailLoading(true);
-    try {
-      const res = await fetch(`/api/contracts/${contractId}`);
-      const json = await res.json();
-      if (json.success) {
-        setActiveContract(json.data);
-        setNotesInput(json.data.notes || '');
-      }
-    } catch (err) {
-      console.error('Failed to load contract details:', err);
-    } finally {
-      setDetailLoading(false);
-    }
-  };
-
-  const handleUpdateContract = async (contractId: string, body: { status?: string; notes?: string }) => {
-    try {
-      const res = await fetch(`/api/contracts/${contractId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      const json = await res.json();
-      if (json.success) {
-        setIsEditingNotes(false);
-        loadContractDetails(contractId);
-        fetchContracts();
-      } else {
-        alert(json.error || 'Không cập nhật được hợp đồng');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Lỗi khi cập nhật hợp đồng');
-    }
-  };
-
-  const handleChangeStatus = (contract: Contract, status: string) => {
-    const label = getStatusText(status);
-    if (!confirm(`Chuyển hợp đồng "${contract.contractNumber}" sang trạng thái "${label}"?`)) return;
-    handleUpdateContract(contract.id, { status });
-  };
-
-  const handleSignContract = async (contractId: string) => {
-    if (!confirm('Xác nhận ký kết hợp đồng này? Hệ thống sẽ tự động khởi tạo dự án triển khai liên đới.')) return;
-    try {
-      const res = await fetch(`/api/contracts/${contractId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'signed' })
-      });
-      const json = await res.json();
-      if (json.success) {
-        alert('Hợp đồng đã ký thành công! Dự án triển khai mới đã được tự động tạo.');
-        loadContractDetails(contractId);
-        fetchContracts();
-      } else {
-        alert(json.error || 'Failed to sign contract');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Error signing contract');
-    }
-  };
-
-  const handleRecordPayment = async (e: React.FormEvent, milestone: PaymentMilestone) => {
-    e.preventDefault();
-    const amountPaid = Number(paymentInput);
-    if (isNaN(amountPaid) || amountPaid < 0 || amountPaid > milestone.amountDue) {
-      alert(`Số tiền nhập không hợp lệ! Vui lòng nhập từ 0 đến ${formatCurrency(milestone.amountDue)}`);
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/contracts/milestones/${milestone.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amountPaid })
-      });
-      const json = await res.json();
-      if (json.success) {
-        setCollectingMilestoneId(null);
-        setPaymentInput('');
-        if (activeContract) loadContractDetails(activeContract.id);
-        fetchContracts();
-      } else {
-        alert(json.error || 'Failed to record payment');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Error updating payment milestone');
-    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -331,24 +224,6 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
       case 'paused': return 'Tạm dừng';
       case 'cancelled': return 'Đã hủy';
       case 'completed': return 'Hoàn tất';
-      default: return status;
-    }
-  };
-
-  const getMilestoneStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-slate-100 text-slate-700 border-slate-200';
-      case 'paid': return 'bg-emerald-50 text-emerald-700 border-emerald-250';
-      case 'partially_paid': return 'bg-amber-50 text-amber-700 border-amber-250';
-      default: return 'bg-slate-50 text-slate-700';
-    }
-  };
-
-  const getMilestoneStatusText = (status: string) => {
-    switch (status) {
-      case 'pending': return 'Chờ thu';
-      case 'paid': return 'Đã thu đủ';
-      case 'partially_paid': return 'Thu một phần';
       default: return status;
     }
   };
@@ -408,36 +283,9 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
           getStatusText={getStatusText}
           onSort={handleSort}
           onPageChange={setPage}
-          onOpenContract={loadContractDetails}
+          onOpenContract={(contractId) => router.push(`/contracts/${contractId}`)}
         />
       </div>
-
-      {activeContract && (
-        <ContractDetailDrawer
-          contract={activeContract}
-          detailLoading={detailLoading}
-          canSign={canSign}
-          canCollect={canCollect}
-          collectingMilestoneId={collectingMilestoneId}
-          paymentInput={paymentInput}
-          isEditingNotes={isEditingNotes}
-          notesInput={notesInput}
-          formatCurrency={formatCurrency}
-          getStatusBadge={getStatusBadge}
-          getStatusText={getStatusText}
-          getMilestoneStatusBadge={getMilestoneStatusBadge}
-          getMilestoneStatusText={getMilestoneStatusText}
-          onClose={() => setActiveContract(null)}
-          onSignContract={handleSignContract}
-          onChangeStatus={handleChangeStatus}
-          onRecordPayment={handleRecordPayment}
-          onUpdateContract={handleUpdateContract}
-          setCollectingMilestoneId={setCollectingMilestoneId}
-          setPaymentInput={setPaymentInput}
-          setIsEditingNotes={setIsEditingNotes}
-          setNotesInput={setNotesInput}
-        />
-      )}
 
       <ContractCreateModal
         isOpen={isCreateOpen}

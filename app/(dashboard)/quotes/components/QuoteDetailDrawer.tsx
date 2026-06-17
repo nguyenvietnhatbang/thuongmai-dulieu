@@ -28,6 +28,7 @@ export const getStatusText = (status: string) => {
 };
 
 interface QuoteDetailDrawerProps {
+  mode?: 'drawer' | 'page';
   activeQuote: Quote | null;
   onClose: () => void;
   detailLoading: boolean;
@@ -42,6 +43,7 @@ interface QuoteDetailDrawerProps {
 }
 
 export function QuoteDetailDrawer({
+  mode = 'drawer',
   activeQuote,
   onClose,
   detailLoading,
@@ -76,6 +78,7 @@ export function QuoteDetailDrawer({
   };
 
   const editQuoteCalculations = calculateTotal(editItems);
+  const isPageMode = mode === 'page';
 
   const addLineItem = () => {
     const newItem = { itemName: '', description: '', unitCode: 'item', quantity: 1, unitPrice: 0 };
@@ -105,10 +108,13 @@ export function QuoteDetailDrawer({
   };
 
   return (
-    <div className="relative h-full w-[500px] md:w-[550px] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden">
+    <div className={isPageMode
+      ? 'relative h-full w-full border border-border bg-card flex flex-col justify-between shadow-sm overflow-hidden rounded-xl'
+      : 'relative h-full w-[500px] md:w-[550px] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden'
+    }>
       {/* Header */}
       <div className="p-6 border-b border-border flex items-center justify-between bg-slate-50/50">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
               {activeQuote.quoteNumber} (v{activeQuote.revisionNumber})
@@ -117,7 +123,7 @@ export function QuoteDetailDrawer({
               {getStatusText(activeQuote.status)}
             </span>
           </div>
-          <h2 className="text-base font-bold text-foreground mt-2">Báo giá: {activeQuote.customerName}</h2>
+          <h2 className={`${isPageMode ? 'text-xl' : 'text-base'} font-bold text-foreground mt-2 truncate`}>Báo giá: {activeQuote.customerName}</h2>
         </div>
         
         <button
@@ -129,6 +135,27 @@ export function QuoteDetailDrawer({
           </svg>
         </button>
       </div>
+
+      {isPageMode && (
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 p-6 border-b border-border bg-card">
+          <div className="rounded-lg border border-border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Ngày lập</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">{new Date(activeQuote.quoteDate).toLocaleDateString('vi-VN')}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Tổng thanh toán</p>
+            <p className="mt-1 text-sm font-semibold text-primary">{formatCurrency(activeQuote.totalAmount)}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Cơ hội</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">{activeQuote.opportunityTitle || 'Khách liên hệ trực tiếp'}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Người lập</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">{activeQuote.quotedByName || 'Chưa rõ'}</p>
+          </div>
+        </div>
+      )}
 
       {/* Body content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -402,7 +429,7 @@ export function QuoteDetailDrawer({
           onClick={onClose}
           className="flex-1 py-2 border border-border text-sm font-semibold rounded-lg bg-card hover:bg-muted text-center cursor-pointer"
         >
-          Đóng bảng
+          {isPageMode ? 'Quay lại danh sách báo giá' : 'Đóng bảng'}
         </button>
       </div>
     </div>

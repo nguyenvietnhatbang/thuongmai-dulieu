@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Customer } from '@/features/customers/services/customer.service';
 import { ListToolbar } from '@/components/ui/ListControls';
 import { CustomersTable } from './components/CustomersTable';
 import { CustomerCreateModal } from './components/CustomerCreateModal';
-import { CustomerDetailDrawer } from './components/CustomerDetailDrawer';
 
 interface UserSession {
   id: string;
@@ -22,7 +22,7 @@ interface UserDropdown {
 }
 
 export function CustomersClient({ currentUser }: { currentUser: UserSession }) {
-  // Master lists & states
+  const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [users, setUsers] = useState<UserDropdown[]>([]);
   const [total, setTotal] = useState(0);
@@ -30,31 +30,16 @@ export function CustomersClient({ currentUser }: { currentUser: UserSession }) {
   const [page, setPage] = useState(1);
   const limit = 10;
 
-  // Search & Filter state
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [sort, setSort] = useState('createdAt');
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
-
-  // Modal / Drawer states
-  const [activeCustomer, setActiveCustomer] = useState<Customer | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  // Client Permission Queries
   const canCreate = currentUser.roles.includes('system_management') || currentUser.permissions.includes('customers.create.all');
   const canDelete = currentUser.roles.includes('system_management') || currentUser.permissions.includes('customers.delete.all');
-  
-  // Checks if user can update the given customer
-  const canUpdate = (customer: Customer) => {
-    if (currentUser.roles.includes('system_management')) return true;
-    if (currentUser.permissions.includes('customers.update.own')) {
-      return customer.ownerUserId === currentUser.id;
-    }
-    return false;
-  };
 
-  // Fetch Customers
   const fetchCustomers = async () => {
     setLoading(true);
     try {
@@ -81,14 +66,11 @@ export function CustomersClient({ currentUser }: { currentUser: UserSession }) {
     }
   };
 
-  // Fetch Users (for owner assignments)
   const fetchUsers = async () => {
     try {
       const res = await fetch('/api/users');
       const json = await res.json();
-      if (json.success) {
-        setUsers(json.data);
-      }
+      if (json.success) setUsers(json.data);
     } catch (error) {
       console.error('Error fetching dropdown users:', error);
     }
@@ -137,38 +119,15 @@ export function CustomersClient({ currentUser }: { currentUser: UserSession }) {
       const json = await res.json();
       if (json.success) {
         fetchCustomers();
+        router.push(`/customers/${json.data.id}`);
         return true;
-      } else {
-        alert(json.error || 'Failed to create customer');
-        return false;
       }
+      alert(json.error || 'Failed to create customer');
+      return false;
     } catch (err) {
       console.error(err);
       alert('Error creating customer');
       return false;
-    }
-  };
-
-  const handleUpdateCustomer = async (id: string, editCustomer: any) => {
-    try {
-      const res = await fetch(`/api/customers/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editCustomer),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setActiveCustomer(json.data);
-        fetchCustomers();
-        return json.data;
-      } else {
-        alert(json.error || 'Failed to update customer');
-        return null;
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Error updating customer');
-      return null;
     }
   };
 
@@ -178,9 +137,6 @@ export function CustomersClient({ currentUser }: { currentUser: UserSession }) {
       const res = await fetch(`/api/customers/${id}`, { method: 'DELETE' });
       const json = await res.json();
       if (json.success) {
-        if (activeCustomer?.id === id) {
-          setActiveCustomer(null);
-        }
         fetchCustomers();
       } else {
         alert(json.error || 'Failed to delete customer');
@@ -189,6 +145,10 @@ export function CustomersClient({ currentUser }: { currentUser: UserSession }) {
       console.error(err);
       alert('Error deleting customer');
     }
+  };
+
+  const openCustomerDetail = (customer: Customer) => {
+    router.push(`/customers/${customer.id}`);
   };
 
   return (
@@ -250,8 +210,8 @@ export function CustomersClient({ currentUser }: { currentUser: UserSession }) {
           canDelete={canDelete}
           onSort={handleSort}
           onPageChange={setPage}
-          onSelectCustomer={(c) => setActiveCustomer(c)}
-          onEditCustomer={(c) => { setActiveCustomer(c); }}
+          onSelectCustomer={openCustomerDetail}
+          onEditCustomer={openCustomerDetail}
           onDeleteCustomer={handleDeleteCustomer}
         />
 
@@ -262,15 +222,6 @@ export function CustomersClient({ currentUser }: { currentUser: UserSession }) {
           onCreate={handleCreateCustomer}
         />
       </div>
-
-      <CustomerDetailDrawer
-        activeCustomer={activeCustomer}
-        onClose={() => setActiveCustomer(null)}
-        users={users}
-        canUpdate={activeCustomer ? canUpdate(activeCustomer) : false}
-        canCreateContact={canCreate}
-        onUpdateCustomer={handleUpdateCustomer}
-      />
     </div>
   );
 }

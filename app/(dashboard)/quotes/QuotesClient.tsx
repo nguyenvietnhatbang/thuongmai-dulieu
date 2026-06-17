@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Quote } from '@/features/quotes/services/quote.service';
 import { Customer } from '@/features/customers/services/customer.service';
 import { ListToolbar } from '@/components/ui/ListControls';
 import { QuotesTable } from './components/QuotesTable';
 import { QuoteCreateModal } from './components/QuoteCreateModal';
-import { QuoteDetailDrawer, getStatusBadge, getStatusText } from './components/QuoteDetailDrawer';
+import { getStatusBadge, getStatusText } from './components/QuoteDetailDrawer';
 
 interface UserSession {
   id: string;
@@ -23,12 +24,12 @@ export function QuotesClient({
   currentUser: UserSession;
   initialOpportunityId?: string;
 }) {
+  const router = useRouter();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [opportunities, setOpportunities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -37,16 +38,9 @@ export function QuotesClient({
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
   const limit = 20;
 
-  // Modals / Drawer
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [activeQuote, setActiveQuote] = useState<Quote | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
 
-  // Permissions
   const canCreate = currentUser.roles.includes('system_management') || currentUser.permissions.includes('quotes.create.all');
-  const canApprove = currentUser.roles.includes('system_management') || currentUser.permissions.includes('quotes.approve.team');
-  const canConvert = currentUser.roles.includes('system_management') || currentUser.permissions.includes('contracts.create.all');
-  const canDelete = canCreate;
 
   const fetchQuotes = async () => {
     setLoading(true);
@@ -95,7 +89,6 @@ export function QuotesClient({
     fetchDropdownData();
   }, []);
 
-  // Trigger open if opportunityId is prefilled on mount
   useEffect(() => {
     if (initialOpportunityId) {
       setIsCreateOpen(true);
@@ -125,22 +118,6 @@ export function QuotesClient({
     setPage(1);
   };
 
-  const loadQuoteDetails = async (quoteId: string) => {
-    setDetailLoading(true);
-    try {
-      const res = await fetch(`/api/quotes/${quoteId}`);
-      const json = await res.json();
-      if (json.success) {
-        const q = json.data as Quote;
-        setActiveQuote(q);
-      }
-    } catch (err) {
-      console.error('Failed to load quote detail:', err);
-    } finally {
-      setDetailLoading(false);
-    }
-  };
-
   const handleCreateQuote = async (quoteData: any) => {
     try {
       const res = await fetch('/api/quotes', {
@@ -150,97 +127,15 @@ export function QuotesClient({
       });
       const json = await res.json();
       if (json.success) {
-        fetchQuotes();
+        router.push(`/quotes/${json.data.id}`);
         return true;
-      } else {
-        alert(json.error || 'Failed to create quote');
-        return false;
       }
+      alert(json.error || 'Failed to create quote');
+      return false;
     } catch (err) {
       console.error(err);
       alert('Error creating quote');
       return false;
-    }
-  };
-
-  const handleSaveEditItems = async (termsNote: string, items: any[]) => {
-    if (!activeQuote) return false;
-    try {
-      const res = await fetch(`/api/quotes/${activeQuote.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          termsNote,
-          items
-        })
-      });
-      const json = await res.json();
-      if (json.success) {
-        loadQuoteDetails(activeQuote.id);
-        fetchQuotes();
-        return true;
-      } else {
-        alert(json.error || 'Failed to update quote items');
-        return false;
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Error saving quote changes');
-      return false;
-    }
-  };
-
-  const handleUpdateStatus = async (quoteId: string, status: string) => {
-    try {
-      const res = await fetch(`/api/quotes/${quoteId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-      });
-      const json = await res.json();
-      if (json.success) {
-        loadQuoteDetails(quoteId);
-        fetchQuotes();
-      } else {
-        alert(json.error || 'Failed to change quote status');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Error changing status');
-    }
-  };
-
-  const handleConvertToContract = async (quoteId: string) => {
-    try {
-      const res = await fetch(`/api/quotes/${quoteId}/convert`, { method: 'POST' });
-      const json = await res.json();
-      if (json.success) {
-        alert(json.message);
-        loadQuoteDetails(quoteId);
-        fetchQuotes();
-      } else {
-        alert(json.error || 'Failed to convert quote to contract');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Error converting quote');
-    }
-  };
-
-  const handleDeleteQuote = async (quote: Quote) => {
-    if (!confirm(`Xóa báo giá "${quote.quoteNumber}"? Chỉ báo giá nháp/yêu cầu sửa/bị từ chối mới được xóa.`)) return;
-    try {
-      const res = await fetch(`/api/quotes/${quote.id}`, { method: 'DELETE' });
-      const json = await res.json();
-      if (json.success) {
-        setActiveQuote(null);
-        fetchQuotes();
-      } else {
-        alert(json.error || json.details || 'Không xóa được báo giá');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Lỗi khi xóa báo giá');
     }
   };
 
@@ -301,7 +196,7 @@ export function QuotesClient({
           getStatusText={getStatusText}
           onSort={handleSort}
           onPageChange={setPage}
-          onOpenQuote={loadQuoteDetails}
+          onOpenQuote={(quoteId) => router.push(`/quotes/${quoteId}`)}
         />
 
         <QuoteCreateModal
@@ -314,20 +209,6 @@ export function QuotesClient({
           onCreate={handleCreateQuote}
         />
       </div>
-
-      <QuoteDetailDrawer
-        activeQuote={activeQuote}
-        onClose={() => setActiveQuote(null)}
-        detailLoading={detailLoading}
-        canDelete={canDelete}
-        canApprove={canApprove}
-        canConvert={canConvert}
-        formatCurrency={formatCurrency}
-        onSaveEdit={handleSaveEditItems}
-        onUpdateStatus={handleUpdateStatus}
-        onConvertToContract={handleConvertToContract}
-        onDeleteQuote={handleDeleteQuote}
-      />
     </div>
   );
 }

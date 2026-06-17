@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Contract, PaymentMilestone } from '@/features/contracts/services/contract.service';
 
 interface ContractDetailDrawerProps {
+  mode?: 'drawer' | 'page';
   contract: Contract;
   detailLoading: boolean;
   canSign: boolean;
@@ -30,6 +31,7 @@ interface ContractDetailDrawerProps {
 }
 
 export function ContractDetailDrawer({
+  mode = 'drawer',
   contract,
   detailLoading,
   canSign,
@@ -53,10 +55,15 @@ export function ContractDetailDrawer({
   setIsEditingNotes,
   setNotesInput,
 }: ContractDetailDrawerProps) {
+  const isPageMode = mode === 'page';
+
   return (
-    <div className="relative h-full w-[450px] md:w-[500px] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden">
+    <div className={isPageMode
+      ? 'relative h-full w-full border border-border bg-card flex flex-col justify-between shadow-sm overflow-hidden rounded-xl'
+      : 'relative h-full w-[450px] md:w-[500px] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden'
+    }>
       <div className="p-6 border-b border-border flex items-center justify-between bg-slate-50/50">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
               {contract.contractNumber}
@@ -65,7 +72,7 @@ export function ContractDetailDrawer({
               {getStatusText(contract.status)}
             </span>
           </div>
-          <h2 className="text-base font-bold text-foreground mt-2">Chi tiết Hợp đồng</h2>
+          <h2 className={`${isPageMode ? 'text-xl' : 'text-base'} font-bold text-foreground mt-2 truncate`}>Chi tiết Hợp đồng</h2>
         </div>
 
         <button
@@ -77,6 +84,27 @@ export function ContractDetailDrawer({
           </svg>
         </button>
       </div>
+
+      {isPageMode && (
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 p-6 border-b border-border bg-card">
+          <div className="rounded-lg border border-border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Khách hàng</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">{contract.customerName}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Giá trị hợp đồng</p>
+            <p className="mt-1 text-sm font-semibold text-primary">{formatCurrency(contract.contractValue)}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Báo giá liên kết</p>
+            <p className="mt-1 text-sm font-semibold text-foreground font-mono">{contract.quoteNumber || 'Không có'}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Triển khai</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">{contract.projectCreated ? 'Đã tạo dự án' : 'Chưa tạo dự án'}</p>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {detailLoading ? (
@@ -285,7 +313,7 @@ export function ContractDetailDrawer({
           onClick={onClose}
           className="flex-1 py-2 border border-border text-sm font-semibold rounded-lg bg-card hover:bg-muted text-center cursor-pointer"
         >
-          Đóng bảng Hợp đồng
+          {isPageMode ? 'Quay lại danh sách hợp đồng' : 'Đóng bảng Hợp đồng'}
         </button>
       </div>
     </div>

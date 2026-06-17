@@ -11,6 +11,7 @@ interface UserDropdown {
 }
 
 interface CustomerDetailDrawerProps {
+  mode?: 'drawer' | 'page';
   activeCustomer: Customer | null;
   onClose: () => void;
   users: UserDropdown[];
@@ -20,6 +21,7 @@ interface CustomerDetailDrawerProps {
 }
 
 export function CustomerDetailDrawer({
+  mode = 'drawer',
   activeCustomer,
   onClose,
   users,
@@ -265,11 +267,16 @@ export function CustomerDetailDrawer({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const isPageMode = mode === 'page';
+
   return (
-    <div className="relative h-full w-[450px] md:w-[500px] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden">
+    <div className={isPageMode
+      ? 'relative h-full w-full border border-border bg-card flex flex-col justify-between shadow-sm overflow-hidden rounded-xl'
+      : 'relative h-full w-[450px] md:w-[500px] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden'
+    }>
       {/* Drawer Header */}
       <div className="p-6 border-b border-border flex items-center justify-between bg-slate-50/50">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
               {activeCustomer.code}
@@ -278,7 +285,7 @@ export function CustomerDetailDrawer({
               {getStatusText(activeCustomer.status)}
             </span>
           </div>
-          <h2 className="text-base font-bold text-foreground mt-2">{activeCustomer.name}</h2>
+          <h2 className={`${isPageMode ? 'text-xl' : 'text-base'} font-bold text-foreground mt-2 truncate`}>{activeCustomer.name}</h2>
         </div>
 
         <button
@@ -290,6 +297,31 @@ export function CustomerDetailDrawer({
           </svg>
         </button>
       </div>
+
+      {isPageMode && (
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 p-6 border-b border-border bg-card">
+          <div className="rounded-lg border border-border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Người phụ trách</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">{activeCustomer.ownerName || 'Chưa phân công'}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Liên hệ chính</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">{activeCustomer.phone || activeCustomer.email || 'Chưa cập nhật'}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Quan hệ nghiệp vụ</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">
+              {historyData.opportunities.length} cơ hội, {historyData.projects.length} dự án
+            </p>
+          </div>
+          <div className="rounded-lg border border-border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Chăm sóc tiếp theo</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">
+              {activeCustomer.nextCareAt ? new Date(activeCustomer.nextCareAt).toLocaleDateString('vi-VN') : 'Chưa lên lịch'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Scrollable Drawer Tabs (Horizontal scrolling) */}
       <div className="flex border-b border-border text-xs overflow-x-auto whitespace-nowrap scrollbar-none bg-slate-50/30">
@@ -1059,7 +1091,7 @@ export function CustomerDetailDrawer({
           onClick={onClose}
           className="flex-1 py-2 border border-border text-sm font-semibold rounded-lg bg-card hover:bg-muted text-center cursor-pointer"
         >
-          Đóng bảng
+          {isPageMode ? 'Quay lại danh sách khách hàng' : 'Đóng bảng'}
         </button>
       </div>
     </div>
