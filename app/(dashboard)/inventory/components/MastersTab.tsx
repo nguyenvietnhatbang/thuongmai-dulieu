@@ -32,6 +32,8 @@ interface Warehouse {
 }
 
 type WarehouseFormState = Omit<Warehouse, 'id' | 'address'> & { address: string };
+type ProductFormState = Omit<Product, 'id'>;
+type SupplierFormState = Omit<Supplier, 'id' | 'phone' | 'email' | 'address'> & { phone: string; email: string; address: string };
 
 interface MastersTabProps {
   products: Product[];
@@ -73,6 +75,10 @@ interface MastersTabProps {
   onCreateProduct: (data: Omit<Product, 'id'>) => Promise<boolean>;
   onCreateSupplier: (data: Omit<Supplier, 'id'>) => Promise<boolean>;
   onCreateWarehouse: (data: Omit<Warehouse, 'id'>) => Promise<boolean>;
+  onUpdateProduct: (id: string, data: Omit<Product, 'id'>) => Promise<boolean>;
+  onDeleteProduct: (id: string) => Promise<boolean>;
+  onUpdateSupplier: (id: string, data: Omit<Supplier, 'id'>) => Promise<boolean>;
+  onDeleteSupplier: (id: string) => Promise<boolean>;
   onUpdateWarehouse: (id: string, data: Omit<Warehouse, 'id'>) => Promise<boolean>;
   onDeleteWarehouse: (id: string) => Promise<boolean>;
 }
@@ -117,6 +123,10 @@ export function MastersTab({
   onCreateProduct,
   onCreateSupplier,
   onCreateWarehouse,
+  onUpdateProduct,
+  onDeleteProduct,
+  onUpdateSupplier,
+  onDeleteSupplier,
   onUpdateWarehouse,
   onDeleteWarehouse
 }: MastersTabProps) {
@@ -128,25 +138,33 @@ export function MastersTab({
   const [isWarehouseOpen, setIsWarehouseOpen] = useState(false);
 
   // Form states
-  const [newProduct, setNewProduct] = useState({ code: '', name: '', unitCode: 'item', minStockQuantity: 0, status: 'active' as const });
-  const [newSupplier, setNewSupplier] = useState({ code: '', name: '', phone: '', email: '', address: '', status: 'active' as const });
+  const [newProduct, setNewProduct] = useState<ProductFormState>({ code: '', name: '', unitCode: 'item', minStockQuantity: 0, status: 'active' });
+  const [newSupplier, setNewSupplier] = useState<SupplierFormState>({ code: '', name: '', phone: '', email: '', address: '', status: 'active' });
   const [newWarehouse, setNewWarehouse] = useState<WarehouseFormState>({ code: '', name: '', address: '', status: 'active' });
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
   const [editingWarehouseId, setEditingWarehouseId] = useState<string | null>(null);
 
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const ok = await onCreateProduct(newProduct);
+    const ok = editingProductId
+      ? await onUpdateProduct(editingProductId, newProduct)
+      : await onCreateProduct(newProduct);
     if (ok) {
       setIsProductOpen(false);
+      setEditingProductId(null);
       setNewProduct({ code: '', name: '', unitCode: 'item', minStockQuantity: 0, status: 'active' });
     }
   };
 
   const handleSupplierSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const ok = await onCreateSupplier(newSupplier);
+    const ok = editingSupplierId
+      ? await onUpdateSupplier(editingSupplierId, newSupplier)
+      : await onCreateSupplier(newSupplier);
     if (ok) {
       setIsSupplierOpen(false);
+      setEditingSupplierId(null);
       setNewSupplier({ code: '', name: '', phone: '', email: '', address: '', status: 'active' });
     }
   };
@@ -161,6 +179,43 @@ export function MastersTab({
       setEditingWarehouseId(null);
       setNewWarehouse({ code: '', name: '', address: '', status: 'active' });
     }
+  };
+
+  const startEditProduct = (product: Product) => {
+    setEditingProductId(product.id);
+    setNewProduct({
+      code: product.code,
+      name: product.name,
+      unitCode: product.unitCode,
+      minStockQuantity: product.minStockQuantity,
+      status: product.status,
+    });
+    setIsProductOpen(true);
+  };
+
+  const closeProductModal = () => {
+    setIsProductOpen(false);
+    setEditingProductId(null);
+    setNewProduct({ code: '', name: '', unitCode: 'item', minStockQuantity: 0, status: 'active' });
+  };
+
+  const startEditSupplier = (supplier: Supplier) => {
+    setEditingSupplierId(supplier.id);
+    setNewSupplier({
+      code: supplier.code,
+      name: supplier.name,
+      phone: supplier.phone || '',
+      email: supplier.email || '',
+      address: supplier.address || '',
+      status: supplier.status,
+    });
+    setIsSupplierOpen(true);
+  };
+
+  const closeSupplierModal = () => {
+    setIsSupplierOpen(false);
+    setEditingSupplierId(null);
+    setNewSupplier({ code: '', name: '', phone: '', email: '', address: '', status: 'active' });
   };
 
   const startEditWarehouse = (warehouse: Warehouse) => {
@@ -231,7 +286,11 @@ export function MastersTab({
         <div>
           {subtab === 'products' && (
             <button
-              onClick={() => setIsProductOpen(true)}
+              onClick={() => {
+                setEditingProductId(null);
+                setNewProduct({ code: '', name: '', unitCode: 'item', minStockQuantity: 0, status: 'active' });
+                setIsProductOpen(true);
+              }}
               className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 text-[11px] font-semibold shadow-sm cursor-pointer"
             >
               + Sản phẩm
@@ -239,7 +298,11 @@ export function MastersTab({
           )}
           {subtab === 'suppliers' && (
             <button
-              onClick={() => setIsSupplierOpen(true)}
+              onClick={() => {
+                setEditingSupplierId(null);
+                setNewSupplier({ code: '', name: '', phone: '', email: '', address: '', status: 'active' });
+                setIsSupplierOpen(true);
+              }}
               className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 text-[11px] font-semibold shadow-sm cursor-pointer"
             >
               + Nhà cung cấp
@@ -293,12 +356,13 @@ export function MastersTab({
                   <th className="px-6 py-4"><SortableHeader label="Đơn vị tính" sortKey="unitCode" activeSort={productSort} order={productOrder} onSort={handleSort} /></th>
                   <th className="px-6 py-4 text-center"><SortableHeader label="Định mức" sortKey="minStockQuantity" activeSort={productSort} order={productOrder} onSort={handleSort} /></th>
                   <th className="px-6 py-4"><SortableHeader label="Trạng thái" sortKey="status" activeSort={productSort} order={productOrder} onSort={handleSort} /></th>
+                  <th className="px-6 py-4 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {products.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                    <td colSpan={6} className="px-6 py-10 text-center text-sm text-muted-foreground">
                       Không có sản phẩm phù hợp với bộ lọc.
                     </td>
                   </tr>
@@ -315,6 +379,12 @@ export function MastersTab({
                         }`}>
                           {p.status === 'active' ? 'Đang kinh doanh' : 'Ngừng hoạt động'}
                         </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-end gap-2">
+                          <button type="button" onClick={() => startEditProduct(p)} className="px-2 py-1 rounded-md border border-border bg-card text-[11px] font-semibold hover:bg-muted cursor-pointer">Sửa</button>
+                          <button type="button" onClick={() => onDeleteProduct(p.id)} className="px-2 py-1 rounded-md border border-red-200 bg-red-50 text-red-700 text-[11px] font-semibold hover:bg-red-100 cursor-pointer">Xóa</button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -334,12 +404,13 @@ export function MastersTab({
                   <th className="px-6 py-4">Số điện thoại</th>
                   <th className="px-6 py-4"><SortableHeader label="Email" sortKey="email" activeSort={supplierSort} order={supplierOrder} onSort={handleSort} /></th>
                   <th className="px-6 py-4">Địa chỉ</th>
+                  <th className="px-6 py-4 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {suppliers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                    <td colSpan={6} className="px-6 py-10 text-center text-sm text-muted-foreground">
                       Không có nhà cung cấp phù hợp với bộ lọc.
                     </td>
                   </tr>
@@ -351,6 +422,12 @@ export function MastersTab({
                       <td className="px-6 py-4 text-xs font-medium text-slate-700">{s.phone || '-'}</td>
                       <td className="px-6 py-4 text-xs text-muted-foreground">{s.email || '-'}</td>
                       <td className="px-6 py-4 text-xs text-muted-foreground">{s.address || '-'}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-end gap-2">
+                          <button type="button" onClick={() => startEditSupplier(s)} className="px-2 py-1 rounded-md border border-border bg-card text-[11px] font-semibold hover:bg-muted cursor-pointer">Sửa</button>
+                          <button type="button" onClick={() => onDeleteSupplier(s.id)} className="px-2 py-1 rounded-md border border-red-200 bg-red-50 text-red-700 text-[11px] font-semibold hover:bg-red-100 cursor-pointer">Xóa</button>
+                        </div>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -426,7 +503,7 @@ export function MastersTab({
       </div>
 
       {/* CREATE PRODUCT MODAL */}
-      <Modal isOpen={isProductOpen} onClose={() => setIsProductOpen(false)} title="Thêm Sản phẩm mới">
+      <Modal isOpen={isProductOpen} onClose={closeProductModal} title={editingProductId ? 'Cập nhật Sản phẩm' : 'Thêm Sản phẩm mới'}>
         <form onSubmit={handleProductSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Mã sản phẩm *</label>
@@ -450,15 +527,22 @@ export function MastersTab({
               <input type="number" value={newProduct.minStockQuantity} onChange={e => setNewProduct({...newProduct, minStockQuantity: Number(e.target.value)})} className="premium-input" />
             </div>
           </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Trạng thái</label>
+            <select value={newProduct.status} onChange={e => setNewProduct({...newProduct, status: e.target.value as 'active' | 'inactive'})} className="premium-input">
+              <option value="active">Đang kinh doanh</option>
+              <option value="inactive">Ngừng hoạt động</option>
+            </select>
+          </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={() => setIsProductOpen(false)} className="px-4 py-2 border border-border text-xs font-semibold rounded-lg bg-card hover:bg-muted cursor-pointer">Hủy</button>
-            <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/95 cursor-pointer">Lưu sản phẩm</button>
+            <button type="button" onClick={closeProductModal} className="px-4 py-2 border border-border text-xs font-semibold rounded-lg bg-card hover:bg-muted cursor-pointer">Hủy</button>
+            <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/95 cursor-pointer">{editingProductId ? 'Cập nhật sản phẩm' : 'Lưu sản phẩm'}</button>
           </div>
         </form>
       </Modal>
 
       {/* CREATE SUPPLIER MODAL */}
-      <Modal isOpen={isSupplierOpen} onClose={() => setIsSupplierOpen(false)} title="Thêm Nhà cung cấp">
+      <Modal isOpen={isSupplierOpen} onClose={closeSupplierModal} title={editingSupplierId ? 'Cập nhật Nhà cung cấp' : 'Thêm Nhà cung cấp'}>
         <form onSubmit={handleSupplierSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Mã nhà cung cấp *</label>
@@ -482,9 +566,16 @@ export function MastersTab({
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Địa chỉ</label>
             <input type="text" placeholder="Địa chỉ giao dịch" value={newSupplier.address} onChange={e => setNewSupplier({...newSupplier, address: e.target.value})} className="premium-input" />
           </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Trạng thái</label>
+            <select value={newSupplier.status} onChange={e => setNewSupplier({...newSupplier, status: e.target.value as 'active' | 'inactive'})} className="premium-input">
+              <option value="active">Hoạt động</option>
+              <option value="inactive">Ngừng hoạt động</option>
+            </select>
+          </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={() => setIsSupplierOpen(false)} className="px-4 py-2 border border-border text-xs font-semibold rounded-lg bg-card hover:bg-muted cursor-pointer">Hủy</button>
-            <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/95 cursor-pointer">Lưu</button>
+            <button type="button" onClick={closeSupplierModal} className="px-4 py-2 border border-border text-xs font-semibold rounded-lg bg-card hover:bg-muted cursor-pointer">Hủy</button>
+            <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/95 cursor-pointer">{editingSupplierId ? 'Cập nhật' : 'Lưu'}</button>
           </div>
         </form>
       </Modal>

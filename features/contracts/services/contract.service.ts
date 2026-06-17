@@ -30,6 +30,22 @@ export interface Contract {
   milestones?: PaymentMilestone[];
 }
 
+export interface CreateContractInput {
+  code: string;
+  contractNumber: string;
+  customerId: string;
+  quoteId?: string | null;
+  contractValue: number;
+  ownerUserId?: string | null;
+  notes?: string | null;
+  milestones?: Array<{
+    name: string;
+    dueDate: string;
+    amountDue: number;
+  }>;
+  userId: string;
+}
+
 /**
  * Fetch list of contracts
  */
@@ -162,6 +178,87 @@ export async function getContractById(id: string): Promise<Contract | null> {
   })) as PaymentMilestone[];
 
   return contract;
+}
+
+/**
+ * Create a draft contract manually.
+ * Signing remains a separate workflow so project auto-creation still happens only after confirmation.
+ */
+export async function createContract(data: CreateContractInput): Promise<Contract> {
+  let createdContractId = '';
+
+  await transaction(async (client) => {
+    if (data.quoteId) {
+      const quoteRes = await client.query(
+        'SELECT status FROM app.quotes WHERE id = $1 AND deleted_at IS NULL',
+        [data.quoteId]
+      );
+      if (quoteRes.rows.length === 0) throw new Error('Quote not found');
+      if (!['approved', 'converted'].includes(quoteRes.rows[0].status)) {
+        throw new Error('Chi co the gan hop dong voi bao gia da duyet hoac da chuyen doi.');
+      }
+
+      const existingContractRes = await client.query(
+        'SELECT id FROM app.contracts WHERE quote_id = $1 AND deleted_at IS NULL',
+        [data.quoteId]
+      );
+      if (existingContractRes.rows.length > 0) {
+        throw new Error('Bao gia nay da co hop dong lien ket.');
+      }
+    }
+
+    const contractRes = await client.query(`
+      INSERT INTO app.contracts (
+        code, contract_number, customer_id, quote_id, contract_value,
+        owner_user_id, status, notes, created_by
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7, $8)
+      RETURNING id
+    `, [
+      data.code,
+      data.contractNumber,
+      data.customerId,
+      data.quoteId || null,
+      data.contractValue,
+      data.ownerUserId || data.userId,
+      data.notes || null,
+      data.userId
+    ]);
+
+    createdContractId = contractRes.rows[0].id;
+
+    const milestones = data.milestones?.length
+      ? data.milestones
+      : [{
+        name: 'Thanh toan hop dong 100%',
+        dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+        amountDue: data.contractValue
+      }];
+
+    for (const milestone of milestones) {
+      await client.query(`
+        INSERT INTO app.payment_milestones (contract_id, name, due_date, amount_due, amount_paid, status)
+        VALUES ($1, $2, $3, $4, 0, 'pending')
+      `, [createdContractId, milestone.name, milestone.dueDate, milestone.amountDue]);
+    }
+
+    if (data.quoteId) {
+      await client.query("UPDATE app.quotes SET status = 'converted', updated_at = NOW() WHERE id = $1", [data.quoteId]);
+    }
+
+    await client.query(`
+      INSERT INTO app.audit_logs (actor_user_id, action, entity_type, entity_id, metadata)
+      VALUES ($1, 'create', 'contract', $2, $3)
+    `, [
+      data.userId,
+      createdContractId,
+      JSON.stringify({ contractNumber: data.contractNumber, quoteId: data.quoteId || null })
+    ]);
+  });
+
+  const created = await getContractById(createdContractId);
+  if (!created) throw new Error('Contract created but could not be loaded');
+  return created;
 }
 
 /**

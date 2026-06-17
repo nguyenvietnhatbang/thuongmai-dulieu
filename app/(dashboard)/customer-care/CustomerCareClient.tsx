@@ -48,6 +48,7 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
 
   // Create manual reminder modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingReminderId, setEditingReminderId] = useState<string | null>(null);
   const [newReminder, setNewReminder] = useState({
     customerId: '',
     contractId: '',
@@ -104,12 +105,11 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
 
   useEffect(() => {
     fetchData();
-  }, [statusFilter, page, sort, order]);
+  }, [search, statusFilter, page, sort, order]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    fetchData();
   };
 
   const handleResetFilters = () => {
@@ -133,8 +133,8 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
   const handleCreateReminder = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/customer-care', {
-        method: 'POST',
+      const res = await fetch(editingReminderId ? `/api/customer-care/${editingReminderId}` : '/api/customer-care', {
+        method: editingReminderId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerId: newReminder.customerId,
@@ -148,8 +148,9 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
 
       const json = await res.json();
       if (json.success) {
-        alert('Tạo lịch nhắc hẹn chăm sóc khách hàng thành công!');
+        alert(editingReminderId ? 'Cập nhật lịch nhắc hẹn thành công!' : 'Tạo lịch nhắc hẹn chăm sóc khách hàng thành công!');
         setShowCreateModal(false);
+        setEditingReminderId(null);
         setNewReminder({
           customerId: '',
           contractId: '',
@@ -165,6 +166,48 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
     } catch (err) {
       console.error(err);
       alert('Tạo lịch nhắc hẹn thất bại do lỗi hệ thống');
+    }
+  };
+
+  const startEditReminder = (reminder: CustomerCareReminder) => {
+    setEditingReminderId(reminder.id);
+    setNewReminder({
+      customerId: reminder.customerId,
+      contractId: reminder.contractId || '',
+      projectId: reminder.projectId || '',
+      reminderDate: reminder.reminderDate,
+      content: reminder.content,
+      ownerUserId: reminder.ownerUserId || currentUser.id,
+    });
+    setShowCreateModal(true);
+  };
+
+  const closeReminderModal = () => {
+    setShowCreateModal(false);
+    setEditingReminderId(null);
+    setNewReminder({
+      customerId: '',
+      contractId: '',
+      projectId: '',
+      reminderDate: '',
+      content: '',
+      ownerUserId: currentUser.id,
+    });
+  };
+
+  const handleDeleteReminder = async (reminder: CustomerCareReminder) => {
+    if (!confirm(`Xóa lịch chăm sóc khách hàng "${reminder.customerName}" ngày ${reminder.reminderDate}?`)) return;
+    try {
+      const res = await fetch(`/api/customer-care/${reminder.id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        fetchData();
+      } else {
+        alert(json.error || 'Không xóa được lịch chăm sóc');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Xóa lịch chăm sóc thất bại do lỗi hệ thống');
     }
   };
 
@@ -228,7 +271,7 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
   };
 
   // Aggregations
-  const totalCount = reminders.length;
+  const totalCount = total;
   const dueTodayCount = reminders.filter(r => r.status === 'due_today' || (r.status === 'scheduled' && new Date(r.reminderDate) <= new Date())).length;
   const completedCount = reminders.filter(r => r.status === 'completed').length;
   const scheduledCount = reminders.filter(r => r.status === 'scheduled' && new Date(r.reminderDate) > new Date()).length;
@@ -249,7 +292,18 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
         </div>
 
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={() => {
+            setEditingReminderId(null);
+            setNewReminder({
+              customerId: '',
+              contractId: '',
+              projectId: '',
+              reminderDate: '',
+              content: '',
+              ownerUserId: currentUser.id,
+            });
+            setShowCreateModal(true);
+          }}
           className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold shadow-md shadow-primary/10 transition-all duration-150 flex items-center gap-1.5 cursor-pointer"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -290,8 +344,9 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
       <ListToolbar
         search={search}
         searchPlaceholder="Tìm theo khách hàng, nội dung..."
-        onSearchChange={setSearch}
+        onSearchChange={(value) => { setSearch(value); setPage(1); }}
         onSearchSubmit={handleSearchSubmit}
+        showSearchButton={false}
         onReset={handleResetFilters}
         filters={[
           {
@@ -384,20 +439,34 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
                     </td>
                     <td className="px-6 py-4 text-right">
                       {r.status !== 'completed' && r.status !== 'skipped' ? (
-                        <button
-                          onClick={() => {
-                            setActiveReminder(r);
-                            setCompleteForm({
-                              result: '',
-                              status: 'completed',
-                              nextCareDate: '',
-                              nextCareContent: '',
-                            });
-                          }}
-                          className="px-3 py-1.5 rounded-lg bg-secondary text-primary font-bold text-xs hover:bg-primary/10 transition-all cursor-pointer whitespace-nowrap"
-                        >
-                          Chăm sóc
-                        </button>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setActiveReminder(r);
+                              setCompleteForm({
+                                result: '',
+                                status: 'completed',
+                                nextCareDate: '',
+                                nextCareContent: '',
+                              });
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-secondary text-primary font-bold text-xs hover:bg-primary/10 transition-all cursor-pointer whitespace-nowrap"
+                          >
+                            Chăm sóc
+                          </button>
+                          <button
+                            onClick={() => startEditReminder(r)}
+                            className="px-3 py-1.5 rounded-lg border border-border bg-card text-slate-700 font-bold text-xs hover:bg-muted transition-all cursor-pointer whitespace-nowrap"
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            onClick={() => handleDeleteReminder(r)}
+                            className="px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 font-bold text-xs hover:bg-red-100 transition-all cursor-pointer whitespace-nowrap"
+                          >
+                            Xóa
+                          </button>
+                        </div>
                       ) : (
                         <span className="text-xs text-muted-foreground font-semibold whitespace-nowrap">Hoàn thành</span>
                       )}
@@ -414,8 +483,8 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
       {/* CREATE REMINDER MODAL */}
       <Modal
         isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        title="Tạo Lịch Nhắc Hẹn Chăm Sóc"
+        onClose={closeReminderModal}
+        title={editingReminderId ? 'Sửa Lịch Nhắc Hẹn Chăm Sóc' : 'Tạo Lịch Nhắc Hẹn Chăm Sóc'}
         maxWidthClass="max-w-lg"
       >
         <form onSubmit={handleCreateReminder} className="space-y-4">
@@ -507,7 +576,7 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
-              onClick={() => setShowCreateModal(false)}
+              onClick={closeReminderModal}
               className="px-4 py-2 border border-border text-xs font-semibold rounded-lg bg-card hover:bg-muted cursor-pointer"
             >
               Hủy bỏ
@@ -516,7 +585,7 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
               type="submit"
               className="px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/95 shadow-md shadow-primary/10 cursor-pointer"
             >
-              Tạo nhắc hẹn
+              {editingReminderId ? 'Lưu lịch hẹn' : 'Tạo nhắc hẹn'}
             </button>
           </div>
         </form>

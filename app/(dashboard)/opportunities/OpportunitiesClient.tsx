@@ -111,7 +111,7 @@ export function OpportunitiesClient({ currentUser }: { currentUser: UserSession 
 
   useEffect(() => {
     fetchOpportunities();
-  }, [selectedStage, page, sort, order]);
+  }, [search, selectedStage, page, sort, order]);
 
   useEffect(() => {
     fetchDropdownData();
@@ -120,7 +120,6 @@ export function OpportunitiesClient({ currentUser }: { currentUser: UserSession 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    fetchOpportunities();
   };
 
   const handleResetFilters = () => {
@@ -289,8 +288,9 @@ export function OpportunitiesClient({ currentUser }: { currentUser: UserSession 
       <ListToolbar
         search={search}
         searchPlaceholder="Tìm theo tiêu đề, mã, khách..."
-        onSearchChange={setSearch}
+        onSearchChange={(value) => { setSearch(value); setPage(1); }}
         onSearchSubmit={handleSearchSubmit}
+        showSearchButton={false}
         onReset={handleResetFilters}
         filters={[
           {

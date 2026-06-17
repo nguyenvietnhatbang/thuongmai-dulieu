@@ -141,18 +141,18 @@ export async function collectReceivable(
     if (recRes.rows.length === 0) throw new Error('Receivable not found');
     const rec = recRes.rows[0];
 
-    const amountPaid = Number(data.amountPaid);
+    const collectedAmount = Number(data.amountPaid);
     const amountDue = Number(rec.amount_due);
+    const currentPaid = Number(rec.amount_paid);
+    const newAmountPaid = currentPaid + collectedAmount;
 
-    if (amountPaid < 0 || amountPaid > amountDue) {
-      throw new Error(`Số tiền thanh toán phải lớn hơn 0 và nhỏ hơn tổng nợ ${amountDue}`);
+    if (collectedAmount <= 0 || newAmountPaid > amountDue) {
+      throw new Error(`So tien thu phai lon hon 0 va khong vuot qua so tien con lai ${amountDue - currentPaid}`);
     }
 
     // Determine status
-    let status: string = 'pending';
-    if (amountPaid === 0) {
-      status = 'pending';
-    } else if (amountPaid < amountDue) {
+    let status: string;
+    if (newAmountPaid < amountDue) {
       status = 'partially_paid';
     } else {
       status = 'paid';
@@ -163,13 +163,13 @@ export async function collectReceivable(
       UPDATE app.receivables
       SET amount_paid = $2, status = $3, notes = COALESCE($4, notes), updated_at = NOW()
       WHERE id = $1
-    `, [id, amountPaid, status, data.notes || null]);
+    `, [id, newAmountPaid, status, data.notes || null]);
 
     // 3. Write Audit Log
     await client.query(`
       INSERT INTO app.audit_logs (actor_user_id, action, entity_type, entity_id, metadata)
       VALUES ($1, 'collect_receivable', 'receivable', $2, $3)
-    `, [data.userId, id, JSON.stringify({ amountPaid, status })]);
+    `, [data.userId, id, JSON.stringify({ collectedAmount, amountPaid: newAmountPaid, status })]);
 
     // 4. TRIGGER: If linked to a sales order, update the sales order's paid amount & status!
     if (rec.sales_order_id) {
@@ -181,7 +181,7 @@ export async function collectReceivable(
           status = CASE WHEN $2 >= total_amount THEN 'paid'::text ELSE 'partially_paid'::text END,
           updated_at = NOW()
         WHERE id = $1
-      `, [rec.sales_order_id, amountPaid]);
+      `, [rec.sales_order_id, newAmountPaid]);
     }
 
     // 5. TRIGGER: If linked to a payment milestone, update the payment milestone paid amount!
@@ -193,7 +193,7 @@ export async function collectReceivable(
           status = CASE WHEN $2 >= amount_due THEN 'paid'::text ELSE 'partially_paid'::text END,
           updated_at = NOW()
         WHERE id = $1
-      `, [rec.payment_milestone_id, amountPaid]);
+      `, [rec.payment_milestone_id, newAmountPaid]);
     }
 
     const finalRes = await getReceivables({ search: rec.code, limit: 1, offset: 0, page: 1 });

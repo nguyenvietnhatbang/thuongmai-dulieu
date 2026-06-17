@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Contract, PaymentMilestone } from '@/features/contracts/services/contract.service';
 import { ListToolbar, PaginationControls, SortableHeader } from '@/components/ui/ListControls';
+import { Modal } from '@/components/ui/Modal';
 
 interface UserSession {
   id: string;
@@ -11,6 +12,34 @@ interface UserSession {
   roles: string[];
   permissions: string[];
 }
+
+interface SelectOption {
+  id: string;
+  name?: string;
+  fullName?: string;
+  customerId?: string;
+  customerName?: string;
+  quoteNumber?: string;
+  totalAmount?: number;
+}
+
+const getDefaultDueDate = () => {
+  const date = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+  return date.toISOString().slice(0, 10);
+};
+
+const buildInitialContractForm = (currentUserId: string) => ({
+  code: `HD-${Date.now()}`,
+  contractNumber: `HD-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Date.now()).slice(-4)}`,
+  customerId: '',
+  quoteId: '',
+  contractValue: '',
+  ownerUserId: currentUserId,
+  notes: '',
+  milestoneName: 'Thanh toán hợp đồng 100%',
+  milestoneDueDate: getDefaultDueDate(),
+  milestoneAmount: ''
+});
 
 export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -22,6 +51,12 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
   const [sort, setSort] = useState('createdAt');
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
   const limit = 20;
+  const [customers, setCustomers] = useState<SelectOption[]>([]);
+  const [users, setUsers] = useState<SelectOption[]>([]);
+  const [approvedQuotes, setApprovedQuotes] = useState<SelectOption[]>([]);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createSaving, setCreateSaving] = useState(false);
+  const [createForm, setCreateForm] = useState(buildInitialContractForm(currentUser.id));
 
   // Details
   const [activeContract, setActiveContract] = useState<Contract | null>(null);
@@ -30,8 +65,11 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
   // Milestone payment recording
   const [collectingMilestoneId, setCollectingMilestoneId] = useState<string | null>(null);
   const [paymentInput, setPaymentInput] = useState('');
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [notesInput, setNotesInput] = useState('');
 
   // Permissions
+  const canCreate = currentUser.roles.includes('system_management') || currentUser.permissions.includes('contracts.create.all');
   const canSign = currentUser.roles.includes('system_management') || currentUser.permissions.includes('contracts.sign.all');
   const canCollect = currentUser.roles.includes('system_management') || currentUser.permissions.includes('receivables.update_status.all');
 
@@ -62,12 +100,38 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
 
   useEffect(() => {
     fetchContracts();
-  }, [statusFilter, page, sort, order]);
+  }, [search, statusFilter, page, sort, order]);
+
+  useEffect(() => {
+    if (!canCreate) return;
+
+    const fetchOptions = async () => {
+      try {
+        const [customersRes, usersRes, quotesRes] = await Promise.all([
+          fetch('/api/customers?limit=100&sort=name&order=asc'),
+          fetch('/api/users'),
+          fetch('/api/quotes?limit=100&status=approved&sort=quoteNumber&order=desc')
+        ]);
+        const [customersJson, usersJson, quotesJson] = await Promise.all([
+          customersRes.json(),
+          usersRes.json(),
+          quotesRes.json()
+        ]);
+
+        if (customersJson.success) setCustomers(customersJson.data);
+        if (usersJson.success) setUsers(usersJson.data);
+        if (quotesJson.success) setApprovedQuotes(quotesJson.data);
+      } catch (error) {
+        console.error('Failed to load contract form options:', error);
+      }
+    };
+
+    fetchOptions();
+  }, [canCreate]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    fetchContracts();
   };
 
   const handleResetFilters = () => {
@@ -76,6 +140,77 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
     setSort('createdAt');
     setOrder('desc');
     setPage(1);
+  };
+
+  const openCreateModal = () => {
+    setCreateForm(buildInitialContractForm(currentUser.id));
+    setIsCreateOpen(true);
+  };
+
+  const handleQuoteSelect = (quoteId: string) => {
+    const selectedQuote = approvedQuotes.find((quote) => quote.id === quoteId);
+    setCreateForm((current) => ({
+      ...current,
+      quoteId,
+      customerId: selectedQuote?.customerId || current.customerId,
+      contractValue: selectedQuote?.totalAmount ? String(selectedQuote.totalAmount) : current.contractValue,
+      milestoneAmount: selectedQuote?.totalAmount ? String(selectedQuote.totalAmount) : current.milestoneAmount
+    }));
+  };
+
+  const handleCreateContract = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const contractValue = Number(createForm.contractValue);
+    const milestoneAmount = Number(createForm.milestoneAmount || createForm.contractValue);
+
+    if (!createForm.code || !createForm.contractNumber || !createForm.customerId || !Number.isFinite(contractValue) || contractValue <= 0) {
+      alert('Vui lòng nhập mã, số hợp đồng, khách hàng và giá trị hợp đồng hợp lệ.');
+      return;
+    }
+
+    if (!Number.isFinite(milestoneAmount) || milestoneAmount <= 0) {
+      alert('Giá trị đợt thanh toán phải lớn hơn 0.');
+      return;
+    }
+
+    setCreateSaving(true);
+    try {
+      const res = await fetch('/api/contracts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: createForm.code,
+          contractNumber: createForm.contractNumber,
+          customerId: createForm.customerId,
+          quoteId: createForm.quoteId || null,
+          contractValue,
+          ownerUserId: createForm.ownerUserId || currentUser.id,
+          notes: createForm.notes,
+          milestones: [{
+            name: createForm.milestoneName || 'Thanh toán hợp đồng 100%',
+            dueDate: createForm.milestoneDueDate,
+            amountDue: milestoneAmount
+          }]
+        })
+      });
+      const json = await res.json();
+
+      if (!json.success) {
+        alert(json.error || 'Không tạo được hợp đồng');
+        return;
+      }
+
+      setIsCreateOpen(false);
+      setCreateForm(buildInitialContractForm(currentUser.id));
+      setPage(1);
+      fetchContracts();
+      loadContractDetails(json.data.id);
+    } catch (error) {
+      console.error(error);
+      alert('Lỗi khi tạo hợp đồng');
+    } finally {
+      setCreateSaving(false);
+    }
   };
 
   const handleSort = (nextSort: string) => {
@@ -95,12 +230,40 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
       const json = await res.json();
       if (json.success) {
         setActiveContract(json.data);
+        setNotesInput(json.data.notes || '');
       }
     } catch (err) {
       console.error('Failed to load contract details:', err);
     } finally {
       setDetailLoading(false);
     }
+  };
+
+  const handleUpdateContract = async (contractId: string, body: { status?: string; notes?: string }) => {
+    try {
+      const res = await fetch(`/api/contracts/${contractId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const json = await res.json();
+      if (json.success) {
+        setIsEditingNotes(false);
+        loadContractDetails(contractId);
+        fetchContracts();
+      } else {
+        alert(json.error || 'Không cập nhật được hợp đồng');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi cập nhật hợp đồng');
+    }
+  };
+
+  const handleChangeStatus = (contract: Contract, status: string) => {
+    const label = getStatusText(status);
+    if (!confirm(`Chuyển hợp đồng "${contract.contractNumber}" sang trạng thái "${label}"?`)) return;
+    handleUpdateContract(contract.id, { status });
   };
 
   const handleSignContract = async (contractId: string) => {
@@ -205,19 +368,30 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
   return (
     <div className="space-y-6">
       {/* Title */}
-      <div>
-        <h1 className="text-xl font-bold text-foreground">Hợp đồng & Đợt thanh toán</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Quản lý vòng đời hợp đồng, theo dõi tiến độ thu tiền theo đợt và tự động đồng bộ dự án triển khai.
-          Hợp đồng được chuyển đổi tự động khi báo giá được duyệt.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">Hợp đồng & Đợt thanh toán</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Quản lý vòng đời hợp đồng, theo dõi tiến độ thu tiền theo đợt và tự động đồng bộ dự án triển khai.
+            Hợp đồng được chuyển đổi tự động khi báo giá được duyệt.
+          </p>
+        </div>
+        {canCreate && (
+          <button
+            onClick={openCreateModal}
+            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-sm hover:bg-primary/95 cursor-pointer whitespace-nowrap"
+          >
+            + Hợp đồng
+          </button>
+        )}
       </div>
 
       <ListToolbar
         search={search}
         searchPlaceholder="Tìm theo số HĐ, mã, khách..."
-        onSearchChange={setSearch}
+        onSearchChange={(value) => { setSearch(value); setPage(1); }}
         onSearchSubmit={handleSearchSubmit}
+        showSearchButton={false}
         onReset={handleResetFilters}
         filters={[
           {
@@ -392,6 +566,37 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
                   )}
                 </div>
 
+                <div className="border border-border rounded-xl p-4 bg-card space-y-3">
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Thao tác hợp đồng</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {activeContract.status === 'draft' && (
+                      <button onClick={() => handleChangeStatus(activeContract, 'sent')} className="px-3 py-2 rounded-lg bg-secondary text-primary text-xs font-bold hover:bg-primary/10 cursor-pointer">
+                        Gửi khách
+                      </button>
+                    )}
+                    {['draft', 'sent'].includes(activeContract.status) && (
+                      <button onClick={() => handleChangeStatus(activeContract, 'negotiating')} className="px-3 py-2 rounded-lg bg-amber-50 text-amber-700 border border-amber-100 text-xs font-bold hover:bg-amber-100 cursor-pointer">
+                        Đang đàm phán
+                      </button>
+                    )}
+                    {['sent', 'negotiating', 'signed'].includes(activeContract.status) && (
+                      <button onClick={() => handleChangeStatus(activeContract, 'paused')} className="px-3 py-2 rounded-lg bg-orange-50 text-orange-700 border border-orange-100 text-xs font-bold hover:bg-orange-100 cursor-pointer">
+                        Tạm dừng
+                      </button>
+                    )}
+                    {['draft', 'sent', 'negotiating', 'paused'].includes(activeContract.status) && (
+                      <button onClick={() => handleChangeStatus(activeContract, 'cancelled')} className="px-3 py-2 rounded-lg bg-red-50 text-red-700 border border-red-100 text-xs font-bold hover:bg-red-100 cursor-pointer">
+                        Hủy hợp đồng
+                      </button>
+                    )}
+                    {activeContract.status === 'signed' && (
+                      <button onClick={() => handleChangeStatus(activeContract, 'completed')} className="px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-bold hover:bg-indigo-100 cursor-pointer">
+                        Hoàn tất
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {/* Payment Milestones Progress Tracker */}
                 <div>
                   <h3 className="text-xs font-bold text-slate-700 uppercase mb-3">Đợt thanh toán & Tiến trình thu hồi nợ</h3>
@@ -474,10 +679,31 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
                 </div>
 
                 <div>
-                  <h3 className="text-xs font-bold text-slate-700 uppercase mb-1">Ghi chú điều khoản</h3>
-                  <p className="text-xs border border-border p-3 rounded-lg bg-slate-50/50 whitespace-pre-line leading-relaxed">
-                    {activeContract.notes || 'Không có ghi chú nào khác.'}
-                  </p>
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-xs font-bold text-slate-700 uppercase">Ghi chú điều khoản</h3>
+                    {!isEditingNotes && (
+                      <button onClick={() => setIsEditingNotes(true)} className="text-xs font-bold text-primary hover:underline cursor-pointer">
+                        Sửa ghi chú
+                      </button>
+                    )}
+                  </div>
+                  {isEditingNotes ? (
+                    <div className="space-y-2">
+                      <textarea value={notesInput} onChange={(event) => setNotesInput(event.target.value)} className="premium-input h-24 text-xs" />
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => { setNotesInput(activeContract.notes || ''); setIsEditingNotes(false); }} className="px-3 py-1.5 rounded-lg border border-border text-xs font-bold hover:bg-muted cursor-pointer">
+                          Hủy
+                        </button>
+                        <button onClick={() => handleUpdateContract(activeContract.id, { notes: notesInput })} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/95 cursor-pointer">
+                          Lưu ghi chú
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs border border-border p-3 rounded-lg bg-slate-50/50 whitespace-pre-line leading-relaxed">
+                      {activeContract.notes || 'Không có ghi chú nào khác.'}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -494,6 +720,155 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
           </div>
         </div>
       )}
+
+      <Modal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="Tạo hợp đồng"
+        maxWidthClass="max-w-2xl"
+      >
+        <form onSubmit={handleCreateContract} className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Mã hợp đồng</label>
+              <input
+                required
+                value={createForm.code}
+                onChange={(event) => setCreateForm({ ...createForm, code: event.target.value })}
+                className="premium-input text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Số hợp đồng</label>
+              <input
+                required
+                value={createForm.contractNumber}
+                onChange={(event) => setCreateForm({ ...createForm, contractNumber: event.target.value })}
+                className="premium-input text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Báo giá đã duyệt</label>
+              <select
+                value={createForm.quoteId}
+                onChange={(event) => handleQuoteSelect(event.target.value)}
+                className="premium-input text-sm"
+              >
+                <option value="">Không gắn báo giá</option>
+                {approvedQuotes.map((quote) => (
+                  <option key={quote.id} value={quote.id}>
+                    {quote.quoteNumber} - {quote.customerName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Khách hàng</label>
+              <select
+                required
+                value={createForm.customerId}
+                onChange={(event) => setCreateForm({ ...createForm, customerId: event.target.value })}
+                className="premium-input text-sm"
+              >
+                <option value="">Chọn khách hàng</option>
+                {customers.map((customer) => (
+                  <option key={customer.id} value={customer.id}>{customer.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Giá trị hợp đồng</label>
+              <input
+                required
+                type="number"
+                min="1"
+                value={createForm.contractValue}
+                onChange={(event) => setCreateForm({
+                  ...createForm,
+                  contractValue: event.target.value,
+                  milestoneAmount: createForm.milestoneAmount || event.target.value
+                })}
+                className="premium-input text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Người phụ trách</label>
+              <select
+                value={createForm.ownerUserId}
+                onChange={(event) => setCreateForm({ ...createForm, ownerUserId: event.target.value })}
+                className="premium-input text-sm"
+              >
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>{user.fullName}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-slate-50/50 p-3">
+            <p className="text-xs font-bold uppercase text-slate-700 mb-3">Đợt thanh toán đầu tiên</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="sm:col-span-1">
+                <label className="block text-xs font-bold text-slate-600 mb-1">Tên đợt</label>
+                <input
+                  required
+                  value={createForm.milestoneName}
+                  onChange={(event) => setCreateForm({ ...createForm, milestoneName: event.target.value })}
+                  className="premium-input text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Hạn thu</label>
+                <input
+                  required
+                  type="date"
+                  value={createForm.milestoneDueDate}
+                  onChange={(event) => setCreateForm({ ...createForm, milestoneDueDate: event.target.value })}
+                  className="premium-input text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Số tiền</label>
+                <input
+                  required
+                  type="number"
+                  min="1"
+                  value={createForm.milestoneAmount || createForm.contractValue}
+                  onChange={(event) => setCreateForm({ ...createForm, milestoneAmount: event.target.value })}
+                  className="premium-input text-sm"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Ghi chú</label>
+            <textarea
+              value={createForm.notes}
+              onChange={(event) => setCreateForm({ ...createForm, notes: event.target.value })}
+              className="premium-input h-24 text-sm"
+              placeholder="Điều khoản hoặc lưu ý nội bộ..."
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setIsCreateOpen(false)}
+              className="rounded-lg border border-border px-4 py-2 text-sm font-bold hover:bg-muted cursor-pointer"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={createSaving}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/95 disabled:opacity-60 cursor-pointer whitespace-nowrap"
+            >
+              {createSaving ? 'Đang lưu...' : 'Tạo hợp đồng'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

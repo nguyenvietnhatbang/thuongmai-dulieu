@@ -149,6 +149,53 @@ export async function createSupplier(data: Omit<Supplier, 'id'>): Promise<Suppli
   return res.rows[0] as Supplier;
 }
 
+export async function updateSupplier(
+  supplierId: string,
+  data: Partial<Omit<Supplier, 'id'>>
+): Promise<Supplier> {
+  const existing = await query('SELECT id FROM app.suppliers WHERE id = $1 AND deleted_at IS NULL', [supplierId]);
+  if (existing.rows.length === 0) throw new Error('Supplier not found');
+
+  const values: unknown[] = [supplierId];
+  const setClauses = ['updated_at = NOW()'];
+  const fieldMap: Record<string, string> = {
+    code: 'code',
+    name: 'name',
+    phone: 'phone',
+    email: 'email',
+    address: 'address',
+    status: 'status',
+  };
+
+  Object.entries(data).forEach(([key, value]) => {
+    const field = fieldMap[key];
+    if (field && value !== undefined) {
+      values.push(value === '' ? null : value);
+      setClauses.push(`${field} = $${values.length}`);
+    }
+  });
+
+  const res = await query(`
+    UPDATE app.suppliers
+    SET ${setClauses.join(', ')}
+    WHERE id = $1
+    RETURNING id, code, name, phone, email, address, status
+  `, values);
+  return res.rows[0] as Supplier;
+}
+
+export async function deleteSupplier(supplierId: string): Promise<void> {
+  const usage = await query(`
+    SELECT EXISTS (
+      SELECT 1 FROM app.purchase_orders WHERE supplier_id = $1 AND deleted_at IS NULL
+    ) AS used
+  `, [supplierId]);
+  if (usage.rows[0]?.used) {
+    throw new Error('Supplier has purchase orders and cannot be deleted');
+  }
+  await query('UPDATE app.suppliers SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1', [supplierId]);
+}
+
 /**
  * Products CRUD
  */
@@ -200,6 +247,58 @@ export async function createProduct(data: Omit<Product, 'id'>): Promise<Product>
     RETURNING id, code, name, unit_code as "unitCode", min_stock_quantity::numeric as "minStockQuantity", status
   `, [data.code, data.name, data.unitCode, data.minStockQuantity || 0, data.status || 'active']);
   return res.rows[0] as Product;
+}
+
+export async function updateProduct(
+  productId: string,
+  data: Partial<Omit<Product, 'id'>>
+): Promise<Product> {
+  const existing = await query('SELECT id FROM app.products WHERE id = $1 AND deleted_at IS NULL', [productId]);
+  if (existing.rows.length === 0) throw new Error('Product not found');
+
+  const values: unknown[] = [productId];
+  const setClauses = ['updated_at = NOW()'];
+  const fieldMap: Record<string, string> = {
+    code: 'code',
+    name: 'name',
+    unitCode: 'unit_code',
+    minStockQuantity: 'min_stock_quantity',
+    status: 'status',
+  };
+
+  Object.entries(data).forEach(([key, value]) => {
+    const field = fieldMap[key];
+    if (field && value !== undefined) {
+      values.push(value);
+      setClauses.push(`${field} = $${values.length}`);
+    }
+  });
+
+  const res = await query(`
+    UPDATE app.products
+    SET ${setClauses.join(', ')}
+    WHERE id = $1
+    RETURNING id, code, name, unit_code as "unitCode", min_stock_quantity::numeric as "minStockQuantity", status
+  `, values);
+  return { ...res.rows[0], minStockQuantity: Number(res.rows[0].minStockQuantity) } as Product;
+}
+
+export async function deleteProduct(productId: string): Promise<void> {
+  const usage = await query(`
+    SELECT EXISTS (
+      SELECT 1 FROM app.inventory_balances WHERE product_id = $1 AND quantity_on_hand <> 0
+      UNION ALL
+      SELECT 1 FROM app.purchase_order_items WHERE product_id = $1
+      UNION ALL
+      SELECT 1 FROM app.stock_receipt_items WHERE product_id = $1
+      UNION ALL
+      SELECT 1 FROM app.sales_order_items WHERE product_id = $1
+    ) AS used
+  `, [productId]);
+  if (usage.rows[0]?.used) {
+    throw new Error('Product has inventory or document activity and cannot be deleted');
+  }
+  await query('UPDATE app.products SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1', [productId]);
 }
 
 /**

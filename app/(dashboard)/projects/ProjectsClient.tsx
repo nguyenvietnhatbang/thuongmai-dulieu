@@ -109,8 +109,11 @@ export function ProjectsClient({ currentUser }: { currentUser: UserSession }) {
 
   useEffect(() => {
     fetchProjects();
+  }, [search, statusFilter, page, sort, order]);
+
+  useEffect(() => {
     fetchUsers();
-  }, [statusFilter, page, sort, order]);
+  }, []);
 
   // Load project workspace details when activeProject changes or workspaceTab changes
   const loadWorkspaceDetails = async () => {
@@ -369,8 +372,9 @@ export function ProjectsClient({ currentUser }: { currentUser: UserSession }) {
       <ListToolbar
         search={search}
         searchPlaceholder="Tìm theo tên dự án, mã, khách..."
-        onSearchChange={setSearch}
+        onSearchChange={(value) => { setSearch(value); setPage(1); }}
         onSearchSubmit={handleSearchSubmit}
+        showSearchButton={false}
         onReset={handleResetFilters}
         filters={[
           {

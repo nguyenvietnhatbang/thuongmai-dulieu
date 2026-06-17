@@ -53,6 +53,7 @@ export function QuotesClient({ currentUser }: { currentUser: UserSession }) {
   const canCreate = currentUser.roles.includes('system_management') || currentUser.permissions.includes('quotes.create.all');
   const canApprove = currentUser.roles.includes('system_management') || currentUser.permissions.includes('quotes.approve.team');
   const canConvert = currentUser.roles.includes('system_management') || currentUser.permissions.includes('contracts.create.all');
+  const canDelete = canCreate;
 
   const fetchQuotes = async () => {
     setLoading(true);
@@ -95,7 +96,7 @@ export function QuotesClient({ currentUser }: { currentUser: UserSession }) {
 
   useEffect(() => {
     fetchQuotes();
-  }, [statusFilter, page, sort, order]);
+  }, [search, statusFilter, page, sort, order]);
 
   useEffect(() => {
     fetchDropdownData();
@@ -104,7 +105,6 @@ export function QuotesClient({ currentUser }: { currentUser: UserSession }) {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    fetchQuotes();
   };
 
   const handleResetFilters = () => {
@@ -246,6 +246,23 @@ export function QuotesClient({ currentUser }: { currentUser: UserSession }) {
     }
   };
 
+  const handleDeleteQuote = async (quote: Quote) => {
+    if (!confirm(`Xóa báo giá "${quote.quoteNumber}"? Chỉ báo giá nháp/yêu cầu sửa/bị từ chối mới được xóa.`)) return;
+    try {
+      const res = await fetch(`/api/quotes/${quote.id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        setActiveQuote(null);
+        fetchQuotes();
+      } else {
+        alert(json.error || json.details || 'Không xóa được báo giá');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi xóa báo giá');
+    }
+  };
+
   // UI calculations
   const calculateTotal = (itemsList: any[]) => {
     const subtotal = itemsList.reduce((acc, curr) => acc + (Number(curr.quantity || 0) * Number(curr.unitPrice || 0)), 0);
@@ -340,8 +357,9 @@ export function QuotesClient({ currentUser }: { currentUser: UserSession }) {
       <ListToolbar
         search={search}
         searchPlaceholder="Tìm theo số báo giá, mã, khách..."
-        onSearchChange={setSearch}
+        onSearchChange={(value) => { setSearch(value); setPage(1); }}
         onSearchSubmit={handleSearchSubmit}
+        showSearchButton={false}
         onReset={handleResetFilters}
         filters={[
           {
@@ -767,9 +785,9 @@ export function QuotesClient({ currentUser }: { currentUser: UserSession }) {
                 </div>
 
                 <div className="flex gap-2 justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditing(false)}
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
                     className="px-3 py-1.5 border border-border text-xs font-semibold rounded bg-card hover:bg-muted cursor-pointer"
                   >
                     Hủy chỉnh sửa
@@ -866,6 +884,15 @@ export function QuotesClient({ currentUser }: { currentUser: UserSession }) {
 
                 {/* Action buttons (Approvals and edits) */}
                 <div className="flex gap-2">
+                  {canDelete && ['draft', 'revision_requested', 'rejected'].includes(activeQuote.status) && (
+                    <button
+                      onClick={() => handleDeleteQuote(activeQuote)}
+                      className="py-2 px-3 border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 text-xs font-semibold rounded-lg cursor-pointer"
+                    >
+                      Xóa báo giá
+                    </button>
+                  )}
+
                   {/* Approval block */}
                   {activeQuote.status === 'draft' || activeQuote.status === 'sent' ? (
                     <>

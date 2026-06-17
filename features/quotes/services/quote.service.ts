@@ -350,6 +350,16 @@ export async function updateQuote(
  */
 export async function deleteQuote(id: string, userId: string): Promise<boolean> {
   return transaction(async (client) => {
+    const quoteRes = await client.query(
+      'SELECT status FROM app.quotes WHERE id = $1 AND deleted_at IS NULL',
+      [id],
+    );
+    if (quoteRes.rows.length === 0) return false;
+
+    if (!['draft', 'revision_requested', 'rejected'].includes(quoteRes.rows[0].status)) {
+      throw new Error('Chỉ có thể xóa báo giá ở trạng thái nháp, yêu cầu sửa hoặc bị từ chối.');
+    }
+
     const res = await client.query('UPDATE app.quotes SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL', [id]);
     await client.query('INSERT INTO app.audit_logs (actor_user_id, action, entity_type, entity_id) VALUES ($1, \'delete\', \'quote\', $2)', [userId, id]);
     return (res.rowCount ?? 0) > 0;
@@ -383,9 +393,9 @@ export async function convertToContract(quoteId: string, userId: string): Promis
     // 3. Insert Contract (Status: draft, value: quote total)
     const contractRes = await client.query(`
       INSERT INTO app.contracts (
-        code, contract_number, customer_id, quote_id, contract_value, owner_user_id, status
+        code, contract_number, customer_id, quote_id, contract_value, owner_user_id, status, created_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, 'draft')
+      VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7)
       RETURNING id, contract_number as "contractNumber"
     `, [
       contractCode,

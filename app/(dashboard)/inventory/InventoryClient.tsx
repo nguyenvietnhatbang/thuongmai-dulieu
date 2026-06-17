@@ -371,6 +371,86 @@ export function InventoryClient({}: { currentUser: UserSession }) {
     }
   };
 
+  const handleUpdateSupplier = async (id: string, data: any) => {
+    try {
+      const res = await fetch('/api/inventory/suppliers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...data }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        fetchData();
+        fetchSupplierRows();
+        return true;
+      }
+      alert(json.error || 'Error updating supplier');
+      return false;
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  };
+
+  const handleDeleteSupplier = async (id: string) => {
+    if (!confirm('Xóa nhà cung cấp này? Chỉ nhà cung cấp chưa có đơn mua mới được xóa.')) return false;
+    try {
+      const res = await fetch(`/api/inventory/suppliers?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        fetchData();
+        fetchSupplierRows();
+        return true;
+      }
+      alert(json.error || 'Error deleting supplier');
+      return false;
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  };
+
+  const handleUpdateProduct = async (id: string, data: any) => {
+    try {
+      const res = await fetch('/api/inventory/products', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...data }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        fetchData();
+        fetchProductRows();
+        fetchOverview();
+        return true;
+      }
+      alert(json.error || 'Error updating product');
+      return false;
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    if (!confirm('Xóa sản phẩm này? Chỉ sản phẩm chưa phát sinh tồn kho/chứng từ mới được xóa.')) return false;
+    try {
+      const res = await fetch(`/api/inventory/products?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        fetchData();
+        fetchProductRows();
+        fetchOverview();
+        return true;
+      }
+      alert(json.error || 'Error deleting product');
+      return false;
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  };
+
   const handleCreateWarehouse = async (data: any) => {
     try {
       const res = await fetch('/api/inventory/warehouses', {
@@ -873,6 +953,10 @@ export function InventoryClient({}: { currentUser: UserSession }) {
                 onCreateProduct={handleCreateProduct}
                 onCreateSupplier={handleCreateSupplier}
                 onCreateWarehouse={handleCreateWarehouse}
+                onUpdateProduct={handleUpdateProduct}
+                onDeleteProduct={handleDeleteProduct}
+                onUpdateSupplier={handleUpdateSupplier}
+                onDeleteSupplier={handleDeleteSupplier}
                 onUpdateWarehouse={handleUpdateWarehouse}
                 onDeleteWarehouse={handleDeleteWarehouse}
               />

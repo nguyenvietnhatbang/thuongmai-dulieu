@@ -58,12 +58,11 @@ export function ReceivablesClient({ currentUser }: { currentUser: UserSession })
 
   useEffect(() => {
     fetchReceivables();
-  }, [statusFilter, page, sort, order]);
+  }, [search, statusFilter, page, sort, order]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    fetchReceivables();
   };
 
   const handleResetFilters = () => {
@@ -216,8 +215,9 @@ export function ReceivablesClient({ currentUser }: { currentUser: UserSession })
       <ListToolbar
         search={search}
         searchPlaceholder="Tìm theo mã nợ, khách hàng..."
-        onSearchChange={setSearch}
+        onSearchChange={(value) => { setSearch(value); setPage(1); }}
         onSearchSubmit={handleSearchSubmit}
+        showSearchButton={false}
         onReset={handleResetFilters}
         filters={[
           {

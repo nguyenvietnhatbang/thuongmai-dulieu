@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, hasPermission } from '@/lib/auth';
-import { getSuppliers, createSupplier } from '@/features/inventory/services/inventory.service';
+import { createSupplier, deleteSupplier, getSuppliers, updateSupplier } from '@/features/inventory/services/inventory.service';
 import { parsePagination, parseSort } from '@/lib/list-query';
 
 export const dynamic = 'force-dynamic';
@@ -49,6 +49,47 @@ export async function POST(request: Request) {
 
     const supplier = await createSupplier({ code, name, phone, email, address, status: status || 'active' });
     return NextResponse.json({ success: true, data: supplier }, { status: 201 });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+
+    const allowed = user.roles.includes('system_management') || await hasPermission('inventory.adjust.all');
+    if (!allowed) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+
+    const body = await request.json();
+    const { id, code, name, phone, email, address, status } = body;
+    if (!id) return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 });
+    if (code === '' || name === '') {
+      return NextResponse.json({ success: false, error: 'code and name cannot be empty' }, { status: 400 });
+    }
+
+    const supplier = await updateSupplier(id, { code, name, phone, email, address, status });
+    return NextResponse.json({ success: true, data: supplier });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+
+    const allowed = user.roles.includes('system_management') || await hasPermission('inventory.adjust.all');
+    if (!allowed) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 });
+
+    await deleteSupplier(id);
+    return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

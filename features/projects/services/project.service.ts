@@ -286,7 +286,7 @@ export async function updateProjectTask(
     `, values);
 
     await client.query(`
-      INSERT INTO app.audit_logs(user_id, action, entity_type, entity_id, details)
+      INSERT INTO app.audit_logs(actor_user_id, action, entity_type, entity_id, metadata)
       VALUES ($1, 'update', 'project_task', $2, $3)
     `, [userId, taskId, JSON.stringify(data)]);
 

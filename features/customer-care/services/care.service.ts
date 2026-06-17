@@ -156,6 +156,100 @@ export async function createReminder(
   return list.data.find(r => r.id === reminderId)!;
 }
 
+export async function updateReminder(
+  id: string,
+  data: {
+    customerId?: string;
+    contractId?: string | null;
+    projectId?: string | null;
+    reminderDate?: string;
+    content?: string;
+    ownerUserId?: string | null;
+    userId: string;
+  }
+): Promise<CustomerCareReminder> {
+  const existing = await query(
+    'SELECT status FROM app.customer_care_reminders WHERE id = $1 AND deleted_at IS NULL',
+    [id],
+  );
+  if (existing.rows.length === 0) throw new Error('Reminder not found');
+  if (['completed', 'skipped'].includes(existing.rows[0].status)) {
+    throw new Error('Không thể sửa lịch chăm sóc đã hoàn thành hoặc đã bỏ qua.');
+  }
+
+  const values: unknown[] = [id];
+  const setClauses = ['updated_at = NOW()'];
+  const fieldMap: Record<string, string> = {
+    customerId: 'customer_id',
+    contractId: 'contract_id',
+    projectId: 'project_id',
+    reminderDate: 'reminder_date',
+    content: 'content',
+    ownerUserId: 'owner_user_id',
+  };
+
+  Object.entries(data).forEach(([key, value]) => {
+    const field = fieldMap[key];
+    if (field && value !== undefined) {
+      values.push(value === '' ? null : value);
+      setClauses.push(`${field} = $${values.length}`);
+    }
+  });
+
+  await query(`
+    UPDATE app.customer_care_reminders
+    SET ${setClauses.join(', ')}
+    WHERE id = $1
+  `, values);
+
+  await query(`
+    INSERT INTO app.audit_logs (actor_user_id, action, entity_type, entity_id, metadata)
+    VALUES ($1, 'update_reminder', 'customer_care_reminder', $2, $3)
+  `, [data.userId, id, JSON.stringify(data)]);
+
+  const list = await getReminders({ search: '', limit: 1, offset: 0, page: 1 });
+  const updated = list.data.find((reminder) => reminder.id === id);
+  if (updated) return updated;
+
+  const res = await query(`
+    SELECT 
+      r.id, r.customer_id as "customerId", c.name as "customerName", c.code as "customerCode",
+      r.contract_id as "contractId", ctr.contract_number as "contractNumber",
+      r.project_id as "projectId", p.name as "projectName",
+      r.reminder_date::text as "reminderDate", r.owner_user_id as "ownerUserId", u.full_name as "ownerName",
+      r.content, r.result, r.status, r.next_care_date::text as "nextCareDate", r.completed_at::text as "completedAt"
+    FROM app.customer_care_reminders r
+    INNER JOIN app.customers c ON r.customer_id = c.id
+    LEFT JOIN app.contracts ctr ON r.contract_id = ctr.id
+    LEFT JOIN app.projects p ON r.project_id = p.id
+    LEFT JOIN app.users u ON r.owner_user_id = u.id
+    WHERE r.id = $1
+  `, [id]);
+
+  return res.rows[0] as CustomerCareReminder;
+}
+
+export async function deleteReminder(id: string, userId: string): Promise<boolean> {
+  const existing = await query(
+    'SELECT status FROM app.customer_care_reminders WHERE id = $1 AND deleted_at IS NULL',
+    [id],
+  );
+  if (existing.rows.length === 0) return false;
+  if (['completed', 'skipped'].includes(existing.rows[0].status)) {
+    throw new Error('Không thể xóa lịch chăm sóc đã hoàn thành hoặc đã bỏ qua.');
+  }
+
+  const res = await query(
+    'UPDATE app.customer_care_reminders SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL',
+    [id],
+  );
+  await query(`
+    INSERT INTO app.audit_logs (actor_user_id, action, entity_type, entity_id)
+    VALUES ($1, 'delete_reminder', 'customer_care_reminder', $2)
+  `, [userId, id]);
+  return (res.rowCount ?? 0) > 0;
+}
+
 /**
  * Complete a care reminder and record the results.
  * Option to auto-create a next reminder date.
