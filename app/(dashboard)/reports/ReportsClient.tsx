@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { PageTabs } from '@/components/ui/ListControls';
 
 interface UserSession {
   id: string;
@@ -174,23 +175,8 @@ export function ReportsClient({ currentUser }: { currentUser: UserSession }) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Báo cáo thương mại</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Tổng hợp mua hàng, bán hàng, tồn kho và công nợ phục vụ theo dõi vận hành.
-          </p>
-        </div>
-        {canExport && (
-          <a
-            href="/api/receivables/export"
-            className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-primary-foreground text-sm font-semibold shadow-md shadow-emerald-500/15 transition-all duration-150"
-          >
-            Xuất công nợ CSV
-          </a>
-        )}
-      </div>
+    <div className="flex h-full w-full items-stretch overflow-hidden gap-6">
+      <div className="flex-1 overflow-y-auto pr-2 pb-8 space-y-6">
 
       <div className="glass-panel p-4 rounded-xl flex flex-nowrap gap-3 items-center overflow-x-auto">
         <input
@@ -316,39 +302,28 @@ export function ReportsClient({ currentUser }: { currentUser: UserSession }) {
 
       {/* Reports Detailed Drill-Down Section */}
       <div className="glass-panel rounded-xl overflow-hidden border border-border mt-8">
-        <div className="px-6 py-4 border-b border-border bg-slate-50/50 flex justify-between items-center flex-wrap gap-4">
-          <div className="flex gap-2">
-            {[
-              { key: 'sales', label: 'Chi tiết bán hàng' },
-              { key: 'purchases', label: 'Chi tiết mua hàng' },
-              { key: 'inventory', label: 'Chi tiết tồn kho' },
-            ].map(tab => (
+        <PageTabs
+          tabs={[
+            { id: 'sales', label: 'Chi tiết bán hàng' },
+            { id: 'purchases', label: 'Chi tiết mua hàng' },
+            { id: 'inventory', label: 'Chi tiết tồn kho' },
+          ]}
+          active={detailType}
+          onChange={(v) => setDetailType(v as any)}
+          rightSlot={
+            canExport ? (
               <button
-                key={tab.key}
-                onClick={() => setDetailType(tab.key as any)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  detailType === tab.key
-                    ? 'bg-primary text-primary-foreground shadow'
-                    : 'bg-card text-muted-foreground hover:text-foreground border border-border'
-                }`}
+                onClick={handleExportDetail}
+                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-primary-foreground text-xs font-semibold shadow-md shadow-emerald-500/15 transition-all flex items-center gap-1 cursor-pointer mr-1"
               >
-                {tab.label}
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Xuất CSV chi tiết
               </button>
-            ))}
-          </div>
-
-          {canExport && (
-            <button
-              onClick={handleExportDetail}
-              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-primary-foreground text-xs font-semibold shadow-md shadow-emerald-500/15 transition-all flex items-center gap-1 cursor-pointer"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span>Xuất CSV chi tiết</span>
-            </button>
-          )}
-        </div>
+            ) : undefined
+          }
+        />
 
         <div className="overflow-x-auto min-h-[200px]">
           {detailLoading ? (
@@ -467,6 +442,7 @@ export function ReportsClient({ currentUser }: { currentUser: UserSession }) {
         )}
       </div>
     </div>
+  </div>
   );
 }
 

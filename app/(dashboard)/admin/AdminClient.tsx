@@ -348,24 +348,18 @@ export function AdminClient({}: { currentUser: UserSession }) {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-foreground">Quản trị Phân quyền</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Quản lý người dùng, phòng ban, vai trò và ma trận quyền RBAC.
-        </p>
-      </div>
+    <div className="flex h-full w-full items-stretch overflow-hidden gap-6">
+      <div className="flex-1 overflow-y-auto pr-2 pb-8 space-y-6">
+        <AdminTabs activeTab={activeTab} onChange={setActiveTab} />
 
-      <AdminTabs activeTab={activeTab} onChange={setActiveTab} />
-
-      {loading ? (
-        <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-2 glass-panel rounded-xl">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <p className="text-xs">Đang tải thông tin phân quyền...</p>
-        </div>
-      ) : (
-        <>
-          {activeTab === 'users' && (
+        {loading ? (
+          <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-2 glass-panel rounded-xl">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <p className="text-xs">Đang tải thông tin phân quyền...</p>
+          </div>
+        ) : (
+          <>
+            {activeTab === 'users' && (
             <UsersTab
               users={users}
               roles={roles}
@@ -441,5 +435,6 @@ export function AdminClient({}: { currentUser: UserSession }) {
         />
       )}
     </div>
+  </div>
   );
 }

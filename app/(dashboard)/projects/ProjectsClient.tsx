@@ -429,58 +429,52 @@ export function ProjectsClient({ currentUser }: { currentUser: UserSession }) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Title */}
-      <div>
-        <h1 className="text-xl font-bold text-foreground">Triển khai dự án</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Theo dõi công việc thực tế phát sinh sau khi hợp đồng ký kết. Quản lý công việc, lịch chung, ghi chú trao đổi nhóm.
-        </p>
+    <div className="flex h-full w-full items-stretch overflow-hidden gap-6">
+      <div className="flex-1 overflow-y-auto pr-2 pb-8 space-y-6">
+        <ListToolbar
+          search={search}
+          searchPlaceholder="Tìm theo tên dự án, mã, khách..."
+          onSearchChange={(value) => { setSearch(value); setPage(1); }}
+          onSearchSubmit={handleSearchSubmit}
+          showSearchButton={false}
+          onReset={handleResetFilters}
+          filters={[
+            {
+              value: statusFilter,
+              placeholder: '-- Tất cả trạng thái --',
+              onChange: (value) => { setStatusFilter(value); setPage(1); },
+              options: [
+                { value: 'new', label: 'Mới khởi tạo' },
+                { value: 'waiting_deployment', label: 'Chờ triển khai' },
+                { value: 'in_progress', label: 'Đang thực hiện' },
+                { value: 'paused', label: 'Tạm dừng' },
+                { value: 'waiting_acceptance', label: 'Chờ nghiệm thu' },
+                { value: 'accepted', label: 'Đã nghiệm thu' },
+                { value: 'closed', label: 'Đã đóng' },
+                { value: 'cancelled', label: 'Đã hủy' },
+              ],
+            },
+          ]}
+        />
+
+        <ProjectsTable
+          projects={projects}
+          loading={loading}
+          page={page}
+          limit={limit}
+          total={total}
+          sort={sort}
+          order={order}
+          onSort={handleSort}
+          onPageChange={setPage}
+          onOpenProject={(project) => {
+            setActiveProj(project);
+            setWorkspaceTab('tasks');
+          }}
+          getStatusBadge={getStatusBadge}
+          getStatusText={getStatusText}
+        />
       </div>
-
-      <ListToolbar
-        search={search}
-        searchPlaceholder="Tìm theo tên dự án, mã, khách..."
-        onSearchChange={(value) => { setSearch(value); setPage(1); }}
-        onSearchSubmit={handleSearchSubmit}
-        showSearchButton={false}
-        onReset={handleResetFilters}
-        filters={[
-          {
-            value: statusFilter,
-            placeholder: '-- Tất cả trạng thái --',
-            onChange: (value) => { setStatusFilter(value); setPage(1); },
-            options: [
-              { value: 'new', label: 'Mới khởi tạo' },
-              { value: 'waiting_deployment', label: 'Chờ triển khai' },
-              { value: 'in_progress', label: 'Đang thực hiện' },
-              { value: 'paused', label: 'Tạm dừng' },
-              { value: 'waiting_acceptance', label: 'Chờ nghiệm thu' },
-              { value: 'accepted', label: 'Đã nghiệm thu' },
-              { value: 'closed', label: 'Đã đóng' },
-              { value: 'cancelled', label: 'Đã hủy' },
-            ],
-          },
-        ]}
-      />
-
-      <ProjectsTable
-        projects={projects}
-        loading={loading}
-        page={page}
-        limit={limit}
-        total={total}
-        sort={sort}
-        order={order}
-        onSort={handleSort}
-        onPageChange={setPage}
-        onOpenProject={(project) => {
-          setActiveProj(project);
-          setWorkspaceTab('tasks');
-        }}
-        getStatusBadge={getStatusBadge}
-        getStatusText={getStatusText}
-      />
 
       <ProjectWorkspaceDrawer
         activeProj={activeProj}

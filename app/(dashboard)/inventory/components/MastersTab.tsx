@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ListToolbar, PaginationControls, SortableHeader } from '@/components/ui/ListControls';
+import { ListToolbar, PaginationControls, SortableHeader, PageTabs } from '@/components/ui/ListControls';
 import { Modal } from '@/components/ui/Modal';
 
 interface Product {
@@ -255,73 +255,52 @@ export function MastersTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center bg-slate-50/50 border border-border rounded-xl text-xs font-bold text-slate-600 p-2">
-        <div className="flex gap-1">
-          <button
-            onClick={() => changeSubtab('products')}
-            className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
-              subtab === 'products' ? 'bg-card text-primary shadow-xs' : 'hover:bg-slate-100/50'
-            }`}
-          >
-            Sản phẩm ({products.length})
-          </button>
-          <button
-            onClick={() => changeSubtab('suppliers')}
-            className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
-              subtab === 'suppliers' ? 'bg-card text-primary shadow-xs' : 'hover:bg-slate-100/50'
-            }`}
-          >
-            Nhà cung cấp ({suppliers.length})
-          </button>
-          <button
-            onClick={() => changeSubtab('warehouses')}
-            className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
-              subtab === 'warehouses' ? 'bg-card text-primary shadow-xs' : 'hover:bg-slate-100/50'
-            }`}
-          >
-            Kho hàng ({warehouses.length})
-          </button>
-        </div>
-
-        <div>
-          {subtab === 'products' && (
+      {/* Unified Tab Switcher with inline Add button */}
+      <PageTabs
+        tabs={[
+          { id: 'products', label: `Sản phẩm (${products.length})` },
+          { id: 'suppliers', label: `Nhà cung cấp (${suppliers.length})` },
+          { id: 'warehouses', label: `Kho hàng (${warehouses.length})` },
+        ]}
+        active={subtab}
+        onChange={changeSubtab}
+        rightSlot={
+          subtab === 'products' ? (
             <button
               onClick={() => {
                 setEditingProductId(null);
                 setNewProduct({ code: '', name: '', unitCode: 'item', minStockQuantity: 0, status: 'active' });
                 setIsProductOpen(true);
               }}
-              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 text-[11px] font-semibold shadow-sm cursor-pointer"
+              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 text-xs font-semibold shadow-sm cursor-pointer transition-all"
             >
               + Sản phẩm
             </button>
-          )}
-          {subtab === 'suppliers' && (
+          ) : subtab === 'suppliers' ? (
             <button
               onClick={() => {
                 setEditingSupplierId(null);
                 setNewSupplier({ code: '', name: '', phone: '', email: '', address: '', status: 'active' });
                 setIsSupplierOpen(true);
               }}
-              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 text-[11px] font-semibold shadow-sm cursor-pointer"
+              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 text-xs font-semibold shadow-sm cursor-pointer transition-all"
             >
               + Nhà cung cấp
             </button>
-          )}
-          {subtab === 'warehouses' && (
+          ) : (
             <button
               onClick={() => {
                 setEditingWarehouseId(null);
                 setNewWarehouse({ code: '', name: '', address: '', status: 'active' });
                 setIsWarehouseOpen(true);
               }}
-              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 text-[11px] font-semibold shadow-sm cursor-pointer"
+              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 text-xs font-semibold shadow-sm cursor-pointer transition-all"
             >
               + Kho hàng
             </button>
-          )}
-        </div>
-      </div>
+          )
+        }
+      />
 
       <ListToolbar
         search={subtab === 'products' ? productSearch : subtab === 'suppliers' ? supplierSearch : warehouseSearch}

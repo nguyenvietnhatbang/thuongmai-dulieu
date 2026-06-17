@@ -231,114 +231,101 @@ export function OpportunitiesClient({ currentUser }: { currentUser: UserSession 
   };
 
   return (
-    <div className="space-y-6">
-      {/* Title Bar */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Phễu Cơ hội bán hàng</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Theo dõi tiến trình bán hàng, tư vấn dịch vụ và quản lý pipeline cơ hội.
-          </p>
+    <div className="flex h-full w-full items-stretch overflow-hidden gap-6">
+      <div className="flex-1 overflow-y-auto pr-2 pb-8 space-y-6">
+        {/* Main Tab Switcher */}
+        <div className="flex border-b border-border text-sm font-semibold mb-4">
+          <button
+            onClick={() => setViewMode('pipeline')}
+            className={`px-6 py-3 border-b-2 transition-all cursor-pointer ${
+              viewMode === 'pipeline' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Pipeline (Kanban)
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`px-6 py-3 border-b-2 transition-all cursor-pointer ${
+              viewMode === 'list' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Bảng danh sách
+          </button>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Toggle View Mode */}
-          <div className="flex bg-slate-100 p-0.5 rounded-lg border border-border">
-            <button
-              onClick={() => setViewMode('pipeline')}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                viewMode === 'pipeline'
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Pipeline (Kanban)
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                viewMode === 'list'
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Bảng danh sách
-            </button>
+        <ListToolbar
+          search={search}
+          searchPlaceholder="Tìm theo tiêu đề, mã, khách..."
+          onSearchChange={(value) => { setSearch(value); setPage(1); }}
+          onSearchSubmit={handleSearchSubmit}
+          showSearchButton={false}
+          onReset={handleResetFilters}
+          filters={[
+            {
+              value: selectedStage,
+              placeholder: '-- Tất cả giai đoạn --',
+              onChange: (value) => { setSelectedStage(value); setPage(1); },
+              options: OPPORTUNITY_STAGES.map(stage => ({ value: stage.code, label: stage.name })),
+            },
+          ]}
+          rightSlot={
+            canCreate && (
+              <button
+                onClick={() => setIsCreateOpen(true)}
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/95 text-sm font-semibold shadow-md shadow-primary/15 transition-all duration-150 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Tạo cơ hội mới</span>
+              </button>
+            )
+          }
+        />
+
+        {/* Main View Area */}
+        {loading ? (
+          <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-2">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <p className="text-xs">Đang tải phễu cơ hội...</p>
           </div>
+        ) : viewMode === 'pipeline' ? (
+          <OpportunityPipelineBoard
+            opportunities={opportunities}
+            formatCurrency={formatCurrency}
+            onOpenOpportunity={(opportunity) => { setActiveOpp(opportunity); setEditOpp(opportunity); setIsEditing(false); }}
+            onStageChange={handleQuickUpdateStage}
+          />
+        ) : (
+          <OpportunitiesTable
+            opportunities={opportunities}
+            page={page}
+            limit={limit}
+            total={total}
+            sort={sort}
+            order={order}
+            formatCurrency={formatCurrency}
+            onSort={handleSort}
+            onPageChange={setPage}
+            onOpenOpportunity={(opportunity) => { setActiveOpp(opportunity); setEditOpp(opportunity); setIsEditing(false); }}
+          />
+        )}
 
-          {canCreate && (
-            <button
-              onClick={() => setIsCreateOpen(true)}
-              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/95 text-sm font-semibold shadow-md shadow-primary/15 transition-all duration-150 flex items-center gap-1.5 cursor-pointer"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              <span>Tạo cơ hội mới</span>
-            </button>
-          )}
-        </div>
+        {isCreateOpen && (
+          <OpportunityCreateModal
+            form={newOpp}
+            customers={customers}
+            users={users}
+            setForm={setNewOpp}
+            onClose={() => setIsCreateOpen(false)}
+            onSubmit={handleCreateOpportunity}
+          />
+        )}
       </div>
 
-      <ListToolbar
-        search={search}
-        searchPlaceholder="Tìm theo tiêu đề, mã, khách..."
-        onSearchChange={(value) => { setSearch(value); setPage(1); }}
-        onSearchSubmit={handleSearchSubmit}
-        showSearchButton={false}
-        onReset={handleResetFilters}
-        filters={[
-          {
-            value: selectedStage,
-            placeholder: '-- Tất cả giai đoạn --',
-            onChange: (value) => { setSelectedStage(value); setPage(1); },
-            options: OPPORTUNITY_STAGES.map(stage => ({ value: stage.code, label: stage.name })),
-          },
-        ]}
-      />
-
-      {/* Main View Area */}
-      {loading ? (
-        <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-2">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <p className="text-xs">Đang tải phễu cơ hội...</p>
-        </div>
-      ) : viewMode === 'pipeline' ? (
-        <OpportunityPipelineBoard
-          opportunities={opportunities}
-          formatCurrency={formatCurrency}
-          onOpenOpportunity={(opportunity) => { setActiveOpp(opportunity); setEditOpp(opportunity); setIsEditing(false); }}
-          onStageChange={handleQuickUpdateStage}
-        />
-      ) : (
-        <OpportunitiesTable
-          opportunities={opportunities}
-          page={page}
-          limit={limit}
-          total={total}
-          sort={sort}
-          order={order}
-          formatCurrency={formatCurrency}
-          onSort={handleSort}
-          onPageChange={setPage}
-          onOpenOpportunity={(opportunity) => { setActiveOpp(opportunity); setEditOpp(opportunity); setIsEditing(false); }}
-        />
-      )}
-
-      {isCreateOpen && (
-        <OpportunityCreateModal
-          form={newOpp}
-          customers={customers}
-          users={users}
-          setForm={setNewOpp}
-          onClose={() => setIsCreateOpen(false)}
-          onSubmit={handleCreateOpportunity}
-        />
-      )}
-
-      {/* Opportunity Detail Drawer */}
+      {/* Opportunity Detail Drawer - Push Style */}
       {activeOpp && (
-        <div className="fixed inset-y-0 right-0 z-40 w-full max-w-lg bg-card border-l border-border shadow-2xl flex flex-col justify-between animate-fade-in">
+        <div className="relative h-full w-[450px] md:w-[500px] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden">
           {/* Header */}
           <div className="p-6 border-b border-border flex items-center justify-between bg-slate-50/50">
             <div>

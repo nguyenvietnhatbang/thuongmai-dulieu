@@ -358,66 +358,59 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Title */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Hợp đồng & Đợt thanh toán</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Quản lý vòng đời hợp đồng, theo dõi tiến độ thu tiền theo đợt và tự động đồng bộ dự án triển khai.
-            Hợp đồng được chuyển đổi tự động khi báo giá được duyệt.
-          </p>
-        </div>
-        {canCreate && (
-          <button
-            onClick={openCreateModal}
-            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-sm hover:bg-primary/95 cursor-pointer whitespace-nowrap"
-          >
-            + Hợp đồng
-          </button>
-        )}
+    <div className="flex h-full w-full items-stretch overflow-hidden gap-6">
+      <div className="flex-1 overflow-y-auto pr-2 pb-8 space-y-6">
+        <ListToolbar
+          search={search}
+          searchPlaceholder="Tìm theo số HĐ, mã, khách..."
+          onSearchChange={(value) => { setSearch(value); setPage(1); }}
+          onSearchSubmit={handleSearchSubmit}
+          showSearchButton={false}
+          onReset={handleResetFilters}
+          filters={[
+            {
+              value: statusFilter,
+              placeholder: '-- Tất cả trạng thái --',
+              onChange: (value) => { setStatusFilter(value); setPage(1); },
+              options: [
+                { value: 'draft', label: 'Bản nháp' },
+                { value: 'sent', label: 'Đã gửi khách' },
+                { value: 'negotiating', label: 'Đang đàm phán' },
+                { value: 'signed', label: 'Đã ký kết' },
+                { value: 'paused', label: 'Tạm dừng' },
+                { value: 'cancelled', label: 'Đã hủy' },
+                { value: 'completed', label: 'Hoàn tất' },
+              ],
+            },
+          ]}
+          rightSlot={
+            canCreate && (
+              <button
+                onClick={openCreateModal}
+                className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-sm hover:bg-primary/95 cursor-pointer whitespace-nowrap"
+              >
+                + Hợp đồng
+              </button>
+            )
+          }
+        />
+
+        <ContractsTable
+          contracts={contracts}
+          loading={loading}
+          page={page}
+          limit={limit}
+          total={total}
+          sort={sort}
+          order={order}
+          formatCurrency={formatCurrency}
+          getStatusBadge={getStatusBadge}
+          getStatusText={getStatusText}
+          onSort={handleSort}
+          onPageChange={setPage}
+          onOpenContract={loadContractDetails}
+        />
       </div>
-
-      <ListToolbar
-        search={search}
-        searchPlaceholder="Tìm theo số HĐ, mã, khách..."
-        onSearchChange={(value) => { setSearch(value); setPage(1); }}
-        onSearchSubmit={handleSearchSubmit}
-        showSearchButton={false}
-        onReset={handleResetFilters}
-        filters={[
-          {
-            value: statusFilter,
-            placeholder: '-- Tất cả trạng thái --',
-            onChange: (value) => { setStatusFilter(value); setPage(1); },
-            options: [
-              { value: 'draft', label: 'Bản nháp' },
-              { value: 'sent', label: 'Đã gửi khách' },
-              { value: 'negotiating', label: 'Đang đàm phán' },
-              { value: 'signed', label: 'Đã ký kết' },
-              { value: 'paused', label: 'Tạm dừng' },
-              { value: 'cancelled', label: 'Đã hủy' },
-              { value: 'completed', label: 'Hoàn tất' },
-            ],
-          },
-        ]}
-      />
-
-      <ContractsTable
-        contracts={contracts}
-        loading={loading}
-        page={page}
-        limit={limit}
-        total={total}
-        sort={sort}
-        order={order}
-        formatCurrency={formatCurrency}
-        getStatusBadge={getStatusBadge}
-        getStatusText={getStatusText}
-        onSort={handleSort}
-        onPageChange={setPage}
-        onOpenContract={loadContractDetails}
-      />
 
       {activeContract && (
         <ContractDetailDrawer

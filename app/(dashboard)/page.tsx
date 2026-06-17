@@ -20,8 +20,9 @@ export default async function DashboardPage() {
   const hasAlerts = metrics.lowStockItems > 0 || metrics.overdueTasks > 0 || metrics.overdueReceivables > 0;
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Welcome & Overview Header */}
+    <div className="flex h-full w-full items-stretch overflow-hidden gap-6">
+      <div className="flex-1 overflow-y-auto pr-2 pb-8 space-y-8 animate-fade-in">
+        {/* Welcome & Overview Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
@@ -329,5 +330,6 @@ export default async function DashboardPage() {
 
       </div>
     </div>
+  </div>
   );
 }

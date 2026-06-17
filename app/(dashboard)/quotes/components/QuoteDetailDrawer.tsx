@@ -105,7 +105,7 @@ export function QuoteDetailDrawer({
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 z-40 w-full max-w-2xl bg-card border-l border-border shadow-2xl flex flex-col justify-between animate-fade-in">
+    <div className="relative h-full w-[500px] md:w-[550px] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden">
       {/* Header */}
       <div className="p-6 border-b border-border flex items-center justify-between bg-slate-50/50">
         <div>

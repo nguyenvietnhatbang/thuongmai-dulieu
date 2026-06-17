@@ -227,52 +227,8 @@ export function ReceivablesClient({ currentUser }: { currentUser: UserSession })
   const overdueCount = receivables.filter(r => r.status === 'overdue').length;
 
   return (
-    <div className="space-y-6">
-      {/* Title bar */}
-      <div className="flex justify-between items-center flex-wrap gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Quản lý Công nợ Phải thu</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Theo dõi kỳ hạn công nợ từ tiến độ thanh toán hợp đồng dịch vụ hoặc đơn bán hàng thương mại.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowExportHistory(true)}
-            className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold border border-slate-300 transition-all duration-150 flex items-center gap-1.5 cursor-pointer shadow-sm"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <span>Lịch sử xuất file</span>
-          </button>
-
-          {canCollect && (
-            <button
-              onClick={handleTriggerReminders}
-              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold border border-slate-700 transition-all duration-150 flex items-center gap-1.5 cursor-pointer shadow"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89H18v3" />
-              </svg>
-              <span>Cập nhật nợ tự động</span>
-            </button>
-          )}
-
-          {canExport && (
-            <button
-              onClick={handleExport}
-              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-primary-foreground text-sm font-semibold shadow-md shadow-emerald-500/15 transition-all duration-150 flex items-center gap-1.5 cursor-pointer"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span>Xuất Excel công nợ</span>
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="flex h-full w-full items-stretch overflow-hidden gap-6">
+      <div className="flex-1 overflow-y-auto pr-2 pb-8 space-y-6">
 
       {/* Aggregated KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -324,6 +280,41 @@ export function ReceivablesClient({ currentUser }: { currentUser: UserSession })
             ],
           },
         ]}
+        rightSlot={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowExportHistory(true)}
+              className="h-10 px-3 rounded-lg bg-card hover:bg-muted text-slate-700 text-xs font-semibold border border-border transition-all flex items-center gap-1.5 cursor-pointer shadow-sm whitespace-nowrap"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              Lịch sử xuất file
+            </button>
+            {canCollect && (
+              <button
+                onClick={handleTriggerReminders}
+                className="h-10 px-3 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer shadow whitespace-nowrap"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89H18v3" />
+                </svg>
+                Cập nhật nợ
+              </button>
+            )}
+            {canExport && (
+              <button
+                onClick={handleExport}
+                className="h-10 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-md shadow-emerald-500/15 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Xuất Excel
+              </button>
+            )}
+          </div>
+        }
       />
 
       {/* Main Table */}
@@ -556,5 +547,6 @@ export function ReceivablesClient({ currentUser }: { currentUser: UserSession })
         </div>
       )}
     </div>
+  </div>
   );
 }

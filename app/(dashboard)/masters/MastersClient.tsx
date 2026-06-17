@@ -302,20 +302,10 @@ export function MastersClient({}: { currentUser: UserSession }) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Title Bar */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Danh Mục Cơ Sở</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Quản lý các danh mục nền tảng: sản phẩm kinh doanh, danh sách nhà cung cấp và hệ thống kho bãi.
-          </p>
-        </div>
-      </div>
-
-      {/* DYNAMIC CONTENT AREA */}
-      <div className="relative">
-        <div className="animate-fade-in">
+    <div className="flex h-full w-full items-stretch overflow-hidden gap-6">
+      <div className="flex-1 overflow-y-auto pr-2 pb-8 space-y-6">
+        {/* DYNAMIC CONTENT AREA */}
+        <div className="relative animate-fade-in">
           <MastersTab
             products={productRows}
             suppliers={supplierRows}

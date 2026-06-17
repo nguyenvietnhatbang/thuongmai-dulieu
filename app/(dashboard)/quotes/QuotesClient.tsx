@@ -249,78 +249,71 @@ export function QuotesClient({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Title block */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Báo giá dịch vụ</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Lập báo giá hạng mục, tính thuế VAT, quản lý lịch sử điều chỉnh phiên bản và xuất hợp đồng.
-          </p>
-        </div>
+    <div className="flex h-full w-full items-stretch overflow-hidden gap-6">
+      <div className="flex-1 overflow-y-auto pr-2 pb-8 space-y-6">
+        <ListToolbar
+          search={search}
+          searchPlaceholder="Tìm theo số báo giá, mã, khách..."
+          onSearchChange={(value) => { setSearch(value); setPage(1); }}
+          onSearchSubmit={handleSearchSubmit}
+          showSearchButton={false}
+          onReset={handleResetFilters}
+          filters={[
+            {
+              value: statusFilter,
+              placeholder: '-- Tất cả trạng thái --',
+              onChange: (value) => { setStatusFilter(value); setPage(1); },
+              options: [
+                { value: 'draft', label: 'Bản nháp' },
+                { value: 'sent', label: 'Đã gửi khách' },
+                { value: 'revision_requested', label: 'Yêu cầu chỉnh sửa' },
+                { value: 'approved', label: 'Đã phê duyệt' },
+                { value: 'rejected', label: 'Bị từ chối' },
+                { value: 'converted', label: 'Đã chuyển hợp đồng' },
+              ],
+            },
+          ]}
+          rightSlot={
+            canCreate && (
+              <button
+                onClick={() => setIsCreateOpen(true)}
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/95 text-sm font-semibold shadow-md shadow-primary/15 transition-all duration-150 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Tạo báo giá</span>
+              </button>
+            )
+          }
+        />
 
-        {canCreate && (
-          <button
-            onClick={() => setIsCreateOpen(true)}
-            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/95 text-sm font-semibold shadow-md shadow-primary/15 transition-all duration-150 flex items-center gap-1.5 cursor-pointer"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span>Tạo báo giá</span>
-          </button>
-        )}
+        <QuotesTable
+          quotes={quotes}
+          loading={loading}
+          page={page}
+          limit={limit}
+          total={total}
+          sort={sort}
+          order={order}
+          formatCurrency={formatCurrency}
+          getStatusBadge={getStatusBadge}
+          getStatusText={getStatusText}
+          onSort={handleSort}
+          onPageChange={setPage}
+          onOpenQuote={loadQuoteDetails}
+        />
+
+        <QuoteCreateModal
+          isOpen={isCreateOpen}
+          onClose={() => setIsCreateOpen(false)}
+          customers={customers}
+          opportunities={opportunities}
+          prefilledOpportunityId={initialOpportunityId}
+          formatCurrency={formatCurrency}
+          onCreate={handleCreateQuote}
+        />
       </div>
-
-      <ListToolbar
-        search={search}
-        searchPlaceholder="Tìm theo số báo giá, mã, khách..."
-        onSearchChange={(value) => { setSearch(value); setPage(1); }}
-        onSearchSubmit={handleSearchSubmit}
-        showSearchButton={false}
-        onReset={handleResetFilters}
-        filters={[
-          {
-            value: statusFilter,
-            placeholder: '-- Tất cả trạng thái --',
-            onChange: (value) => { setStatusFilter(value); setPage(1); },
-            options: [
-              { value: 'draft', label: 'Bản nháp' },
-              { value: 'sent', label: 'Đã gửi khách' },
-              { value: 'revision_requested', label: 'Yêu cầu chỉnh sửa' },
-              { value: 'approved', label: 'Đã phê duyệt' },
-              { value: 'rejected', label: 'Bị từ chối' },
-              { value: 'converted', label: 'Đã chuyển hợp đồng' },
-            ],
-          },
-        ]}
-      />
-
-      <QuotesTable
-        quotes={quotes}
-        loading={loading}
-        page={page}
-        limit={limit}
-        total={total}
-        sort={sort}
-        order={order}
-        formatCurrency={formatCurrency}
-        getStatusBadge={getStatusBadge}
-        getStatusText={getStatusText}
-        onSort={handleSort}
-        onPageChange={setPage}
-        onOpenQuote={loadQuoteDetails}
-      />
-
-      <QuoteCreateModal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        customers={customers}
-        opportunities={opportunities}
-        prefilledOpportunityId={initialOpportunityId}
-        formatCurrency={formatCurrency}
-        onCreate={handleCreateQuote}
-      />
 
       <QuoteDetailDrawer
         activeQuote={activeQuote}

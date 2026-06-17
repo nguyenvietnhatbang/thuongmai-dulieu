@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ListToolbar, PaginationControls, SortableHeader } from '@/components/ui/ListControls';
+import { ListToolbar, PaginationControls, SortableHeader, PageTabs } from '@/components/ui/ListControls';
 import { Modal } from '@/components/ui/Modal';
 
 interface PurchaseOrder {
@@ -240,44 +240,32 @@ export function ReceiptsTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center bg-slate-50/50 border border-border rounded-xl text-xs font-bold text-slate-600 p-2">
-        <div className="flex gap-1">
-          <button
-            onClick={() => changeSubtab('po')}
-            className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
-              subtab === 'po' ? 'bg-card text-primary shadow-xs' : 'hover:bg-slate-100/50'
-            }`}
-          >
-            Đơn đặt mua (PO) ({purchaseOrders.length})
-          </button>
-          <button
-            onClick={() => changeSubtab('receipt')}
-            className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
-              subtab === 'receipt' ? 'bg-card text-primary shadow-xs' : 'hover:bg-slate-100/50'
-            }`}
-          >
-            Phiếu nhập kho ({stockReceipts.length})
-          </button>
-        </div>
-
-        <div>
-          {subtab === 'po' ? (
+      {/* Unified Tab Switcher with Add button in rightSlot */}
+      <PageTabs
+        tabs={[
+          { id: 'po', label: `Đơn đặt mua (PO) (${purchaseOrders.length})` },
+          { id: 'receipt', label: `Phiếu nhập kho (${stockReceipts.length})` },
+        ]}
+        active={subtab}
+        onChange={changeSubtab}
+        rightSlot={
+          subtab === 'po' ? (
             <button
               onClick={() => setIsPoOpen(true)}
-              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 text-[11px] font-semibold shadow-sm cursor-pointer"
+              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 text-xs font-semibold shadow-sm cursor-pointer transition-all"
             >
-              + Đơn mua hàng (PO)
+              + Đơn mua hàng
             </button>
           ) : (
             <button
               onClick={() => setIsReceiptOpen(true)}
-              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 text-[11px] font-semibold shadow-sm cursor-pointer"
+              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 text-xs font-semibold shadow-sm cursor-pointer transition-all"
             >
               + Phiếu nhập kho
             </button>
-          )}
-        </div>
-      </div>
+          )
+        }
+      />
 
       <ListToolbar
         search={subtab === 'po' ? purchaseSearch : receiptSearch}

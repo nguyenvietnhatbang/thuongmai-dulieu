@@ -192,83 +192,76 @@ export function CustomersClient({ currentUser }: { currentUser: UserSession }) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Title Bar */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Quản lý Khách hàng</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Lưu trữ danh sách khách hàng dịch vụ, khách hàng thương mại và người liên hệ trực thuộc.
-          </p>
-        </div>
+    <div className="flex h-full w-full items-stretch overflow-hidden gap-6">
+      <div className="flex-1 overflow-y-auto pr-2 pb-8 space-y-6">
+        <ListToolbar
+          search={search}
+          searchPlaceholder="Tìm theo tên, mã, số ĐT..."
+          onSearchChange={setSearch}
+          onSearchSubmit={handleSearchSubmit}
+          onReset={handleResetFilters}
+          filters={[
+            {
+              value: typeFilter,
+              placeholder: '-- Loại khách --',
+              onChange: (value) => { setTypeFilter(value); setPage(1); },
+              options: [
+                { value: 'service', label: 'Dịch vụ' },
+                { value: 'commerce', label: 'Thương mại' },
+                { value: 'both', label: 'Cả hai' },
+              ],
+            },
+            {
+              value: statusFilter,
+              placeholder: '-- Trạng thái --',
+              onChange: (value) => { setStatusFilter(value); setPage(1); },
+              options: [
+                { value: 'new', label: 'Mới' },
+                { value: 'nurturing', label: 'Đang chăm sóc' },
+                { value: 'active_project', label: 'Đang có dự án' },
+                { value: 'paused', label: 'Tạm dừng' },
+                { value: 'stopped', label: 'Ngừng hợp tác' },
+              ],
+            },
+          ]}
+          rightSlot={
+            canCreate && (
+              <button
+                onClick={() => setIsCreateOpen(true)}
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/95 text-sm font-semibold shadow-md shadow-primary/15 transition-all duration-150 flex items-center gap-1.5 cursor-pointer"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Thêm khách hàng</span>
+              </button>
+            )
+          }
+        />
 
-        {canCreate && (
-          <button
-            onClick={() => setIsCreateOpen(true)}
-            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/95 text-sm font-semibold shadow-md shadow-primary/15 transition-all duration-150 flex items-center gap-1.5 cursor-pointer"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span>Thêm khách hàng</span>
-          </button>
-        )}
+        <CustomersTable
+          customers={customers}
+          loading={loading}
+          page={page}
+          limit={limit}
+          total={total}
+          sort={sort}
+          order={order}
+          canDelete={canDelete}
+          onSort={handleSort}
+          onPageChange={setPage}
+          onSelectCustomer={(c) => setActiveCustomer(c)}
+          onEditCustomer={(c) => { setActiveCustomer(c); }}
+          onDeleteCustomer={handleDeleteCustomer}
+        />
+
+        <CustomerCreateModal
+          isOpen={isCreateOpen}
+          onClose={() => setIsCreateOpen(false)}
+          users={users}
+          onCreate={handleCreateCustomer}
+        />
       </div>
-
-      <ListToolbar
-        search={search}
-        searchPlaceholder="Tìm theo tên, mã, số ĐT..."
-        onSearchChange={setSearch}
-        onSearchSubmit={handleSearchSubmit}
-        onReset={handleResetFilters}
-        filters={[
-          {
-            value: typeFilter,
-            placeholder: '-- Loại khách --',
-            onChange: (value) => { setTypeFilter(value); setPage(1); },
-            options: [
-              { value: 'service', label: 'Dịch vụ' },
-              { value: 'commerce', label: 'Thương mại' },
-              { value: 'both', label: 'Cả hai' },
-            ],
-          },
-          {
-            value: statusFilter,
-            placeholder: '-- Trạng thái --',
-            onChange: (value) => { setStatusFilter(value); setPage(1); },
-            options: [
-              { value: 'new', label: 'Mới' },
-              { value: 'nurturing', label: 'Đang chăm sóc' },
-              { value: 'active_project', label: 'Đang có dự án' },
-              { value: 'paused', label: 'Tạm dừng' },
-              { value: 'stopped', label: 'Ngừng hợp tác' },
-            ],
-          },
-        ]}
-      />
-
-      <CustomersTable
-        customers={customers}
-        loading={loading}
-        page={page}
-        limit={limit}
-        total={total}
-        sort={sort}
-        order={order}
-        canDelete={canDelete}
-        onSort={handleSort}
-        onPageChange={setPage}
-        onSelectCustomer={(c) => setActiveCustomer(c)}
-        onEditCustomer={(c) => { setActiveCustomer(c); }}
-        onDeleteCustomer={handleDeleteCustomer}
-      />
-
-      <CustomerCreateModal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        users={users}
-        onCreate={handleCreateCustomer}
-      />
 
       <CustomerDetailDrawer
         activeCustomer={activeCustomer}

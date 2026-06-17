@@ -237,18 +237,9 @@ export function PurchasesClient({}: { currentUser: UserSession }) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Title Bar */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Mua Hàng & Nhập Kho</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Quản lý và điều phối các đơn đặt mua hàng (PO) từ nhà cung cấp và lập phiếu nhập kho.
-          </p>
-        </div>
-      </div>
-
-      {/* DYNAMIC CONTENT AREA */}
+    <div className="flex h-full w-full items-stretch overflow-hidden gap-6">
+      <div className="flex-1 overflow-y-auto pr-2 pb-8 space-y-6">
+        {/* DYNAMIC CONTENT AREA */}
       <div className="relative">
         {loading ? (
           <div className="glass-panel py-20 text-center text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-border">
@@ -313,5 +304,6 @@ export function PurchasesClient({}: { currentUser: UserSession }) {
         onCancelDocument={handleCancelDocument}
       />
     </div>
+  </div>
   );
 }

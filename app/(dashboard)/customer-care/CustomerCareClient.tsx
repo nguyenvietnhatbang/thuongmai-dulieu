@@ -176,30 +176,8 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
   const scheduledCount = reminders.filter(r => r.status === 'scheduled' && new Date(r.reminderDate) > new Date()).length;
 
   return (
-    <div className="space-y-6">
-      {/* Title bar */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Chăm Sóc Định Kỳ Khách Hàng</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Lập lịch nhắc hẹn, ghi nhận kết quả chăm sóc định kỳ và tự động tạo lịch hẹn tiếp theo.
-          </p>
-        </div>
-
-        <button
-          onClick={() => {
-            setEditingReminder(null);
-            setShowCreateModal(true);
-          }}
-          className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold shadow-md shadow-primary/10 transition-all duration-150 flex items-center gap-1.5 cursor-pointer"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          <span>Tạo lịch nhắc hẹn</span>
-        </button>
-      </div>
-
+    <div className="flex h-full w-full items-stretch overflow-hidden gap-6">
+      <div className="flex-1 overflow-y-auto pr-2 pb-8 space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="glass-panel p-4 rounded-xl">
@@ -249,6 +227,20 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
             ],
           },
         ]}
+        rightSlot={(
+          <button
+            onClick={() => {
+              setEditingReminder(null);
+              setShowCreateModal(true);
+            }}
+            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground text-sm font-semibold shadow-md shadow-primary/10 transition-all duration-150 flex items-center gap-1.5 cursor-pointer"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Tạo lịch nhắc hẹn</span>
+          </button>
+        )}
       />
 
       <RemindersTable
@@ -287,5 +279,6 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
         onSubmit={handleCompleteReminderSubmit}
       />
     </div>
+  </div>
   );
 }

@@ -84,19 +84,21 @@ export function UserSwitcher({ currentUser }: UserSwitcherProps) {
     <div className="relative z-50">
       <button
         onClick={() => setDropdownOpen(!dropdownOpen)}
-        className="flex items-center gap-3 px-3 py-1.5 rounded-lg border border-primary/20 bg-primary/5 hover:bg-primary/10 text-sm font-medium text-primary transition-all duration-200 cursor-pointer"
+        className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-sm font-medium text-slate-300 hover:text-white transition-all duration-200 group cursor-pointer"
         disabled={loading}
       >
-        <span className="relative flex h-2.5 w-2.5">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-        </span>
-        <div className="text-left hidden md:block">
-          <p className="leading-none text-xs text-muted-foreground">Tài khoản</p>
-          <p className="font-semibold text-primary">{currentUser?.fullName || 'Khách (Chưa đăng nhập)'}</p>
+        <div className="flex items-center gap-3">
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+          </span>
+          <div className="text-left">
+            <p className="leading-none text-[10px] text-slate-400">Tài khoản</p>
+            <p className="font-semibold text-slate-200 mt-0.5 text-xs truncate max-w-[120px]">{currentUser?.fullName.split('(')[0].trim() || 'Khách'}</p>
+          </div>
         </div>
         <svg
-          className={`h-4 w-4 text-primary transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`}
+          className={`h-4 w-4 text-slate-400 group-hover:text-white transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -108,18 +110,18 @@ export function UserSwitcher({ currentUser }: UserSwitcherProps) {
       {dropdownOpen && (
         <>
           <div className="fixed inset-0" onClick={() => setDropdownOpen(false)} />
-          <div className="absolute right-0 mt-2 w-72 rounded-xl border border-border bg-card p-2 shadow-xl animate-fade-in">
-            <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="absolute bottom-full left-0 mb-2 w-64 rounded-xl border border-slate-800 bg-slate-900 p-2 shadow-2xl animate-fade-in text-slate-200">
+            <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
               Tài khoản hiện tại
             </p>
             <div className="px-3 pb-2">
-              <p className="text-sm font-bold text-foreground">{currentUser?.fullName}</p>
-              <p className="text-xs text-muted-foreground font-mono">{currentUser?.email}</p>
+              <p className="text-sm font-bold text-slate-100">{currentUser?.fullName}</p>
+              <p className="text-xs text-slate-400 font-mono">{currentUser?.email}</p>
             </div>
-            <div className="h-px bg-border my-1" />
+            <div className="h-px bg-slate-800 my-1" />
             {isDev && (
               <>
-                <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                   Đổi tài khoản kiểm thử
                 </p>
                 <div className="max-h-64 overflow-y-auto space-y-1">
@@ -130,16 +132,16 @@ export function UserSwitcher({ currentUser }: UserSwitcherProps) {
                         key={user.id}
                         onClick={() => handleSwitch(user.id)}
                         disabled={isActive || loading}
-                        className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-150 flex flex-col gap-0.5 cursor-pointer ${
+                        className={`w-full text-left px-3 py-2.5 rounded-lg text-xs transition-all duration-150 flex flex-col gap-0.5 cursor-pointer ${
                           isActive
-                            ? 'bg-primary/10 text-primary font-medium border border-primary/20'
-                            : 'hover:bg-muted text-foreground'
+                            ? 'bg-blue-600/20 text-blue-400 font-medium border border-blue-600/30'
+                            : 'hover:bg-slate-800/80 text-slate-300'
                         }`}
                       >
                         <span className="font-semibold">{user.fullName}</span>
-                        <span className="text-xs text-muted-foreground flex items-center justify-between">
-                          <span>{user.email}</span>
-                          <span className="px-1.5 py-0.5 rounded bg-secondary text-primary font-mono scale-90">
+                        <span className="text-[10px] text-slate-400 flex items-center justify-between">
+                          <span className="truncate max-w-[120px]">{user.email}</span>
+                          <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono scale-90 shrink-0">
                             {user.roles[0] || 'No Role'}
                           </span>
                         </span>
@@ -147,14 +149,14 @@ export function UserSwitcher({ currentUser }: UserSwitcherProps) {
                     );
                   })}
                 </div>
-                <div className="h-px bg-border my-1" />
+                <div className="h-px bg-slate-800 my-1" />
               </>
             )}
             <button
               type="button"
               onClick={handleLogout}
               disabled={loading}
-              className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-70 cursor-pointer"
+              className="w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-red-400 hover:bg-red-950/20 disabled:opacity-70 cursor-pointer"
             >
               Đăng xuất
             </button>

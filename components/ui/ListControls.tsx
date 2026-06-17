@@ -157,3 +157,51 @@ export function SortableHeader({ label, sortKey, activeSort, order, onSort, alig
     </button>
   );
 }
+
+// ---------------------------------------------------------------------------
+// PageTabs – unified tab switcher used across all pages
+// ---------------------------------------------------------------------------
+
+interface PageTabItem<T extends string = string> {
+  id: T;
+  label: string;
+}
+
+interface PageTabsProps<T extends string = string> {
+  tabs: PageTabItem<T>[];
+  active: T;
+  onChange: (id: T) => void;
+  /** Optional slot rendered after the last tab (e.g. an action button aligned right) */
+  rightSlot?: React.ReactNode;
+}
+
+export function PageTabs<T extends string = string>({
+  tabs,
+  active,
+  onChange,
+  rightSlot,
+}: PageTabsProps<T>) {
+  return (
+    <div className="flex items-center border-b border-border text-sm font-semibold">
+      <div className="flex flex-1 min-w-0">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => onChange(tab.id)}
+            className={`px-5 py-2.5 border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              active === tab.id
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {rightSlot && (
+        <div className="shrink-0 pb-1">{rightSlot}</div>
+      )}
+    </div>
+  );
+}

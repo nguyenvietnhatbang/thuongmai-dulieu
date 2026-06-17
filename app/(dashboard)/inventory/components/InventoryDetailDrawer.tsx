@@ -231,6 +231,7 @@ export function InventoryDetailDrawer({
     <Drawer
       isOpen={!!activeDetail}
       onClose={onClose}
+      type="push"
       title={getTitle()}
       subtitle={
         <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
