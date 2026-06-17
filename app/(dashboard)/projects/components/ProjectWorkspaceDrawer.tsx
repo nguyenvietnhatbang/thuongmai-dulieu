@@ -9,6 +9,7 @@ interface UserDropdown {
 }
 
 interface ProjectWorkspaceDrawerProps {
+  mode?: 'drawer' | 'page';
   activeProj: Project | null;
   onClose: () => void;
   users: UserDropdown[];
@@ -73,6 +74,7 @@ interface ProjectWorkspaceDrawerProps {
 }
 
 export function ProjectWorkspaceDrawer({
+  mode = 'drawer',
   activeProj,
   onClose,
   users,
@@ -297,12 +299,16 @@ export function ProjectWorkspaceDrawer({
   };
 
   const isSettingsAllowed = currentUser.roles.includes('system_management') || currentUser.roles.includes('project_operation') || isPM;
+  const isPageMode = mode === 'page';
 
   return (
-    <div className="relative h-full w-[500px] md:w-[550px] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden">
+    <div className={isPageMode
+      ? 'relative h-full w-full border border-border bg-card flex flex-col justify-between shadow-sm overflow-hidden rounded-xl'
+      : 'relative h-full w-[500px] md:w-[550px] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden'
+    }>
       {/* Header */}
       <div className="p-6 border-b border-border flex items-center justify-between bg-slate-50/50">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
               {activeProj.code}
@@ -311,7 +317,7 @@ export function ProjectWorkspaceDrawer({
               {getStatusText(activeProj.status)}
             </span>
           </div>
-          <h2 className="text-base font-bold text-foreground mt-2">{activeProj.name}</h2>
+          <h2 className={`${isPageMode ? 'text-xl' : 'text-base'} font-bold text-foreground mt-2 truncate`}>{activeProj.name}</h2>
           <p className="text-[10px] text-muted-foreground mt-0.5">Khách hàng: {activeProj.customerName}</p>
         </div>
         
@@ -324,6 +330,36 @@ export function ProjectWorkspaceDrawer({
           </svg>
         </button>
       </div>
+
+      {isPageMode && (
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 p-6 border-b border-border bg-card">
+          <div className="rounded-lg border border-border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Hợp đồng</p>
+            <p className="mt-1 text-sm font-semibold text-foreground font-mono">{activeProj.contractNumber || 'Chưa liên kết'}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">PM phụ trách</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">{activeProj.projectManagerName || 'Chưa phân PM'}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Tiến độ</p>
+            <div className="mt-2 flex items-center gap-2">
+              <div className="h-2 flex-1 rounded-full bg-slate-200 overflow-hidden">
+                <div className="h-full bg-primary" style={{ width: `${activeProj.progressPercent}%` }} />
+              </div>
+              <span className="text-xs font-bold font-mono">{activeProj.progressPercent}%</span>
+            </div>
+          </div>
+          <div className="rounded-lg border border-border bg-slate-50/60 p-3">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Kế hoạch</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">
+              {activeProj.startDate ? new Date(activeProj.startDate).toLocaleDateString('vi-VN') : '-'}
+              {' -> '}
+              {activeProj.plannedEndDate ? new Date(activeProj.plannedEndDate).toLocaleDateString('vi-VN') : '-'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Tab Headers */}
       <div className="flex border-b border-border text-xs font-semibold overflow-x-auto scrollbar-thin">
@@ -1011,7 +1047,7 @@ export function ProjectWorkspaceDrawer({
           onClick={onClose}
           className="flex-1 py-2 border border-border text-sm font-semibold rounded-lg bg-card hover:bg-muted text-center cursor-pointer"
         >
-          Đóng không gian làm việc
+          {isPageMode ? 'Quay lại danh sách dự án' : 'Đóng không gian làm việc'}
         </button>
       </div>
     </div>

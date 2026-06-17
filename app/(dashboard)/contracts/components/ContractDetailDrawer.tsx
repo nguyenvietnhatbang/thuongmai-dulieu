@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent } from 'react';
+import Link from 'next/link';
 import { Contract, PaymentMilestone } from '@/features/contracts/services/contract.service';
 
 interface ContractDetailDrawerProps {
@@ -111,13 +112,13 @@ export function ContractDetailDrawer({
                   <p className="text-xs text-slate-600 leading-normal">
                     Dự án phụ trách triển khai kỹ thuật đã được **tự động khởi tạo** khi hợp đồng chuyển sang trạng thái đã ký.
                   </p>
-                  <a
+                  <Link
                     href="/projects"
                     className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
                   >
                     <span>Đi tới không gian công việc dự án</span>
                     <span>&rarr;</span>
-                  </a>
+                  </Link>
                 </div>
               ) : (
                 <div className="space-y-3">

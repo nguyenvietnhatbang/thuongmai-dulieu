@@ -1,33 +1,73 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Notification } from '@/features/notifications/services/notification.service';
+
+const NOTIFICATION_POLL_INTERVAL_MS = 60000;
 
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const requestInFlightRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
+    if (requestInFlightRef.current || document.visibilityState === 'hidden') return;
+
+    const controller = new AbortController();
+    requestInFlightRef.current = true;
+    abortControllerRef.current = controller;
+
     try {
-      const res = await fetch('/api/notifications');
+      const res = await fetch('/api/notifications', {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      if (!res.ok) return;
+
       const json = await res.json();
       if (json.success) {
         setNotifications(json.data);
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
       console.error('Failed to fetch notifications:', error);
+    } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
+      requestInFlightRef.current = false;
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchNotifications();
 
-    // Poll every 15 seconds
-    const interval = setInterval(fetchNotifications, 15000);
-    return () => clearInterval(interval);
-  }, []);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchNotifications();
+      }
+    };
+
+    const interval = window.setInterval(fetchNotifications, NOTIFICATION_POLL_INTERVAL_MS);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', fetchNotifications);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', fetchNotifications);
+      abortControllerRef.current?.abort();
+    };
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    if (dropdownOpen) {
+      fetchNotifications();
+    }
+  }, [dropdownOpen, fetchNotifications]);
 
   useEffect(() => {
     // Click outside handler to close dropdown

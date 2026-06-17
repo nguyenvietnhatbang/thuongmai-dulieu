@@ -45,6 +45,29 @@ function verifySessionValue(value: string | undefined): string | null {
 }
 
 /**
+ * Get the current active user's id without loading roles and permissions.
+ */
+export async function getCurrentUserId(): Promise<string | null> {
+  try {
+    const cookieStore = await cookies();
+    const userId = verifySessionValue(cookieStore.get(SESSION_COOKIE)?.value);
+    if (!userId) return null;
+
+    const userQuery = await query<{ id: string }>(`
+      SELECT id
+      FROM app.users
+      WHERE id = $1 AND status = 'active' AND deleted_at IS NULL
+      LIMIT 1
+    `, [userId]);
+
+    return userQuery.rows[0]?.id ?? null;
+  } catch (error) {
+    console.error('Error verifying current user id:', error);
+    return null;
+  }
+}
+
+/**
  * Get the currently logged-in user from the session cookie
  */
 export async function getCurrentUser(): Promise<UserSession | null> {
