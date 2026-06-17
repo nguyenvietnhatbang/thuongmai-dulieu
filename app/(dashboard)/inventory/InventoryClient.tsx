@@ -31,17 +31,27 @@ export function InventoryClient({}: { currentUser: UserSession }) {
   const [salesOrders, setSalesOrders] = useState<any[]>([]);
   const [movements, setMovements] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [balancePage, setBalancePage] = useState(1);
+  const [balanceTotal, setBalanceTotal] = useState(0);
+  const [balanceSearch, setBalanceSearch] = useState('');
+  const [balanceWarehouseId, setBalanceWarehouseId] = useState('');
+  const [balanceStockState, setBalanceStockState] = useState('');
+  const [balanceSort, setBalanceSort] = useState('productName');
+  const [balanceOrder, setBalanceOrder] = useState<'asc' | 'desc'>('asc');
+  const [movementPage, setMovementPage] = useState(1);
+  const [movementTotal, setMovementTotal] = useState(0);
+  const [movementSearch, setMovementSearch] = useState('');
+  const [movementWarehouseId, setMovementWarehouseId] = useState('');
+  const [movementType, setMovementType] = useState('');
+  const [movementSort, setMovementSort] = useState('createdAt');
+  const [movementOrder, setMovementOrder] = useState<'asc' | 'desc'>('desc');
 
-  // Search & filter
-  const [search, setSearch] = useState('');
-  
   // Detail drawer
   const [activeDetail, setActiveDetail] = useState<{ type: 'po' | 'receipt' | 'sales'; id: string; data?: any } | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const p1 = fetch('/api/inventory/balances').then(r => r.json());
       const p2 = fetch('/api/inventory/products').then(r => r.json());
       const p3 = fetch('/api/inventory/suppliers').then(r => r.json());
       const p4 = fetch('/api/inventory/warehouses').then(r => r.json());
@@ -49,11 +59,9 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       const p6 = fetch('/api/inventory/receipts').then(r => r.json());
       const p7 = fetch('/api/inventory/sales').then(r => r.json());
       const p8 = fetch('/api/customers?limit=100').then(r => r.json());
-      const p9 = fetch('/api/inventory/movements').then(r => r.json());
 
-      const [r1, r2, r3, r4, r5, r6, r7, r8, r9] = await Promise.all([p1, p2, p3, p4, p5, p6, p7, p8, p9]);
+      const [r2, r3, r4, r5, r6, r7, r8] = await Promise.all([p2, p3, p4, p5, p6, p7, p8]);
 
-      if (r1.success) setBalances(r1.data);
       if (r2.success) setProducts(r2.data);
       if (r3.success) setSuppliers(r3.data);
       if (r4.success) setWarehouses(r4.data);
@@ -61,7 +69,6 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       if (r6.success) setStockReceipts(r6.data);
       if (r7.success) setSalesOrders(r7.data);
       if (r8.success) setCustomers(r8.data);
-      if (r9.success) setMovements(r9.data);
     } catch (err) {
       console.error('Error fetching inventory data:', err);
     } finally {
@@ -72,6 +79,52 @@ export function InventoryClient({}: { currentUser: UserSession }) {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const fetchBalances = async () => {
+    const params = new URLSearchParams({
+      page: String(balancePage),
+      limit: '10',
+      sort: balanceSort,
+      order: balanceOrder,
+    });
+    if (balanceSearch) params.set('search', balanceSearch);
+    if (balanceWarehouseId) params.set('warehouseId', balanceWarehouseId);
+    if (balanceStockState) params.set('stockState', balanceStockState);
+
+    const res = await fetch(`/api/inventory/balances?${params.toString()}`);
+    const json = await res.json();
+    if (json.success) {
+      setBalances(json.data);
+      setBalanceTotal(json.pagination?.total || 0);
+    }
+  };
+
+  const fetchMovements = async () => {
+    const params = new URLSearchParams({
+      page: String(movementPage),
+      limit: '10',
+      sort: movementSort,
+      order: movementOrder,
+    });
+    if (movementSearch) params.set('search', movementSearch);
+    if (movementWarehouseId) params.set('warehouseId', movementWarehouseId);
+    if (movementType) params.set('movementType', movementType);
+
+    const res = await fetch(`/api/inventory/movements?${params.toString()}`);
+    const json = await res.json();
+    if (json.success) {
+      setMovements(json.data);
+      setMovementTotal(json.pagination?.total || 0);
+    }
+  };
+
+  useEffect(() => {
+    fetchBalances();
+  }, [balancePage, balanceSearch, balanceWarehouseId, balanceStockState, balanceSort, balanceOrder]);
+
+  useEffect(() => {
+    fetchMovements();
+  }, [movementPage, movementSearch, movementWarehouseId, movementType, movementSort, movementOrder]);
 
   // Fetch detailed drawer information
   const fetchDetails = async (type: 'po' | 'receipt' | 'sales', id: string) => {
@@ -284,6 +337,8 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       if (json.success) {
         alert('Đã xác nhận nhập kho thành công!');
         fetchData();
+        fetchBalances();
+        fetchMovements();
         if (activeDetail && activeDetail.id === id) {
           fetchDetails('receipt', id);
         }
@@ -303,6 +358,8 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       if (json.success) {
         alert('Xác nhận đơn hàng & trừ kho thành công!');
         fetchData();
+        fetchBalances();
+        fetchMovements();
         if (activeDetail && activeDetail.id === id) {
           fetchDetails('sales', id);
         }
@@ -327,6 +384,8 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       if (json.success) {
         alert('Đã hủy chứng từ thành công.');
         fetchData();
+        fetchBalances();
+        fetchMovements();
         setActiveDetail(null);
       } else {
         alert(json.error || 'Hủy chứng từ thất bại');
@@ -401,7 +460,7 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       {/* Main Tab Switcher */}
       <div className="flex border-b border-border text-sm font-semibold">
         <button
-          onClick={() => { setActiveTab('balances'); setSearch(''); }}
+          onClick={() => setActiveTab('balances')}
           className={`px-6 py-3 border-b-2 transition-all cursor-pointer ${
             activeTab === 'balances' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
@@ -409,7 +468,7 @@ export function InventoryClient({}: { currentUser: UserSession }) {
           Tồn Kho Thực Tế
         </button>
         <button
-          onClick={() => { setActiveTab('orders'); setSearch(''); }}
+          onClick={() => setActiveTab('orders')}
           className={`px-6 py-3 border-b-2 transition-all cursor-pointer ${
             activeTab === 'orders' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
@@ -417,7 +476,7 @@ export function InventoryClient({}: { currentUser: UserSession }) {
           Nhập Kho & Mua Hàng
         </button>
         <button
-          onClick={() => { setActiveTab('sales'); setSearch(''); }}
+          onClick={() => setActiveTab('sales')}
           className={`px-6 py-3 border-b-2 transition-all cursor-pointer ${
             activeTab === 'sales' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
@@ -425,7 +484,7 @@ export function InventoryClient({}: { currentUser: UserSession }) {
           Đơn Bán Hàng (Sales)
         </button>
         <button
-          onClick={() => { setActiveTab('movements'); setSearch(''); }}
+          onClick={() => setActiveTab('movements')}
           className={`px-6 py-3 border-b-2 transition-all cursor-pointer ${
             activeTab === 'movements' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
@@ -433,31 +492,13 @@ export function InventoryClient({}: { currentUser: UserSession }) {
           Thẻ Kho & Biến động
         </button>
         <button
-          onClick={() => { setActiveTab('masters'); setSearch(''); }}
+          onClick={() => setActiveTab('masters')}
           className={`px-6 py-3 border-b-2 transition-all cursor-pointer ${
             activeTab === 'masters' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
           Danh Mục Cơ Sở
         </button>
-      </div>
-
-      {/* SEARCH TOOLBAR */}
-      <div className="glass-panel p-4 rounded-xl flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="flex gap-2 w-full sm:w-auto">
-          <input
-            type="text"
-            placeholder={
-              activeTab === 'balances' ? "Tìm theo sản phẩm, kho..." :
-              activeTab === 'orders' ? "Tìm theo mã chứng từ..." :
-              activeTab === 'sales' ? "Tìm đơn hàng, khách hàng..." : 
-              activeTab === 'movements' ? "Tìm theo sản phẩm, kho..." : "Tìm mã danh mục..."
-            }
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="premium-input max-w-xs"
-          />
-        </div>
       </div>
 
       {/* DYNAMIC CONTENT AREA */}
@@ -472,7 +513,24 @@ export function InventoryClient({}: { currentUser: UserSession }) {
             {activeTab === 'balances' && (
               <StockLevelsTab
                 balances={balances}
-                search={search}
+                warehouses={warehouses}
+                search={balanceSearch}
+                warehouseId={balanceWarehouseId}
+                stockState={balanceStockState}
+                page={balancePage}
+                total={balanceTotal}
+                sort={balanceSort}
+                order={balanceOrder}
+                onSearchChange={(value) => { setBalanceSearch(value); setBalancePage(1); }}
+                onWarehouseChange={(value) => { setBalanceWarehouseId(value); setBalancePage(1); }}
+                onStockStateChange={(value) => { setBalanceStockState(value); setBalancePage(1); }}
+                onReset={() => { setBalanceSearch(''); setBalanceWarehouseId(''); setBalanceStockState(''); setBalancePage(1); }}
+                onPageChange={setBalancePage}
+                onSort={(nextSort) => {
+                  setBalanceOrder(balanceSort === nextSort && balanceOrder === 'asc' ? 'desc' : 'asc');
+                  setBalanceSort(nextSort);
+                  setBalancePage(1);
+                }}
               />
             )}
 
@@ -483,7 +541,6 @@ export function InventoryClient({}: { currentUser: UserSession }) {
                 products={products}
                 suppliers={suppliers}
                 warehouses={warehouses}
-                search={search}
                 formatCurrency={formatCurrency}
                 onViewDetails={(type, id) => handleViewDetails(type, id)}
                 onCreatePo={handleCreatePo}
@@ -497,7 +554,6 @@ export function InventoryClient({}: { currentUser: UserSession }) {
                 customers={customers}
                 products={products}
                 warehouses={warehouses}
-                search={search}
                 formatCurrency={formatCurrency}
                 onViewDetails={(type, id) => handleViewDetails(type, id)}
                 onCreateSalesOrder={handleCreateSalesOrder}
@@ -507,7 +563,24 @@ export function InventoryClient({}: { currentUser: UserSession }) {
             {activeTab === 'movements' && (
               <MovementsTab
                 movements={movements}
-                search={search}
+                warehouses={warehouses}
+                search={movementSearch}
+                warehouseId={movementWarehouseId}
+                movementType={movementType}
+                page={movementPage}
+                total={movementTotal}
+                sort={movementSort}
+                order={movementOrder}
+                onSearchChange={(value) => { setMovementSearch(value); setMovementPage(1); }}
+                onWarehouseChange={(value) => { setMovementWarehouseId(value); setMovementPage(1); }}
+                onMovementTypeChange={(value) => { setMovementType(value); setMovementPage(1); }}
+                onReset={() => { setMovementSearch(''); setMovementWarehouseId(''); setMovementType(''); setMovementPage(1); }}
+                onPageChange={setMovementPage}
+                onSort={(nextSort) => {
+                  setMovementOrder(movementSort === nextSort && movementOrder === 'asc' ? 'desc' : 'asc');
+                  setMovementSort(nextSort);
+                  setMovementPage(1);
+                }}
                 formatCurrency={formatCurrency}
               />
             )}
@@ -517,7 +590,6 @@ export function InventoryClient({}: { currentUser: UserSession }) {
                 products={products}
                 suppliers={suppliers}
                 warehouses={warehouses}
-                search={search}
                 onCreateProduct={handleCreateProduct}
                 onCreateSupplier={handleCreateSupplier}
                 onCreateWarehouse={handleCreateWarehouse}

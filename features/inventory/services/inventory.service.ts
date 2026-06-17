@@ -1,4 +1,5 @@
 import { query, transaction } from '@/lib/db';
+import { buildPagination, getSortSql, PaginatedResult, PaginationInput, SortDirection } from '@/lib/list-query';
 
 export interface Supplier {
   id: string;
@@ -37,6 +38,9 @@ export interface InventoryBalance {
   quantityOnHand: number;
   minQuantity: number;
 }
+
+export type InventoryBalanceSort = 'productName' | 'productCode' | 'warehouseName' | 'quantityOnHand' | 'minQuantity';
+export type InventoryMovementSort = 'createdAt' | 'productName' | 'productCode' | 'warehouseName' | 'movementType' | 'quantityDelta' | 'unitCost';
 
 export interface PurchaseOrder {
   id: string;
@@ -181,7 +185,55 @@ export async function deleteWarehouse(warehouseId: string): Promise<void> {
 /**
  * Inventory Balances
  */
-export async function getInventoryBalances(): Promise<InventoryBalance[]> {
+const inventoryBalanceSorts: Record<InventoryBalanceSort, string> = {
+  productName: 'p.name',
+  productCode: 'p.code',
+  warehouseName: 'w.name',
+  quantityOnHand: 'b.quantity_on_hand',
+  minQuantity: 'b.min_quantity',
+};
+
+export async function getInventoryBalances(options?: Partial<PaginationInput> & {
+  search?: string;
+  warehouseId?: string;
+  stockState?: string;
+  sort?: InventoryBalanceSort;
+  order?: SortDirection;
+}): Promise<PaginatedResult<InventoryBalance>> {
+  const page = options?.page || 1;
+  const limit = options?.limit || 20;
+  const offset = options?.offset || 0;
+  const sort = options?.sort || 'productName';
+  const order = options?.order || 'asc';
+  const values: unknown[] = [];
+  const where: string[] = [];
+
+  if (options?.search) {
+    values.push(`%${options.search.toLowerCase()}%`);
+    where.push(`(lower(p.name) LIKE $${values.length} OR lower(p.code) LIKE $${values.length} OR lower(w.name) LIKE $${values.length})`);
+  }
+
+  if (options?.warehouseId) {
+    values.push(options.warehouseId);
+    where.push(`b.warehouse_id = $${values.length}`);
+  }
+
+  if (options?.stockState === 'low') {
+    where.push('b.quantity_on_hand <= b.min_quantity');
+  } else if (options?.stockState === 'safe') {
+    where.push('b.quantity_on_hand > b.min_quantity');
+  }
+
+  const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+  const countRes = await query<{ total: string }>(`
+    SELECT COUNT(*)::int as total
+    FROM app.inventory_balances b
+    INNER JOIN app.products p ON b.product_id = p.id
+    INNER JOIN app.warehouses w ON b.warehouse_id = w.id
+    ${whereSql}
+  `, values);
+
+  values.push(limit, offset);
   const res = await query(`
     SELECT 
       b.product_id as "productId", p.name as "productName", p.code as "productCode", p.unit_code as "unitCode",
@@ -190,13 +242,18 @@ export async function getInventoryBalances(): Promise<InventoryBalance[]> {
     FROM app.inventory_balances b
     INNER JOIN app.products p ON b.product_id = p.id
     INNER JOIN app.warehouses w ON b.warehouse_id = w.id
-    ORDER BY p.name ASC, w.name ASC
-  `);
-  return res.rows.map(r => ({
+    ${whereSql}
+    ORDER BY ${getSortSql(sort, order, inventoryBalanceSorts)}, p.name ASC, w.name ASC
+    LIMIT $${values.length - 1} OFFSET $${values.length}
+  `, values);
+
+  const data = res.rows.map(r => ({
     ...r,
     quantityOnHand: Number(r.quantityOnHand),
     minQuantity: Number(r.minQuantity)
   })) as InventoryBalance[];
+
+  return buildPagination(data, Number(countRes.rows[0]?.total || 0), { page, limit, offset });
 }
 
 /**
@@ -647,7 +704,56 @@ export interface InventoryMovement {
   createdByName: string;
 }
 
-export async function getInventoryMovements(): Promise<InventoryMovement[]> {
+const inventoryMovementSorts: Record<InventoryMovementSort, string> = {
+  createdAt: 'm.created_at',
+  productName: 'p.name',
+  productCode: 'p.code',
+  warehouseName: 'w.name',
+  movementType: 'm.movement_type',
+  quantityDelta: 'm.quantity_delta',
+  unitCost: 'm.unit_cost',
+};
+
+export async function getInventoryMovements(options?: Partial<PaginationInput> & {
+  search?: string;
+  warehouseId?: string;
+  movementType?: string;
+  sort?: InventoryMovementSort;
+  order?: SortDirection;
+}): Promise<PaginatedResult<InventoryMovement>> {
+  const page = options?.page || 1;
+  const limit = options?.limit || 20;
+  const offset = options?.offset || 0;
+  const sort = options?.sort || 'createdAt';
+  const order = options?.order || 'desc';
+  const values: unknown[] = [];
+  const where: string[] = [];
+
+  if (options?.search) {
+    values.push(`%${options.search.toLowerCase()}%`);
+    where.push(`(lower(p.name) LIKE $${values.length} OR lower(p.code) LIKE $${values.length} OR lower(w.name) LIKE $${values.length})`);
+  }
+
+  if (options?.warehouseId) {
+    values.push(options.warehouseId);
+    where.push(`m.warehouse_id = $${values.length}`);
+  }
+
+  if (options?.movementType && ['receipt', 'sale', 'adjustment', 'return'].includes(options.movementType)) {
+    values.push(options.movementType);
+    where.push(`m.movement_type = $${values.length}`);
+  }
+
+  const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+  const countRes = await query<{ total: string }>(`
+    SELECT COUNT(*)::int as total
+    FROM app.inventory_movements m
+    INNER JOIN app.products p ON m.product_id = p.id
+    INNER JOIN app.warehouses w ON m.warehouse_id = w.id
+    ${whereSql}
+  `, values);
+
+  values.push(limit, offset);
   const res = await query(`
     SELECT 
       m.id,
@@ -660,13 +766,17 @@ export async function getInventoryMovements(): Promise<InventoryMovement[]> {
     INNER JOIN app.products p ON m.product_id = p.id
     INNER JOIN app.warehouses w ON m.warehouse_id = w.id
     LEFT JOIN app.users u ON m.created_by = u.id
-    ORDER BY m.created_at DESC
-  `);
-  return res.rows.map(r => ({
+    ${whereSql}
+    ORDER BY ${getSortSql(sort, order, inventoryMovementSorts)}
+    LIMIT $${values.length - 1} OFFSET $${values.length}
+  `, values);
+  const data = res.rows.map(r => ({
     ...r,
     quantityDelta: Number(r.quantityDelta),
     unitCost: Number(r.unitCost)
   })) as InventoryMovement[];
+
+  return buildPagination(data, Number(countRes.rows[0]?.total || 0), { page, limit, offset });
 }
 
 /**

@@ -1,5 +1,7 @@
 'use client';
 
+import { ListToolbar, PaginationControls, SortableHeader } from '@/components/ui/ListControls';
+
 interface InventoryMovement {
   id: string;
   productId: string;
@@ -18,11 +20,43 @@ interface InventoryMovement {
 
 interface MovementsTabProps {
   movements: InventoryMovement[];
+  warehouses: Array<{ id: string; name: string }>;
   search: string;
+  warehouseId: string;
+  movementType: string;
+  page: number;
+  total: number;
+  sort: string;
+  order: 'asc' | 'desc';
+  onSearchChange: (value: string) => void;
+  onWarehouseChange: (value: string) => void;
+  onMovementTypeChange: (value: string) => void;
+  onReset: () => void;
+  onPageChange: (page: number) => void;
+  onSort: (sortKey: string) => void;
   formatCurrency: (val: number) => string;
 }
 
-export function MovementsTab({ movements, search, formatCurrency }: MovementsTabProps) {
+const LIMIT = 10;
+
+export function MovementsTab({
+  movements,
+  warehouses,
+  search,
+  warehouseId,
+  movementType,
+  page,
+  total,
+  sort,
+  order,
+  onSearchChange,
+  onWarehouseChange,
+  onMovementTypeChange,
+  onReset,
+  onPageChange,
+  onSort,
+  formatCurrency,
+}: MovementsTabProps) {
   const getMovementTypeBadge = (type: string) => {
     switch (type) {
       case 'receipt': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
@@ -43,28 +77,60 @@ export function MovementsTab({ movements, search, formatCurrency }: MovementsTab
 
   return (
     <div className="space-y-4">
-      <div className="flex bg-slate-50/50 border border-border rounded-xl p-3 text-xs font-bold text-slate-700">
-        Nhật ký biến động kho hàng (Thẻ kho)
-      </div>
+      <ListToolbar
+        search={search}
+        searchPlaceholder="Tìm mã, tên hàng, kho..."
+        onSearchChange={onSearchChange}
+        onSearchSubmit={(event) => event.preventDefault()}
+        showSearchButton={false}
+        searchClassName="!w-64"
+        filters={[
+          {
+            value: warehouseId,
+            placeholder: 'Tất cả kho',
+            onChange: onWarehouseChange,
+            options: warehouses.map((warehouse) => ({ value: warehouse.id, label: warehouse.name })),
+            className: '!w-40',
+          },
+          {
+            value: movementType,
+            placeholder: 'Loại biến động',
+            onChange: onMovementTypeChange,
+            options: [
+              { value: 'receipt', label: 'Nhập kho' },
+              { value: 'sale', label: 'Xuất bán' },
+              { value: 'adjustment', label: 'Điều chỉnh' },
+              { value: 'return', label: 'Hoàn trả' },
+            ],
+            className: '!w-40',
+          },
+        ]}
+        onReset={onReset}
+      />
 
       <div className="glass-panel border border-border rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-border text-muted-foreground text-xs uppercase font-semibold">
-                <th className="px-6 py-4">Thời gian</th>
-                <th className="px-6 py-4">Sản phẩm</th>
-                <th className="px-6 py-4">Kho hàng</th>
-                <th className="px-6 py-4">Loại biến động</th>
-                <th className="px-6 py-4 text-center">Số lượng thay đổi</th>
-                <th className="px-6 py-4 text-right">Đơn giá trị</th>
+                <th className="px-6 py-4"><SortableHeader label="Thời gian" sortKey="createdAt" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Sản phẩm" sortKey="productName" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Kho hàng" sortKey="warehouseName" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Loại biến động" sortKey="movementType" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4 text-center"><SortableHeader label="Số lượng" sortKey="quantityDelta" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4 text-right"><SortableHeader label="Đơn giá" sortKey="unitCost" activeSort={sort} order={order} onSort={onSort} align="right" /></th>
                 <th className="px-6 py-4">Người thực hiện</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {movements
-                .filter(m => m.productName.toLowerCase().includes(search.toLowerCase()) || m.productCode.toLowerCase().includes(search.toLowerCase()) || m.warehouseName.toLowerCase().includes(search.toLowerCase()))
-                .map((m) => (
+              {movements.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                    Không có biến động kho phù hợp với bộ lọc.
+                  </td>
+                </tr>
+              ) : (
+                movements.map((m) => (
                   <tr key={m.id} className="hover:bg-slate-50/30 transition-colors">
                     <td className="px-6 py-4 text-xs text-muted-foreground">{m.createdAt}</td>
                     <td className="px-6 py-4">
@@ -83,10 +149,12 @@ export function MovementsTab({ movements, search, formatCurrency }: MovementsTab
                     <td className="px-6 py-4 text-right font-semibold text-slate-800">{formatCurrency(m.unitCost)}</td>
                     <td className="px-6 py-4 text-xs font-semibold text-slate-700">{m.createdByName}</td>
                   </tr>
-                ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>
+        <PaginationControls page={page} limit={LIMIT} total={total} onPageChange={onPageChange} alwaysShow />
       </div>
     </div>
   );

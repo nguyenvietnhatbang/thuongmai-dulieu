@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { ListToolbar, PaginationControls, SortableHeader } from '@/components/ui/ListControls';
 import { Modal } from '@/components/ui/Modal';
 
 interface PurchaseOrder {
@@ -31,7 +32,6 @@ interface ReceiptsTabProps {
   products: any[];
   suppliers: any[];
   warehouses: any[];
-  search: string;
   formatCurrency: (val: number) => string;
   onViewDetails: (type: 'po' | 'receipt', id: string) => void;
   onCreatePo: (data: any) => Promise<boolean>;
@@ -44,7 +44,6 @@ export function ReceiptsTab({
   products,
   suppliers,
   warehouses,
-  search,
   formatCurrency,
   onViewDetails,
   onCreatePo,
@@ -53,6 +52,11 @@ export function ReceiptsTab({
   const [subtab, setSubtab] = useState<'po' | 'receipt'>('po');
   const [isPoOpen, setIsPoOpen] = useState(false);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [sort, setSort] = useState('createdDate');
+  const [order, setOrder] = useState<'asc' | 'desc'>('desc');
 
   // PO Form state
   const [newPo, setNewPo] = useState({
@@ -181,12 +185,64 @@ export function ReceiptsTab({
     }
   };
 
+  const filteredPurchaseOrders = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return purchaseOrders
+      .filter((po) => !term || po.code.toLowerCase().includes(term) || po.supplierName.toLowerCase().includes(term))
+      .filter((po) => !status || po.status === status)
+      .sort((a, b) => {
+        const key = sort === 'createdDate' ? 'purchaseDate' : sort;
+        const left = a[key as keyof PurchaseOrder];
+        const right = b[key as keyof PurchaseOrder];
+        const result = typeof left === 'number' && typeof right === 'number'
+          ? left - right
+          : String(left || '').localeCompare(String(right || ''), 'vi');
+        return order === 'asc' ? result : -result;
+      });
+  }, [purchaseOrders, search, status, sort, order]);
+
+  const filteredReceipts = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return stockReceipts
+      .filter((sr) => !term || sr.code.toLowerCase().includes(term) || (sr.purchaseOrderCode || '').toLowerCase().includes(term) || sr.warehouseName.toLowerCase().includes(term))
+      .filter((sr) => !status || sr.status === status)
+      .sort((a, b) => {
+        const key = sort === 'createdDate' ? 'receiptDate' : sort;
+        const left = a[key as keyof StockReceipt];
+        const right = b[key as keyof StockReceipt];
+        const result = typeof left === 'number' && typeof right === 'number'
+          ? left - right
+          : String(left || '').localeCompare(String(right || ''), 'vi');
+        return order === 'asc' ? result : -result;
+      });
+  }, [stockReceipts, search, status, sort, order]);
+
+  const limit = 10;
+  const activeRows = subtab === 'po' ? filteredPurchaseOrders : filteredReceipts;
+  const pagedPurchaseOrders = filteredPurchaseOrders.slice((page - 1) * limit, page * limit);
+  const pagedReceipts = filteredReceipts.slice((page - 1) * limit, page * limit);
+
+  const changeSubtab = (nextSubtab: 'po' | 'receipt') => {
+    setSubtab(nextSubtab);
+    setSearch('');
+    setStatus('');
+    setPage(1);
+    setSort('createdDate');
+    setOrder('desc');
+  };
+
+  const handleSort = (nextSort: string) => {
+    setOrder(sort === nextSort && order === 'asc' ? 'desc' : 'asc');
+    setSort(nextSort);
+    setPage(1);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center bg-slate-50/50 border border-border rounded-xl text-xs font-bold text-slate-600 p-2">
         <div className="flex gap-1">
           <button
-            onClick={() => setSubtab('po')}
+            onClick={() => changeSubtab('po')}
             className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
               subtab === 'po' ? 'bg-card text-primary shadow-xs' : 'hover:bg-slate-100/50'
             }`}
@@ -194,7 +250,7 @@ export function ReceiptsTab({
             Đơn đặt mua (PO) ({purchaseOrders.length})
           </button>
           <button
-            onClick={() => setSubtab('receipt')}
+            onClick={() => changeSubtab('receipt')}
             className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
               subtab === 'receipt' ? 'bg-card text-primary shadow-xs' : 'hover:bg-slate-100/50'
             }`}
@@ -222,24 +278,59 @@ export function ReceiptsTab({
         </div>
       </div>
 
+      <ListToolbar
+        search={search}
+        searchPlaceholder={subtab === 'po' ? 'Tìm mã PO, nhà cung cấp...' : 'Tìm phiếu, PO, kho...'}
+        onSearchChange={(value) => { setSearch(value); setPage(1); }}
+        onSearchSubmit={(event) => event.preventDefault()}
+        showSearchButton={false}
+        searchClassName="!w-64"
+        filters={[
+          {
+            value: status,
+            placeholder: 'Tất cả trạng thái',
+            onChange: (value) => { setStatus(value); setPage(1); },
+            options: subtab === 'po'
+              ? [
+                { value: 'draft', label: 'Bản nháp' },
+                { value: 'ordered', label: 'Đã đặt hàng' },
+                { value: 'received', label: 'Đã nhập hàng' },
+                { value: 'cancelled', label: 'Đã hủy' },
+              ]
+              : [
+                { value: 'draft', label: 'Bản nháp' },
+                { value: 'confirmed', label: 'Đã nhập kho' },
+                { value: 'cancelled', label: 'Đã hủy' },
+              ],
+            className: '!w-40',
+          },
+        ]}
+        onReset={() => { setSearch(''); setStatus(''); setPage(1); }}
+      />
+
       <div className="glass-panel border border-border rounded-xl overflow-hidden">
         {subtab === 'po' ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-border text-muted-foreground text-xs uppercase font-semibold">
-                  <th className="px-6 py-4">Mã PO</th>
-                  <th className="px-6 py-4">Nhà cung cấp</th>
-                  <th className="px-6 py-4">Ngày đặt</th>
-                  <th className="px-6 py-4">Tổng giá trị</th>
-                  <th className="px-6 py-4">Trạng thái</th>
+                  <th className="px-6 py-4"><SortableHeader label="Mã PO" sortKey="code" activeSort={sort} order={order} onSort={handleSort} /></th>
+                  <th className="px-6 py-4"><SortableHeader label="Nhà cung cấp" sortKey="supplierName" activeSort={sort} order={order} onSort={handleSort} /></th>
+                  <th className="px-6 py-4"><SortableHeader label="Ngày đặt" sortKey="createdDate" activeSort={sort} order={order} onSort={handleSort} /></th>
+                  <th className="px-6 py-4"><SortableHeader label="Tổng giá trị" sortKey="totalAmount" activeSort={sort} order={order} onSort={handleSort} /></th>
+                  <th className="px-6 py-4"><SortableHeader label="Trạng thái" sortKey="status" activeSort={sort} order={order} onSort={handleSort} /></th>
                   <th className="px-6 py-4 text-right">Chi tiết</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {purchaseOrders
-                  .filter(po => po.code.toLowerCase().includes(search.toLowerCase()) || po.supplierName.toLowerCase().includes(search.toLowerCase()))
-                  .map((po) => (
+                {pagedPurchaseOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                      Không có đơn mua phù hợp với bộ lọc.
+                    </td>
+                  </tr>
+                ) : (
+                  pagedPurchaseOrders.map((po) => (
                     <tr key={po.id} className="hover:bg-slate-50/30 transition-colors">
                       <td className="px-6 py-4 font-mono text-xs font-bold text-primary">{po.code}</td>
                       <td className="px-6 py-4 font-semibold text-foreground">{po.supplierName}</td>
@@ -262,7 +353,8 @@ export function ReceiptsTab({
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -271,19 +363,24 @@ export function ReceiptsTab({
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-border text-muted-foreground text-xs uppercase font-semibold">
-                  <th className="px-6 py-4">Số phiếu</th>
+                  <th className="px-6 py-4"><SortableHeader label="Số phiếu" sortKey="code" activeSort={sort} order={order} onSort={handleSort} /></th>
                   <th className="px-6 py-4">Theo PO</th>
-                  <th className="px-6 py-4">Kho nhập</th>
-                  <th className="px-6 py-4">Ngày nhập</th>
-                  <th className="px-6 py-4">Giá trị lô</th>
-                  <th className="px-6 py-4">Trạng thái</th>
+                  <th className="px-6 py-4"><SortableHeader label="Kho nhập" sortKey="warehouseName" activeSort={sort} order={order} onSort={handleSort} /></th>
+                  <th className="px-6 py-4"><SortableHeader label="Ngày nhập" sortKey="createdDate" activeSort={sort} order={order} onSort={handleSort} /></th>
+                  <th className="px-6 py-4"><SortableHeader label="Giá trị lô" sortKey="totalAmount" activeSort={sort} order={order} onSort={handleSort} /></th>
+                  <th className="px-6 py-4"><SortableHeader label="Trạng thái" sortKey="status" activeSort={sort} order={order} onSort={handleSort} /></th>
                   <th className="px-6 py-4 text-right">Chi tiết</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {stockReceipts
-                  .filter(sr => sr.code.toLowerCase().includes(search.toLowerCase()))
-                  .map((sr) => (
+                {pagedReceipts.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                      Không có phiếu nhập phù hợp với bộ lọc.
+                    </td>
+                  </tr>
+                ) : (
+                  pagedReceipts.map((sr) => (
                     <tr key={sr.id} className="hover:bg-slate-50/30 transition-colors">
                       <td className="px-6 py-4 font-mono text-xs font-bold text-primary">{sr.code}</td>
                       <td className="px-6 py-4 font-mono text-xs text-muted-foreground">{sr.purchaseOrderCode || 'Nhập lẻ'}</td>
@@ -307,11 +404,13 @@ export function ReceiptsTab({
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         )}
+        <PaginationControls page={page} limit={limit} total={activeRows.length} onPageChange={setPage} alwaysShow />
       </div>
 
       {/* PO CREATION MODAL */}

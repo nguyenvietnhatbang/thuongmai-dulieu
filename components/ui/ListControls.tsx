@@ -79,7 +79,7 @@ export function ListToolbar({
             key={`${filter.placeholder}-${index}`}
             value={filter.value}
             onChange={(event) => filter.onChange(event.target.value)}
-            className={`premium-input h-10 !w-36 shrink-0 truncate pr-8 ${filter.className || ''}`}
+            className={`premium-input h-10 !w-auto min-w-32 max-w-56 shrink-0 truncate pr-8 ${filter.className || ''}`}
           >
             <option value="">{filter.placeholder}</option>
             {filter.options.map((option) => (

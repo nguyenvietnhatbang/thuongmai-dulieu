@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { ListToolbar, PaginationControls, SortableHeader } from '@/components/ui/ListControls';
 import { Modal } from '@/components/ui/Modal';
 
 interface SalesOrder {
@@ -20,7 +21,6 @@ interface SalesOrdersTabProps {
   customers: any[];
   products: any[];
   warehouses: any[];
-  search: string;
   formatCurrency: (val: number) => string;
   onViewDetails: (type: 'sales', id: string) => void;
   onCreateSalesOrder: (data: any) => Promise<boolean>;
@@ -31,12 +31,16 @@ export function SalesOrdersTab({
   customers,
   products,
   warehouses,
-  search,
   formatCurrency,
   onViewDetails,
   onCreateSalesOrder
 }: SalesOrdersTabProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [sort, setSort] = useState('saleDate');
+  const [order, setOrder] = useState<'asc' | 'desc'>('desc');
   
   const [newSo, setNewSo] = useState({
     code: '',
@@ -81,37 +85,90 @@ export function SalesOrdersTab({
     }
   };
 
+  const filteredOrders = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return salesOrders
+      .filter((so) => !term || so.code.toLowerCase().includes(term) || so.customerName.toLowerCase().includes(term))
+      .filter((so) => !status || so.status === status)
+      .sort((a, b) => {
+        const left = a[sort as keyof SalesOrder];
+        const right = b[sort as keyof SalesOrder];
+        const result = typeof left === 'number' && typeof right === 'number'
+          ? left - right
+          : String(left || '').localeCompare(String(right || ''), 'vi');
+        return order === 'asc' ? result : -result;
+      });
+  }, [salesOrders, search, status, sort, order]);
+
+  const limit = 10;
+  const pagedOrders = filteredOrders.slice((page - 1) * limit, page * limit);
+
+  const handleSort = (nextSort: string) => {
+    setOrder(sort === nextSort && order === 'asc' ? 'desc' : 'asc');
+    setSort(nextSort);
+    setPage(1);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center bg-slate-50/50 border border-border rounded-xl p-2 text-xs font-bold text-slate-600">
-        <span className="px-3 py-1 bg-card text-primary rounded-lg shadow-xs">Đơn Bán Hàng ({salesOrders.length})</span>
-        <button
-          onClick={() => setIsOpen(true)}
-          className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 text-[11px] font-semibold shadow-sm cursor-pointer"
-        >
-          + Đơn bán hàng (SO)
-        </button>
-      </div>
+      <ListToolbar
+        search={search}
+        searchPlaceholder="Tìm mã đơn, khách hàng..."
+        onSearchChange={(value) => { setSearch(value); setPage(1); }}
+        onSearchSubmit={(event) => event.preventDefault()}
+        showSearchButton={false}
+        searchClassName="!w-64"
+        filters={[
+          {
+            value: status,
+            placeholder: 'Tất cả trạng thái',
+            onChange: (value) => { setStatus(value); setPage(1); },
+            options: [
+              { value: 'draft', label: 'Bản nháp' },
+              { value: 'confirmed', label: 'Đã xuất kho' },
+              { value: 'partially_paid', label: 'Thu một phần' },
+              { value: 'paid', label: 'Đã trả đủ' },
+              { value: 'cancelled', label: 'Đã hủy' },
+            ],
+            className: '!w-40',
+          },
+        ]}
+        onReset={() => { setSearch(''); setStatus(''); setPage(1); }}
+        rightSlot={(
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className="px-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 text-xs font-semibold shadow-sm cursor-pointer"
+          >
+            + Đơn bán hàng
+          </button>
+        )}
+      />
 
       <div className="glass-panel border border-border rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-border text-muted-foreground text-xs uppercase font-semibold">
-                <th className="px-6 py-4">Mã đơn</th>
-                <th className="px-6 py-4">Khách hàng</th>
-                <th className="px-6 py-4">Ngày bán</th>
-                <th className="px-6 py-4">Tổng tiền</th>
-                <th className="px-6 py-4">Đã thanh toán</th>
-                <th className="px-6 py-4">Còn nợ</th>
-                <th className="px-6 py-4">Trạng thái</th>
+                <th className="px-6 py-4"><SortableHeader label="Mã đơn" sortKey="code" activeSort={sort} order={order} onSort={handleSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Khách hàng" sortKey="customerName" activeSort={sort} order={order} onSort={handleSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Ngày bán" sortKey="saleDate" activeSort={sort} order={order} onSort={handleSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Tổng tiền" sortKey="totalAmount" activeSort={sort} order={order} onSort={handleSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Đã thanh toán" sortKey="paidAmount" activeSort={sort} order={order} onSort={handleSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Còn nợ" sortKey="debtAmount" activeSort={sort} order={order} onSort={handleSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Trạng thái" sortKey="status" activeSort={sort} order={order} onSort={handleSort} /></th>
                 <th className="px-6 py-4 text-right">Chi tiết</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {salesOrders
-                .filter(so => so.code.toLowerCase().includes(search.toLowerCase()) || so.customerName.toLowerCase().includes(search.toLowerCase()))
-                .map((so) => (
+              {pagedOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                    Không có đơn bán hàng phù hợp với bộ lọc.
+                  </td>
+                </tr>
+              ) : (
+                pagedOrders.map((so) => (
                   <tr key={so.id} className="hover:bg-slate-50/30 transition-colors">
                     <td className="px-6 py-4 font-mono text-xs font-bold text-primary">{so.code}</td>
                     <td className="px-6 py-4 font-bold text-foreground">{so.customerName}</td>
@@ -140,10 +197,12 @@ export function SalesOrdersTab({
                       </button>
                     </td>
                   </tr>
-                ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>
+        <PaginationControls page={page} limit={limit} total={filteredOrders.length} onPageChange={setPage} alwaysShow />
       </div>
 
       {/* SO CREATION MODAL */}
