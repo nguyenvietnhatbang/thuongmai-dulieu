@@ -1,5 +1,6 @@
 import { query, transaction } from '@/lib/db';
 import { buildPagination, getSortSql, PaginatedResult, SortDirection } from '@/lib/list-query';
+import type { PoolClient } from 'pg';
 
 export interface CustomerCareReminder {
   id: string;
@@ -115,6 +116,26 @@ export async function getReminders(params: {
   }
 }
 
+async function getReminderById(id: string, client?: PoolClient): Promise<CustomerCareReminder | null> {
+  const executeQuery = client ? client.query.bind(client) : query;
+  const res = await executeQuery(`
+    SELECT 
+      r.id, r.customer_id as "customerId", c.name as "customerName", c.code as "customerCode",
+      r.contract_id as "contractId", ctr.contract_number as "contractNumber",
+      r.project_id as "projectId", p.name as "projectName",
+      r.reminder_date::text as "reminderDate", r.owner_user_id as "ownerUserId", u.full_name as "ownerName",
+      r.content, r.result, r.status, r.next_care_date::text as "nextCareDate", r.completed_at::text as "completedAt"
+    FROM app.customer_care_reminders r
+    INNER JOIN app.customers c ON r.customer_id = c.id
+    LEFT JOIN app.contracts ctr ON r.contract_id = ctr.id
+    LEFT JOIN app.projects p ON r.project_id = p.id
+    LEFT JOIN app.users u ON r.owner_user_id = u.id
+    WHERE r.id = $1 AND r.deleted_at IS NULL
+  `, [id]);
+
+  return (res.rows[0] as CustomerCareReminder | undefined) || null;
+}
+
 /**
  * Create a new customer care reminder manually
  */
@@ -152,8 +173,12 @@ export async function createReminder(
     VALUES ($1, 'create_reminder', 'customer_care_reminder', $2, $3)
   `, [data.userId, reminderId, JSON.stringify({ reminderDate: data.reminderDate })]);
 
-  const list = await getReminders({ search: data.customerId, limit: 100, offset: 0, page: 1 });
-  return list.data.find(r => r.id === reminderId)!;
+  const reminder = await getReminderById(reminderId);
+  if (!reminder) {
+    throw new Error('Reminder was created but could not be loaded.');
+  }
+
+  return reminder;
 }
 
 export async function updateReminder(
@@ -207,26 +232,12 @@ export async function updateReminder(
     VALUES ($1, 'update_reminder', 'customer_care_reminder', $2, $3)
   `, [data.userId, id, JSON.stringify(data)]);
 
-  const list = await getReminders({ search: '', limit: 1, offset: 0, page: 1 });
-  const updated = list.data.find((reminder) => reminder.id === id);
-  if (updated) return updated;
+  const updated = await getReminderById(id);
+  if (!updated) {
+    throw new Error('Reminder was updated but could not be loaded.');
+  }
 
-  const res = await query(`
-    SELECT 
-      r.id, r.customer_id as "customerId", c.name as "customerName", c.code as "customerCode",
-      r.contract_id as "contractId", ctr.contract_number as "contractNumber",
-      r.project_id as "projectId", p.name as "projectName",
-      r.reminder_date::text as "reminderDate", r.owner_user_id as "ownerUserId", u.full_name as "ownerName",
-      r.content, r.result, r.status, r.next_care_date::text as "nextCareDate", r.completed_at::text as "completedAt"
-    FROM app.customer_care_reminders r
-    INNER JOIN app.customers c ON r.customer_id = c.id
-    LEFT JOIN app.contracts ctr ON r.contract_id = ctr.id
-    LEFT JOIN app.projects p ON r.project_id = p.id
-    LEFT JOIN app.users u ON r.owner_user_id = u.id
-    WHERE r.id = $1
-  `, [id]);
-
-  return res.rows[0] as CustomerCareReminder;
+  return updated;
 }
 
 export async function deleteReminder(id: string, userId: string): Promise<boolean> {
@@ -315,22 +326,12 @@ export async function completeReminder(
       VALUES ($1, 'complete_reminder', 'customer_care_reminder', $2, $3)
     `, [data.userId, id, JSON.stringify({ status, nextCareDate: data.nextCareDate })]);
 
-    const finalRes = await query(`
-      SELECT 
-        r.id, r.customer_id as "customerId", c.name as "customerName", c.code as "customerCode",
-        r.contract_id as "contractId", ctr.contract_number as "contractNumber",
-        r.project_id as "projectId", p.name as "projectName",
-        r.reminder_date::text as "reminderDate", r.owner_user_id as "ownerUserId", u.full_name as "ownerName",
-        r.content, r.result, r.status, r.next_care_date::text as "nextCareDate", r.completed_at::text as "completedAt"
-      FROM app.customer_care_reminders r
-      INNER JOIN app.customers c ON r.customer_id = c.id
-      LEFT JOIN app.contracts ctr ON r.contract_id = ctr.id
-      LEFT JOIN app.projects p ON r.project_id = p.id
-      LEFT JOIN app.users u ON r.owner_user_id = u.id
-      WHERE r.id = $1
-    `, [id]);
+    const completed = await getReminderById(id, client);
+    if (!completed) {
+      throw new Error('Reminder was completed but could not be loaded.');
+    }
 
-    return finalRes.rows[0] as CustomerCareReminder;
+    return completed;
   });
 }
 

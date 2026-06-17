@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+/artifacts/ui-import/
+/docs/reports/ui-sample-import-*.md
 
 # next.js
 /.next/

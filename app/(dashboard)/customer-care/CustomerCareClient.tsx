@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ListToolbar } from '@/components/ui/ListControls';
-import { CustomerCareReminder, getStatusBadge, getStatusText, RemindersTable } from './components/RemindersTable';
+import { CustomerCareReminder, RemindersTable } from './components/RemindersTable';
 import { ReminderCreateModal } from './components/ReminderCreateModal';
 import { ReminderCompleteModal } from './components/ReminderCompleteModal';
 
@@ -108,6 +108,12 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
 
       const json = await res.json();
       if (json.success) {
+        if (!json.data?.id) {
+          alert('Lịch nhắc hẹn đã được gửi nhưng hệ thống không trả về mã hồ sơ. Vui lòng tải lại danh sách để kiểm tra.');
+          fetchData();
+          return false;
+        }
+
         alert(editingReminder ? 'Cập nhật lịch nhắc hẹn thành công!' : 'Tạo lịch nhắc hẹn chăm sóc khách hàng thành công!');
         fetchData();
         return true;

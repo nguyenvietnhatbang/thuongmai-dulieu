@@ -1,5 +1,6 @@
 import { query, transaction } from '@/lib/db';
 import { buildPagination, getSortSql, PaginatedResult, SortDirection } from '@/lib/list-query';
+import type { PoolClient } from 'pg';
 
 export interface PaymentMilestone {
   id: string;
@@ -143,8 +144,10 @@ export async function getContracts(params: {
 /**
  * Get detailed contract by ID with milestones
  */
-export async function getContractById(id: string): Promise<Contract | null> {
-  const res = await query(`
+export async function getContractById(id: string, client?: PoolClient): Promise<Contract | null> {
+  const executeQuery = client ? client.query.bind(client) : query;
+
+  const res = await executeQuery(`
     SELECT 
       ctr.id, ctr.code, ctr.contract_number as "contractNumber", ctr.customer_id as "customerId",
       c.name as "customerName", ctr.quote_id as "quoteId", q.quote_number as "quoteNumber",
@@ -162,7 +165,7 @@ export async function getContractById(id: string): Promise<Contract | null> {
   const contract = res.rows[0] as Contract;
 
   // Fetch payment milestones
-  const milestonesRes = await query(`
+  const milestonesRes = await executeQuery(`
     SELECT 
       id, contract_id as "contractId", name, due_date::text as "dueDate",
       amount_due::numeric as "amountDue", amount_paid::numeric as "amountPaid", status
@@ -306,6 +309,8 @@ export async function updateContract(
     `, values);
 
     // 3. TRIGGER: Auto-create project if status changes to signed & project has not been created yet
+    let projectId: string | null = null;
+
     if (data.status === 'signed' && !contract.project_created) {
       const projectCode = `PJ-${contract.code}`;
       const projectName = `Du an - ${contract.contract_number}`;
@@ -325,7 +330,7 @@ export async function updateContract(
         contract.owner_user_id // Assign contract owner as the default PM
       ]);
 
-      const projectId = projRes.rows[0].id;
+      projectId = projRes.rows[0].id;
 
       // Update contract setting project_created = true
       await client.query('UPDATE app.contracts SET project_created = true WHERE id = $1', [id]);
@@ -350,6 +355,56 @@ export async function updateContract(
       }
     }
 
+    if (data.status === 'signed') {
+      if (!projectId) {
+        const existingProjectRes = await client.query(
+          'SELECT id FROM app.projects WHERE contract_id = $1 AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 1',
+          [id],
+        );
+        projectId = existingProjectRes.rows[0]?.id || null;
+      }
+
+      await client.query(`
+        INSERT INTO app.receivables (
+          code, customer_id, contract_id, project_id, payment_milestone_id,
+          due_date, amount_due, amount_paid, status, collector_user_id, notes
+        )
+        SELECT
+          'REC-' || $2 || '-' || UPPER(LEFT(pm.id::text, 8)),
+          $3,
+          $1,
+          $4,
+          pm.id,
+          pm.due_date,
+          pm.amount_due,
+          pm.amount_paid,
+          CASE
+            WHEN pm.amount_paid >= pm.amount_due THEN 'paid'
+            WHEN pm.amount_paid > 0 THEN 'partially_paid'
+            WHEN pm.due_date < CURRENT_DATE THEN 'overdue'
+            WHEN pm.due_date = CURRENT_DATE THEN 'due_today'
+            WHEN pm.due_date <= CURRENT_DATE + INTERVAL '3 days' THEN 'due_soon'
+            ELSE 'not_due'
+          END,
+          $5,
+          'Tu dong tao tu dot thanh toan hop dong ' || $6
+        FROM app.payment_milestones pm
+        LEFT JOIN app.receivables r
+          ON r.payment_milestone_id = pm.id
+          AND r.deleted_at IS NULL
+        WHERE pm.contract_id = $1
+          AND r.id IS NULL
+        ON CONFLICT (code) DO NOTHING
+      `, [
+        id,
+        contract.code,
+        contract.customer_id,
+        projectId,
+        contract.owner_user_id,
+        contract.contract_number,
+      ]);
+    }
+
     // Write audit log for contract updates
     await client.query(`
       INSERT INTO app.audit_logs (actor_user_id, action, entity_type, entity_id, metadata)
@@ -357,8 +412,12 @@ export async function updateContract(
     `, [data.userId, id, JSON.stringify(data)]);
 
     // Return the updated contract
-    const finalContract = await getContractById(id);
-    return finalContract!;
+    const finalContract = await getContractById(id, client);
+    if (!finalContract) {
+      throw new Error('Contract was updated but could not be loaded.');
+    }
+
+    return finalContract;
   });
 }
 

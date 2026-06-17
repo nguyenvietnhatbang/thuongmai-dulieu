@@ -1,5 +1,6 @@
 import { query, transaction } from '@/lib/db';
 import { buildPagination, getSortSql, PaginatedResult, SortDirection } from '@/lib/list-query';
+import type { PoolClient } from 'pg';
 
 export interface QuoteItem {
   id?: string;
@@ -137,8 +138,10 @@ export async function getQuotes(params: {
 /**
  * Get quote details with items by ID
  */
-export async function getQuoteById(id: string): Promise<Quote | null> {
-  const res = await query(`
+export async function getQuoteById(id: string, client?: PoolClient): Promise<Quote | null> {
+  const executeQuery = client ? client.query.bind(client) : query;
+
+  const res = await executeQuery(`
     SELECT 
       q.id, q.code, q.quote_number as "quoteNumber", q.customer_id as "customerId",
       c.name as "customerName", q.opportunity_id as "opportunityId", opp.title as "opportunityTitle",
@@ -159,7 +162,7 @@ export async function getQuoteById(id: string): Promise<Quote | null> {
   const quote = res.rows[0] as Quote;
 
   // Fetch items
-  const itemsRes = await query(`
+  const itemsRes = await executeQuery(`
     SELECT 
       id, item_name as "itemName", description, unit_code as "unitCode",
       quantity::numeric, unit_price::numeric as "unitPrice", line_total::numeric as "lineTotal", sort_order as "sortOrder"
@@ -237,7 +240,12 @@ export async function createQuote(
       VALUES ($1, 'create', 'quote', $2, $3)
     `, [data.userId, quoteId, JSON.stringify({ quoteNumber: data.quoteNumber, totalAmount: total })]);
 
-    return (await getQuoteById(quoteId))!;
+    const createdQuote = await getQuoteById(quoteId, client);
+    if (!createdQuote) {
+      throw new Error('Quote was created but could not be loaded.');
+    }
+
+    return createdQuote;
   });
 }
 
@@ -341,7 +349,12 @@ export async function updateQuote(
       VALUES ($1, 'update', 'quote', $2, $3)
     `, [data.userId, id, JSON.stringify(data)]);
 
-    return (await getQuoteById(id))!;
+    const updatedQuote = await getQuoteById(id, client);
+    if (!updatedQuote) {
+      throw new Error('Quote was updated but could not be loaded.');
+    }
+
+    return updatedQuote;
   });
 }
 

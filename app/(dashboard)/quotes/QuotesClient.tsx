@@ -127,6 +127,12 @@ export function QuotesClient({
       });
       const json = await res.json();
       if (json.success) {
+        if (!json.data?.id) {
+          alert('Báo giá đã được gửi nhưng hệ thống không trả về mã hồ sơ. Vui lòng tải lại danh sách để kiểm tra.');
+          await fetchQuotes();
+          return false;
+        }
+
         router.push(`/quotes/${json.data.id}`);
         return true;
       }

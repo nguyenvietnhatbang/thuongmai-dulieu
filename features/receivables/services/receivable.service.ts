@@ -61,7 +61,12 @@ export async function getReceivables(params: {
 
     if (search) {
       values.push(`%${search}%`);
-      whereClauses.push(`(r.code ILIKE $${values.length} OR c.name ILIKE $${values.length})`);
+      whereClauses.push(`(
+        r.code ILIKE $${values.length}
+        OR c.name ILIKE $${values.length}
+        OR ctr.contract_number ILIKE $${values.length}
+        OR so.code ILIKE $${values.length}
+      )`);
     }
 
     if (status) {
