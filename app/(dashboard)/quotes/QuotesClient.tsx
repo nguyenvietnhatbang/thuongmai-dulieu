@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Quote, QuoteItem } from '@/features/quotes/services/quote.service';
 import { Customer } from '@/features/customers/services/customer.service';
-import { ListToolbar, PaginationControls, SortableHeader } from '@/components/ui/ListControls';
+import { ListToolbar } from '@/components/ui/ListControls';
+import { QuotesTable } from './components/QuotesTable';
 
 interface UserSession {
   id: string;
@@ -378,57 +379,21 @@ export function QuotesClient({ currentUser }: { currentUser: UserSession }) {
         ]}
       />
 
-      {/* Quotes Table */}
-      <div className="glass-panel rounded-xl overflow-hidden border border-border">
-        {loading ? (
-          <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-2">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            <p className="text-xs">Đang tải danh sách báo giá...</p>
-          </div>
-        ) : quotes.length === 0 ? (
-          <div className="py-20 text-center text-muted-foreground">
-            <p className="text-sm font-semibold">Chưa có báo giá nào</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-border text-muted-foreground text-xs uppercase font-semibold">
-                  <th className="px-6 py-4"><SortableHeader label="Số báo giá" sortKey="quoteNumber" activeSort={sort} order={order} onSort={handleSort} /></th>
-                  <th className="px-6 py-4"><SortableHeader label="Khách hàng" sortKey="customerName" activeSort={sort} order={order} onSort={handleSort} /></th>
-                  <th className="px-6 py-4"><SortableHeader label="Ngày báo" sortKey="quoteDate" activeSort={sort} order={order} onSort={handleSort} /></th>
-                  <th className="px-6 py-4"><SortableHeader label="Tổng tiền (gồm VAT)" sortKey="totalAmount" activeSort={sort} order={order} onSort={handleSort} /></th>
-                  <th className="px-6 py-4">Phiên bản</th>
-                  <th className="px-6 py-4">Người lập</th>
-                  <th className="px-6 py-4"><SortableHeader label="Trạng thái" sortKey="status" activeSort={sort} order={order} onSort={handleSort} /></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {quotes.map((q) => (
-                  <tr
-                    key={q.id}
-                    onClick={() => loadQuoteDetails(q.id)}
-                    className="hover:bg-slate-50/50 transition-colors cursor-pointer"
-                  >
-                    <td className="px-6 py-4 font-mono text-xs font-semibold text-primary">{q.quoteNumber}</td>
-                    <td className="px-6 py-4 font-bold text-foreground">{q.customerName}</td>
-                    <td className="px-6 py-4 text-xs">{new Date(q.quoteDate).toLocaleDateString('vi-VN')}</td>
-                    <td className="px-6 py-4 font-bold text-foreground">{formatCurrency(q.totalAmount)}</td>
-                    <td className="px-6 py-4 text-xs font-mono text-center">v{q.revisionNumber}</td>
-                    <td className="px-6 py-4 text-xs font-medium text-slate-700">{q.quotedByName || '-'}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${getStatusBadge(q.status)}`}>
-                        {getStatusText(q.status)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <PaginationControls page={page} limit={limit} total={total} onPageChange={setPage} />
-      </div>
+      <QuotesTable
+        quotes={quotes}
+        loading={loading}
+        page={page}
+        limit={limit}
+        total={total}
+        sort={sort}
+        order={order}
+        formatCurrency={formatCurrency}
+        getStatusBadge={getStatusBadge}
+        getStatusText={getStatusText}
+        onSort={handleSort}
+        onPageChange={setPage}
+        onOpenQuote={loadQuoteDetails}
+      />
 
       {/* Creation Modal */}
       {isCreateOpen && (

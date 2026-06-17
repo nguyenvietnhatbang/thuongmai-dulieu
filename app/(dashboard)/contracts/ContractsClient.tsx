@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Contract, PaymentMilestone } from '@/features/contracts/services/contract.service';
 import { ListToolbar } from '@/components/ui/ListControls';
-import { Modal } from '@/components/ui/Modal';
+import { ContractCreateFormState, ContractCreateModal, ContractSelectOption } from './components/ContractCreateModal';
+import { ContractDetailDrawer } from './components/ContractDetailDrawer';
 import { ContractsTable } from './components/ContractsTable';
 
 interface UserSession {
@@ -14,22 +15,12 @@ interface UserSession {
   permissions: string[];
 }
 
-interface SelectOption {
-  id: string;
-  name?: string;
-  fullName?: string;
-  customerId?: string;
-  customerName?: string;
-  quoteNumber?: string;
-  totalAmount?: number;
-}
-
 const getDefaultDueDate = () => {
   const date = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
   return date.toISOString().slice(0, 10);
 };
 
-const buildInitialContractForm = (currentUserId: string) => ({
+const buildInitialContractForm = (currentUserId: string): ContractCreateFormState => ({
   code: `HD-${Date.now()}`,
   contractNumber: `HD-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Date.now()).slice(-4)}`,
   customerId: '',
@@ -52,9 +43,9 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
   const [sort, setSort] = useState('createdAt');
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
   const limit = 20;
-  const [customers, setCustomers] = useState<SelectOption[]>([]);
-  const [users, setUsers] = useState<SelectOption[]>([]);
-  const [approvedQuotes, setApprovedQuotes] = useState<SelectOption[]>([]);
+  const [customers, setCustomers] = useState<ContractSelectOption[]>([]);
+  const [users, setUsers] = useState<ContractSelectOption[]>([]);
+  const [approvedQuotes, setApprovedQuotes] = useState<ContractSelectOption[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createSaving, setCreateSaving] = useState(false);
   const [createForm, setCreateForm] = useState(buildInitialContractForm(currentUser.id));
@@ -428,401 +419,45 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
         onOpenContract={loadContractDetails}
       />
 
-      {/* Contract Details Drawer */}
       {activeContract && (
-        <div className="fixed inset-y-0 right-0 z-40 w-full max-w-xl bg-card border-l border-border shadow-2xl flex flex-col justify-between animate-fade-in">
-          {/* Header */}
-          <div className="p-6 border-b border-border flex items-center justify-between bg-slate-50/50">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
-                  {activeContract.contractNumber}
-                </span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getStatusBadge(activeContract.status)}`}>
-                  {getStatusText(activeContract.status)}
-                </span>
-              </div>
-              <h2 className="text-base font-bold text-foreground mt-2">Chi tiết Hợp đồng</h2>
-            </div>
-            
-            <button
-              onClick={() => setActiveContract(null)}
-              className="p-1 rounded-lg text-slate-400 hover:bg-muted hover:text-foreground cursor-pointer"
-            >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            {detailLoading ? (
-              <p className="text-center py-12 text-xs text-muted-foreground">Đang tải thông tin hợp đồng...</p>
-            ) : (
-              <div className="space-y-6">
-                {/* Meta details */}
-                <div className="grid grid-cols-2 gap-y-3 text-xs border border-border p-4 rounded-xl bg-slate-50/50">
-                  <div>
-                    <span className="block text-[9px] text-muted-foreground font-bold uppercase">Khách hàng</span>
-                    <span className="font-bold text-foreground mt-0.5">{activeContract.customerName}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[9px] text-muted-foreground font-bold uppercase">Tổng giá trị</span>
-                    <span className="font-bold text-primary mt-0.5">{formatCurrency(activeContract.contractValue)}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[9px] text-muted-foreground font-bold uppercase">Ngày ký hợp đồng</span>
-                    <span className="font-semibold text-foreground mt-0.5">
-                      {activeContract.signedDate ? new Date(activeContract.signedDate).toLocaleDateString('vi-VN') : 'Chưa ký kết'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-[9px] text-muted-foreground font-bold uppercase">Nhân sự quản lý HĐ</span>
-                    <span className="font-semibold text-foreground mt-0.5">{activeContract.ownerName || '-'}</span>
-                  </div>
-                </div>
-
-                {/* Project Status trigger display */}
-                <div className="border border-border rounded-xl p-4 bg-slate-50/30 space-y-2.5">
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Đồng bộ triển khai dự án</h3>
-                  
-                  {activeContract.projectCreated ? (
-                    <div className="space-y-2">
-                      <p className="text-xs text-slate-600 leading-normal">
-                        Dự án phụ trách triển khai kỹ thuật đã được **tự động khởi tạo** khi hợp đồng chuyển sang trạng thái đã ký.
-                      </p>
-                      <a
-                        href="/projects"
-                        className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
-                      >
-                        <span>Đi tới không gian công việc dự án</span>
-                        <span>&rarr;</span>
-                      </a>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <p className="text-xs text-slate-600 leading-normal">
-                        Hợp đồng này chưa được ký kết chính thức.
-                      </p>
-                      {activeContract.status !== 'signed' && activeContract.status !== 'cancelled' && canSign && (
-                        <button
-                          onClick={() => handleSignContract(activeContract.id)}
-                          className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow shadow-emerald-100 transition-all cursor-pointer flex items-center justify-center gap-1"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          <span>Ký kết & Khởi tạo dự án</span>
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="border border-border rounded-xl p-4 bg-card space-y-3">
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Thao tác hợp đồng</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {activeContract.status === 'draft' && (
-                      <button onClick={() => handleChangeStatus(activeContract, 'sent')} className="px-3 py-2 rounded-lg bg-secondary text-primary text-xs font-bold hover:bg-primary/10 cursor-pointer">
-                        Gửi khách
-                      </button>
-                    )}
-                    {['draft', 'sent'].includes(activeContract.status) && (
-                      <button onClick={() => handleChangeStatus(activeContract, 'negotiating')} className="px-3 py-2 rounded-lg bg-amber-50 text-amber-700 border border-amber-100 text-xs font-bold hover:bg-amber-100 cursor-pointer">
-                        Đang đàm phán
-                      </button>
-                    )}
-                    {['sent', 'negotiating', 'signed'].includes(activeContract.status) && (
-                      <button onClick={() => handleChangeStatus(activeContract, 'paused')} className="px-3 py-2 rounded-lg bg-orange-50 text-orange-700 border border-orange-100 text-xs font-bold hover:bg-orange-100 cursor-pointer">
-                        Tạm dừng
-                      </button>
-                    )}
-                    {['draft', 'sent', 'negotiating', 'paused'].includes(activeContract.status) && (
-                      <button onClick={() => handleChangeStatus(activeContract, 'cancelled')} className="px-3 py-2 rounded-lg bg-red-50 text-red-700 border border-red-100 text-xs font-bold hover:bg-red-100 cursor-pointer">
-                        Hủy hợp đồng
-                      </button>
-                    )}
-                    {activeContract.status === 'signed' && (
-                      <button onClick={() => handleChangeStatus(activeContract, 'completed')} className="px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-bold hover:bg-indigo-100 cursor-pointer">
-                        Hoàn tất
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Payment Milestones Progress Tracker */}
-                <div>
-                  <h3 className="text-xs font-bold text-slate-700 uppercase mb-3">Đợt thanh toán & Tiến trình thu hồi nợ</h3>
-                  
-                  {activeContract.milestones?.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Không tìm thấy đợt thanh toán nào cho hợp đồng này.</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {activeContract.milestones?.map((mil) => {
-                        const progress = (mil.amountPaid / mil.amountDue) * 100;
-                        const isCollectOpen = collectingMilestoneId === mil.id;
-
-                        return (
-                          <div key={mil.id} className="border border-border rounded-xl p-3.5 space-y-3 bg-card">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h4 className="font-bold text-xs text-foreground">{mil.name}</h4>
-                                <p className="text-[10px] text-muted-foreground mt-0.5">
-                                  Hạn đóng tiền: {new Date(mil.dueDate).toLocaleDateString('vi-VN')}
-                                </p>
-                              </div>
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getMilestoneStatusBadge(mil.status)}`}>
-                                {getMilestoneStatusText(mil.status)}
-                              </span>
-                            </div>
-
-                            {/* Progress bar */}
-                            <div className="space-y-1">
-                              <div className="flex justify-between text-[10px] text-muted-foreground font-semibold">
-                                <span>Đã thu: {formatCurrency(mil.amountPaid)}</span>
-                                <span>Tổng: {formatCurrency(mil.amountDue)} ({progress.toFixed(0)}%)</span>
-                              </div>
-                              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                <div className="bg-primary h-full transition-all" style={{ width: `${progress}%` }}></div>
-                              </div>
-                            </div>
-
-                            {/* Payment record editor form */}
-                            {isCollectOpen ? (
-                              <form onSubmit={(e) => handleRecordPayment(e, mil)} className="flex items-center gap-2 pt-2 border-t border-border/50">
-                                <div className="flex-1">
-                                  <input
-                                    type="number"
-                                    required
-                                    placeholder="Nhập số tiền đã thu..."
-                                    value={paymentInput}
-                                    onChange={(e) => setPaymentInput(e.target.value)}
-                                    className="premium-input py-1 text-xs font-mono"
-                                  />
-                                </div>
-                                <button
-                                  type="submit"
-                                  className="px-2.5 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded hover:bg-primary/95 cursor-pointer"
-                                >
-                                  Lưu
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setCollectingMilestoneId(null)}
-                                  className="px-2.5 py-1.5 border border-border text-xs font-bold rounded hover:bg-muted cursor-pointer"
-                                >
-                                  Hủy
-                                </button>
-                              </form>
-                            ) : (
-                              mil.status !== 'paid' && canCollect && (
-                                <button
-                                  onClick={() => { setCollectingMilestoneId(mil.id); setPaymentInput(mil.amountPaid.toString()); }}
-                                  className="text-[10px] font-bold text-primary hover:underline pt-1 cursor-pointer block"
-                                >
-                                  Ghi nhận số tiền thanh toán &rarr;
-                                </button>
-                              )
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-xs font-bold text-slate-700 uppercase">Ghi chú điều khoản</h3>
-                    {!isEditingNotes && (
-                      <button onClick={() => setIsEditingNotes(true)} className="text-xs font-bold text-primary hover:underline cursor-pointer">
-                        Sửa ghi chú
-                      </button>
-                    )}
-                  </div>
-                  {isEditingNotes ? (
-                    <div className="space-y-2">
-                      <textarea value={notesInput} onChange={(event) => setNotesInput(event.target.value)} className="premium-input h-24 text-xs" />
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => { setNotesInput(activeContract.notes || ''); setIsEditingNotes(false); }} className="px-3 py-1.5 rounded-lg border border-border text-xs font-bold hover:bg-muted cursor-pointer">
-                          Hủy
-                        </button>
-                        <button onClick={() => handleUpdateContract(activeContract.id, { notes: notesInput })} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/95 cursor-pointer">
-                          Lưu ghi chú
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-xs border border-border p-3 rounded-lg bg-slate-50/50 whitespace-pre-line leading-relaxed">
-                      {activeContract.notes || 'Không có ghi chú nào khác.'}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Footer close */}
-          <div className="p-6 border-t border-border bg-slate-50/50 flex">
-            <button
-              onClick={() => setActiveContract(null)}
-              className="flex-1 py-2 border border-border text-sm font-semibold rounded-lg bg-card hover:bg-muted text-center cursor-pointer"
-            >
-              Đóng bảng Hợp đồng
-            </button>
-          </div>
-        </div>
+        <ContractDetailDrawer
+          contract={activeContract}
+          detailLoading={detailLoading}
+          canSign={canSign}
+          canCollect={canCollect}
+          collectingMilestoneId={collectingMilestoneId}
+          paymentInput={paymentInput}
+          isEditingNotes={isEditingNotes}
+          notesInput={notesInput}
+          formatCurrency={formatCurrency}
+          getStatusBadge={getStatusBadge}
+          getStatusText={getStatusText}
+          getMilestoneStatusBadge={getMilestoneStatusBadge}
+          getMilestoneStatusText={getMilestoneStatusText}
+          onClose={() => setActiveContract(null)}
+          onSignContract={handleSignContract}
+          onChangeStatus={handleChangeStatus}
+          onRecordPayment={handleRecordPayment}
+          onUpdateContract={handleUpdateContract}
+          setCollectingMilestoneId={setCollectingMilestoneId}
+          setPaymentInput={setPaymentInput}
+          setIsEditingNotes={setIsEditingNotes}
+          setNotesInput={setNotesInput}
+        />
       )}
 
-      <Modal
+      <ContractCreateModal
         isOpen={isCreateOpen}
+        saving={createSaving}
+        form={createForm}
+        customers={customers}
+        users={users}
+        approvedQuotes={approvedQuotes}
+        setForm={setCreateForm}
         onClose={() => setIsCreateOpen(false)}
-        title="Tạo hợp đồng"
-        maxWidthClass="max-w-2xl"
-      >
-        <form onSubmit={handleCreateContract} className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Mã hợp đồng</label>
-              <input
-                required
-                value={createForm.code}
-                onChange={(event) => setCreateForm({ ...createForm, code: event.target.value })}
-                className="premium-input text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Số hợp đồng</label>
-              <input
-                required
-                value={createForm.contractNumber}
-                onChange={(event) => setCreateForm({ ...createForm, contractNumber: event.target.value })}
-                className="premium-input text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Báo giá đã duyệt</label>
-              <select
-                value={createForm.quoteId}
-                onChange={(event) => handleQuoteSelect(event.target.value)}
-                className="premium-input text-sm"
-              >
-                <option value="">Không gắn báo giá</option>
-                {approvedQuotes.map((quote) => (
-                  <option key={quote.id} value={quote.id}>
-                    {quote.quoteNumber} - {quote.customerName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Khách hàng</label>
-              <select
-                required
-                value={createForm.customerId}
-                onChange={(event) => setCreateForm({ ...createForm, customerId: event.target.value })}
-                className="premium-input text-sm"
-              >
-                <option value="">Chọn khách hàng</option>
-                {customers.map((customer) => (
-                  <option key={customer.id} value={customer.id}>{customer.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Giá trị hợp đồng</label>
-              <input
-                required
-                type="number"
-                min="1"
-                value={createForm.contractValue}
-                onChange={(event) => setCreateForm({
-                  ...createForm,
-                  contractValue: event.target.value,
-                  milestoneAmount: createForm.milestoneAmount || event.target.value
-                })}
-                className="premium-input text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Người phụ trách</label>
-              <select
-                value={createForm.ownerUserId}
-                onChange={(event) => setCreateForm({ ...createForm, ownerUserId: event.target.value })}
-                className="premium-input text-sm"
-              >
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>{user.fullName}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border bg-slate-50/50 p-3">
-            <p className="text-xs font-bold uppercase text-slate-700 mb-3">Đợt thanh toán đầu tiên</p>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="sm:col-span-1">
-                <label className="block text-xs font-bold text-slate-600 mb-1">Tên đợt</label>
-                <input
-                  required
-                  value={createForm.milestoneName}
-                  onChange={(event) => setCreateForm({ ...createForm, milestoneName: event.target.value })}
-                  className="premium-input text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Hạn thu</label>
-                <input
-                  required
-                  type="date"
-                  value={createForm.milestoneDueDate}
-                  onChange={(event) => setCreateForm({ ...createForm, milestoneDueDate: event.target.value })}
-                  className="premium-input text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Số tiền</label>
-                <input
-                  required
-                  type="number"
-                  min="1"
-                  value={createForm.milestoneAmount || createForm.contractValue}
-                  onChange={(event) => setCreateForm({ ...createForm, milestoneAmount: event.target.value })}
-                  className="premium-input text-sm"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1">Ghi chú</label>
-            <textarea
-              value={createForm.notes}
-              onChange={(event) => setCreateForm({ ...createForm, notes: event.target.value })}
-              className="premium-input h-24 text-sm"
-              placeholder="Điều khoản hoặc lưu ý nội bộ..."
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setIsCreateOpen(false)}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-bold hover:bg-muted cursor-pointer"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              disabled={createSaving}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/95 disabled:opacity-60 cursor-pointer whitespace-nowrap"
-            >
-              {createSaving ? 'Đang lưu...' : 'Tạo hợp đồng'}
-            </button>
-          </div>
-        </form>
-      </Modal>
+        onSubmit={handleCreateContract}
+        onQuoteSelect={handleQuoteSelect}
+      />
     </div>
   );
 }
