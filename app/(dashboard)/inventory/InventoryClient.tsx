@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { StockLevelsTab } from './components/StockLevelsTab';
-import { ReceiptsTab } from './components/ReceiptsTab';
 import { SalesOrdersTab } from './components/SalesOrdersTab';
-import { MastersTab } from './components/MastersTab';
 import { MovementsTab } from './components/MovementsTab';
 import { InventoryDetailDrawer } from './components/InventoryDetailDrawer';
 
@@ -17,20 +15,14 @@ interface UserSession {
 }
 
 export function InventoryClient({}: { currentUser: UserSession }) {
-  // Tabs: 'balances' | 'orders' | 'sales' | 'masters' | 'movements'
-  const [activeTab, setActiveTab] = useState<'balances' | 'orders' | 'sales' | 'masters' | 'movements'>('balances');
+  // Tabs: 'balances' | 'sales' | 'movements'
+  const [activeTab, setActiveTab] = useState<'balances' | 'sales' | 'movements'>('balances');
 
   // Loading and data states
   const [loading, setLoading] = useState(true);
   const [balances, setBalances] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
-  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
-  const [productRows, setProductRows] = useState<any[]>([]);
-  const [supplierRows, setSupplierRows] = useState<any[]>([]);
-  const [warehouseRows, setWarehouseRows] = useState<any[]>([]);
-  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
-  const [stockReceipts, setStockReceipts] = useState<any[]>([]);
   const [salesOrders, setSalesOrders] = useState<any[]>([]);
   const [movements, setMovements] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -39,6 +31,7 @@ export function InventoryClient({}: { currentUser: UserSession }) {
     lowStockItems: 0,
     totalQuantityOnHand: 0,
   });
+
   const [balancePage, setBalancePage] = useState(1);
   const [balanceTotal, setBalanceTotal] = useState(0);
   const [balanceSearch, setBalanceSearch] = useState('');
@@ -46,6 +39,7 @@ export function InventoryClient({}: { currentUser: UserSession }) {
   const [balanceStockState, setBalanceStockState] = useState('');
   const [balanceSort, setBalanceSort] = useState('productName');
   const [balanceOrder, setBalanceOrder] = useState<'asc' | 'desc'>('asc');
+
   const [movementPage, setMovementPage] = useState(1);
   const [movementTotal, setMovementTotal] = useState(0);
   const [movementSearch, setMovementSearch] = useState('');
@@ -53,42 +47,13 @@ export function InventoryClient({}: { currentUser: UserSession }) {
   const [movementType, setMovementType] = useState('');
   const [movementSort, setMovementSort] = useState('createdAt');
   const [movementOrder, setMovementOrder] = useState<'asc' | 'desc'>('desc');
-  const [purchasePage, setPurchasePage] = useState(1);
-  const [purchaseTotal, setPurchaseTotal] = useState(0);
-  const [purchaseSearch, setPurchaseSearch] = useState('');
-  const [purchaseStatus, setPurchaseStatus] = useState('');
-  const [purchaseSort, setPurchaseSort] = useState('purchaseDate');
-  const [purchaseOrder, setPurchaseOrder] = useState<'asc' | 'desc'>('desc');
-  const [receiptPage, setReceiptPage] = useState(1);
-  const [receiptTotal, setReceiptTotal] = useState(0);
-  const [receiptSearch, setReceiptSearch] = useState('');
-  const [receiptStatus, setReceiptStatus] = useState('');
-  const [receiptSort, setReceiptSort] = useState('receiptDate');
-  const [receiptOrder, setReceiptOrder] = useState<'asc' | 'desc'>('desc');
+
   const [salesPage, setSalesPage] = useState(1);
   const [salesTotal, setSalesTotal] = useState(0);
   const [salesSearch, setSalesSearch] = useState('');
   const [salesStatus, setSalesStatus] = useState('');
   const [salesSort, setSalesSort] = useState('saleDate');
   const [salesOrder, setSalesOrder] = useState<'asc' | 'desc'>('desc');
-  const [productPage, setProductPage] = useState(1);
-  const [productTotal, setProductTotal] = useState(0);
-  const [productSearch, setProductSearch] = useState('');
-  const [productStatus, setProductStatus] = useState('');
-  const [productSort, setProductSort] = useState('name');
-  const [productOrder, setProductOrder] = useState<'asc' | 'desc'>('asc');
-  const [supplierPage, setSupplierPage] = useState(1);
-  const [supplierTotal, setSupplierTotal] = useState(0);
-  const [supplierSearch, setSupplierSearch] = useState('');
-  const [supplierStatus, setSupplierStatus] = useState('');
-  const [supplierSort, setSupplierSort] = useState('name');
-  const [supplierOrder, setSupplierOrder] = useState<'asc' | 'desc'>('asc');
-  const [warehousePage, setWarehousePage] = useState(1);
-  const [warehouseTotal, setWarehouseTotal] = useState(0);
-  const [warehouseSearch, setWarehouseSearch] = useState('');
-  const [warehouseStatus, setWarehouseStatus] = useState('');
-  const [warehouseSort, setWarehouseSort] = useState('name');
-  const [warehouseOrder, setWarehouseOrder] = useState<'asc' | 'desc'>('asc');
 
   // Detail drawer
   const [activeDetail, setActiveDetail] = useState<{ type: 'po' | 'receipt' | 'sales'; id: string; data?: any } | null>(null);
@@ -97,14 +62,12 @@ export function InventoryClient({}: { currentUser: UserSession }) {
     setLoading(true);
     try {
       const p2 = fetch('/api/inventory/products?limit=100&status=active&sort=name&order=asc').then(r => r.json());
-      const p3 = fetch('/api/inventory/suppliers?limit=100&status=active&sort=name&order=asc').then(r => r.json());
       const p4 = fetch('/api/inventory/warehouses?limit=100&status=active&sort=name&order=asc').then(r => r.json());
       const p8 = fetch('/api/customers?limit=100').then(r => r.json());
 
-      const [r2, r3, r4, r8] = await Promise.all([p2, p3, p4, p8]);
+      const [r2, r4, r8] = await Promise.all([p2, p4, p8]);
 
       if (r2.success) setProducts(r2.data);
-      if (r3.success) setSuppliers(r3.data);
       if (r4.success) setWarehouses(r4.data);
       if (r8.success) setCustomers(r8.data);
     } catch (err) {
@@ -164,42 +127,6 @@ export function InventoryClient({}: { currentUser: UserSession }) {
     }
   };
 
-  const fetchPurchaseOrders = async () => {
-    const params = new URLSearchParams({
-      page: String(purchasePage),
-      limit: '10',
-      sort: purchaseSort,
-      order: purchaseOrder,
-    });
-    if (purchaseSearch) params.set('search', purchaseSearch);
-    if (purchaseStatus) params.set('status', purchaseStatus);
-
-    const res = await fetch(`/api/inventory/purchases?${params.toString()}`);
-    const json = await res.json();
-    if (json.success) {
-      setPurchaseOrders(json.data);
-      setPurchaseTotal(json.pagination?.total || 0);
-    }
-  };
-
-  const fetchStockReceipts = async () => {
-    const params = new URLSearchParams({
-      page: String(receiptPage),
-      limit: '10',
-      sort: receiptSort,
-      order: receiptOrder,
-    });
-    if (receiptSearch) params.set('search', receiptSearch);
-    if (receiptStatus) params.set('status', receiptStatus);
-
-    const res = await fetch(`/api/inventory/receipts?${params.toString()}`);
-    const json = await res.json();
-    if (json.success) {
-      setStockReceipts(json.data);
-      setReceiptTotal(json.pagination?.total || 0);
-    }
-  };
-
   const fetchSalesOrders = async () => {
     const params = new URLSearchParams({
       page: String(salesPage),
@@ -218,60 +145,6 @@ export function InventoryClient({}: { currentUser: UserSession }) {
     }
   };
 
-  const fetchProductRows = async () => {
-    const params = new URLSearchParams({
-      page: String(productPage),
-      limit: '10',
-      sort: productSort,
-      order: productOrder,
-    });
-    if (productSearch) params.set('search', productSearch);
-    if (productStatus) params.set('status', productStatus);
-
-    const res = await fetch(`/api/inventory/products?${params.toString()}`);
-    const json = await res.json();
-    if (json.success) {
-      setProductRows(json.data);
-      setProductTotal(json.pagination?.total || 0);
-    }
-  };
-
-  const fetchSupplierRows = async () => {
-    const params = new URLSearchParams({
-      page: String(supplierPage),
-      limit: '10',
-      sort: supplierSort,
-      order: supplierOrder,
-    });
-    if (supplierSearch) params.set('search', supplierSearch);
-    if (supplierStatus) params.set('status', supplierStatus);
-
-    const res = await fetch(`/api/inventory/suppliers?${params.toString()}`);
-    const json = await res.json();
-    if (json.success) {
-      setSupplierRows(json.data);
-      setSupplierTotal(json.pagination?.total || 0);
-    }
-  };
-
-  const fetchWarehouseRows = async () => {
-    const params = new URLSearchParams({
-      page: String(warehousePage),
-      limit: '10',
-      sort: warehouseSort,
-      order: warehouseOrder,
-    });
-    if (warehouseSearch) params.set('search', warehouseSearch);
-    if (warehouseStatus) params.set('status', warehouseStatus);
-
-    const res = await fetch(`/api/inventory/warehouses?${params.toString()}`);
-    const json = await res.json();
-    if (json.success) {
-      setWarehouseRows(json.data);
-      setWarehouseTotal(json.pagination?.total || 0);
-    }
-  };
-
   useEffect(() => {
     fetchOverview();
     fetchBalances();
@@ -282,28 +155,8 @@ export function InventoryClient({}: { currentUser: UserSession }) {
   }, [movementPage, movementSearch, movementWarehouseId, movementType, movementSort, movementOrder]);
 
   useEffect(() => {
-    fetchPurchaseOrders();
-  }, [purchasePage, purchaseSearch, purchaseStatus, purchaseSort, purchaseOrder]);
-
-  useEffect(() => {
-    fetchStockReceipts();
-  }, [receiptPage, receiptSearch, receiptStatus, receiptSort, receiptOrder]);
-
-  useEffect(() => {
     fetchSalesOrders();
   }, [salesPage, salesSearch, salesStatus, salesSort, salesOrder]);
-
-  useEffect(() => {
-    fetchProductRows();
-  }, [productPage, productSearch, productStatus, productSort, productOrder]);
-
-  useEffect(() => {
-    fetchSupplierRows();
-  }, [supplierPage, supplierSearch, supplierStatus, supplierSort, supplierOrder]);
-
-  useEffect(() => {
-    fetchWarehouseRows();
-  }, [warehousePage, warehouseSearch, warehouseStatus, warehouseSort, warehouseOrder]);
 
   // Fetch detailed drawer information
   const fetchDetails = async (type: 'po' | 'receipt' | 'sales', id: string) => {
@@ -326,234 +179,6 @@ export function InventoryClient({}: { currentUser: UserSession }) {
   };
 
   // Actions
-  const handleCreateProduct = async (data: any) => {
-    try {
-      const res = await fetch('/api/inventory/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json();
-      if (json.success) {
-        fetchData();
-        fetchProductRows();
-        fetchOverview();
-        return true;
-      } else {
-        alert(json.error || 'Error creating product');
-        return false;
-      }
-    } catch (err) {
-      console.error(err);
-      return false;
-    }
-  };
-
-  const handleCreateSupplier = async (data: any) => {
-    try {
-      const res = await fetch('/api/inventory/suppliers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json();
-      if (json.success) {
-        fetchData();
-        fetchSupplierRows();
-        return true;
-      } else {
-        alert(json.error || 'Error creating supplier');
-        return false;
-      }
-    } catch (err) {
-      console.error(err);
-      return false;
-    }
-  };
-
-  const handleUpdateSupplier = async (id: string, data: any) => {
-    try {
-      const res = await fetch('/api/inventory/suppliers', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, ...data }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        fetchData();
-        fetchSupplierRows();
-        return true;
-      }
-      alert(json.error || 'Error updating supplier');
-      return false;
-    } catch (err) {
-      console.error(err);
-      return false;
-    }
-  };
-
-  const handleDeleteSupplier = async (id: string) => {
-    if (!confirm('Xóa nhà cung cấp này? Chỉ nhà cung cấp chưa có đơn mua mới được xóa.')) return false;
-    try {
-      const res = await fetch(`/api/inventory/suppliers?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-      const json = await res.json();
-      if (json.success) {
-        fetchData();
-        fetchSupplierRows();
-        return true;
-      }
-      alert(json.error || 'Error deleting supplier');
-      return false;
-    } catch (err) {
-      console.error(err);
-      return false;
-    }
-  };
-
-  const handleUpdateProduct = async (id: string, data: any) => {
-    try {
-      const res = await fetch('/api/inventory/products', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, ...data }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        fetchData();
-        fetchProductRows();
-        fetchOverview();
-        return true;
-      }
-      alert(json.error || 'Error updating product');
-      return false;
-    } catch (err) {
-      console.error(err);
-      return false;
-    }
-  };
-
-  const handleDeleteProduct = async (id: string) => {
-    if (!confirm('Xóa sản phẩm này? Chỉ sản phẩm chưa phát sinh tồn kho/chứng từ mới được xóa.')) return false;
-    try {
-      const res = await fetch(`/api/inventory/products?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-      const json = await res.json();
-      if (json.success) {
-        fetchData();
-        fetchProductRows();
-        fetchOverview();
-        return true;
-      }
-      alert(json.error || 'Error deleting product');
-      return false;
-    } catch (err) {
-      console.error(err);
-      return false;
-    }
-  };
-
-  const handleCreateWarehouse = async (data: any) => {
-    try {
-      const res = await fetch('/api/inventory/warehouses', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json();
-      if (json.success) {
-        fetchData();
-        fetchWarehouseRows();
-        return true;
-      } else {
-        alert(json.error || 'Error creating warehouse');
-        return false;
-      }
-    } catch (err) {
-      console.error(err);
-      return false;
-    }
-  };
-
-  const handleUpdateWarehouse = async (id: string, data: any) => {
-    try {
-      const res = await fetch('/api/inventory/warehouses', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, ...data }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        fetchData();
-        fetchWarehouseRows();
-        return true;
-      }
-      alert(json.error || 'Error updating warehouse');
-      return false;
-    } catch (err) {
-      console.error(err);
-      return false;
-    }
-  };
-
-  const handleDeleteWarehouse = async (id: string) => {
-    if (!confirm('Xóa kho hàng này? Chỉ kho chưa có phát sinh tồn kho/chứng từ mới được xóa.')) return false;
-    try {
-      const res = await fetch(`/api/inventory/warehouses?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-      const json = await res.json();
-      if (json.success) {
-        fetchData();
-        fetchWarehouseRows();
-        return true;
-      }
-      alert(json.error || 'Error deleting warehouse');
-      return false;
-    } catch (err) {
-      console.error(err);
-      return false;
-    }
-  };
-
-  const handleCreatePo = async (data: any) => {
-    try {
-      const res = await fetch('/api/inventory/purchases', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json();
-      if (json.success) {
-        fetchPurchaseOrders();
-        return true;
-      } else {
-        alert(json.error || 'Error creating purchase order');
-        return false;
-      }
-    } catch (err) {
-      console.error(err);
-      return false;
-    }
-  };
-
-  const handleCreateReceipt = async (data: any) => {
-    try {
-      const res = await fetch('/api/inventory/receipts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json();
-      if (json.success) {
-        fetchStockReceipts();
-        return true;
-      } else {
-        alert(json.error || 'Error creating stock receipt');
-        return false;
-      }
-    } catch (err) {
-      console.error(err);
-      return false;
-    }
-  };
-
   const handleCreateSalesOrder = async (data: any) => {
     try {
       const res = await fetch('/api/inventory/sales', {
@@ -572,48 +197,6 @@ export function InventoryClient({}: { currentUser: UserSession }) {
     } catch (err) {
       console.error(err);
       return false;
-    }
-  };
-
-  const handleConfirmPo = async (id: string) => {
-    if (!confirm('Xác nhận đặt đơn mua hàng này? Trạng thái sẽ được chuyển sang Đã đặt hàng.')) return;
-    try {
-      const res = await fetch(`/api/inventory/purchases/${id}/confirm`, { method: 'POST' });
-      const json = await res.json();
-      if (json.success) {
-        alert('Đã xác nhận đặt đơn mua hàng thành công!');
-        fetchPurchaseOrders();
-        if (activeDetail && activeDetail.id === id) {
-          fetchDetails('po', id);
-        }
-      } else {
-        alert(json.error || 'Xác nhận thất bại');
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleConfirmReceipt = async (id: string) => {
-    if (!confirm('Xác nhận nhập kho? Hành động này sẽ tăng số lượng tồn kho và không thể hoàn tác!')) return;
-    try {
-      const res = await fetch(`/api/inventory/receipts/${id}/confirm`, { method: 'POST' });
-      const json = await res.json();
-      if (json.success) {
-        alert('Đã xác nhận nhập kho thành công!');
-        fetchStockReceipts();
-        fetchPurchaseOrders();
-        fetchOverview();
-        fetchBalances();
-        fetchMovements();
-        if (activeDetail && activeDetail.id === id) {
-          fetchDetails('receipt', id);
-        }
-      } else {
-        alert(json.error || 'Xác nhận thất bại');
-      }
-    } catch (err) {
-      console.error(err);
     }
   };
 
@@ -651,8 +234,6 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       const json = await res.json();
       if (json.success) {
         alert('Đã hủy chứng từ thành công.');
-        if (type === 'po') fetchPurchaseOrders();
-        if (type === 'receipt') fetchStockReceipts();
         if (type === 'sales') fetchSalesOrders();
         fetchBalances();
         fetchMovements();
@@ -681,9 +262,9 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       {/* Title Bar */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Thương mại & Quản lý Kho</h1>
+          <h1 className="text-xl font-bold text-foreground">Quản lý Tồn Kho</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Theo dõi lượng hàng tồn kho, điều phối phiếu nhập mua hàng và đơn bán hàng thương mại.
+            Theo dõi lượng hàng tồn kho thực tế, thẻ kho biến động và các đơn bán hàng thương mại.
           </p>
         </div>
       </div>
@@ -738,14 +319,6 @@ export function InventoryClient({}: { currentUser: UserSession }) {
           Tồn Kho Thực Tế
         </button>
         <button
-          onClick={() => setActiveTab('orders')}
-          className={`px-6 py-3 border-b-2 transition-all cursor-pointer ${
-            activeTab === 'orders' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Nhập Kho & Mua Hàng
-        </button>
-        <button
           onClick={() => setActiveTab('sales')}
           className={`px-6 py-3 border-b-2 transition-all cursor-pointer ${
             activeTab === 'sales' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -760,14 +333,6 @@ export function InventoryClient({}: { currentUser: UserSession }) {
           }`}
         >
           Thẻ Kho & Biến động
-        </button>
-        <button
-          onClick={() => setActiveTab('masters')}
-          className={`px-6 py-3 border-b-2 transition-all cursor-pointer ${
-            activeTab === 'masters' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Danh Mục Cơ Sở
         </button>
       </div>
 
@@ -801,50 +366,6 @@ export function InventoryClient({}: { currentUser: UserSession }) {
                   setBalanceSort(nextSort);
                   setBalancePage(1);
                 }}
-              />
-            )}
-
-            {activeTab === 'orders' && (
-              <ReceiptsTab
-                purchaseOrders={purchaseOrders}
-                stockReceipts={stockReceipts}
-                products={products}
-                suppliers={suppliers}
-                warehouses={warehouses}
-                purchaseSearch={purchaseSearch}
-                purchaseStatus={purchaseStatus}
-                purchasePage={purchasePage}
-                purchaseTotal={purchaseTotal}
-                purchaseSort={purchaseSort}
-                purchaseOrder={purchaseOrder}
-                receiptSearch={receiptSearch}
-                receiptStatus={receiptStatus}
-                receiptPage={receiptPage}
-                receiptTotal={receiptTotal}
-                receiptSort={receiptSort}
-                receiptOrder={receiptOrder}
-                onPurchaseSearchChange={(value) => { setPurchaseSearch(value); setPurchasePage(1); }}
-                onPurchaseStatusChange={(value) => { setPurchaseStatus(value); setPurchasePage(1); }}
-                onPurchaseReset={() => { setPurchaseSearch(''); setPurchaseStatus(''); setPurchasePage(1); }}
-                onPurchasePageChange={setPurchasePage}
-                onPurchaseSort={(nextSort) => {
-                  setPurchaseOrder(purchaseSort === nextSort && purchaseOrder === 'asc' ? 'desc' : 'asc');
-                  setPurchaseSort(nextSort);
-                  setPurchasePage(1);
-                }}
-                onReceiptSearchChange={(value) => { setReceiptSearch(value); setReceiptPage(1); }}
-                onReceiptStatusChange={(value) => { setReceiptStatus(value); setReceiptPage(1); }}
-                onReceiptReset={() => { setReceiptSearch(''); setReceiptStatus(''); setReceiptPage(1); }}
-                onReceiptPageChange={setReceiptPage}
-                onReceiptSort={(nextSort) => {
-                  setReceiptOrder(receiptSort === nextSort && receiptOrder === 'asc' ? 'desc' : 'asc');
-                  setReceiptSort(nextSort);
-                  setReceiptPage(1);
-                }}
-                formatCurrency={formatCurrency}
-                onViewDetails={(type, id) => handleViewDetails(type, id)}
-                onCreatePo={handleCreatePo}
-                onCreateReceipt={handleCreateReceipt}
               />
             )}
 
@@ -899,68 +420,6 @@ export function InventoryClient({}: { currentUser: UserSession }) {
                 formatCurrency={formatCurrency}
               />
             )}
-
-            {activeTab === 'masters' && (
-              <MastersTab
-                products={productRows}
-                suppliers={supplierRows}
-                warehouses={warehouseRows}
-                productSearch={productSearch}
-                productStatus={productStatus}
-                productPage={productPage}
-                productTotal={productTotal}
-                productSort={productSort}
-                productOrder={productOrder}
-                supplierSearch={supplierSearch}
-                supplierStatus={supplierStatus}
-                supplierPage={supplierPage}
-                supplierTotal={supplierTotal}
-                supplierSort={supplierSort}
-                supplierOrder={supplierOrder}
-                warehouseSearch={warehouseSearch}
-                warehouseStatus={warehouseStatus}
-                warehousePage={warehousePage}
-                warehouseTotal={warehouseTotal}
-                warehouseSort={warehouseSort}
-                warehouseOrder={warehouseOrder}
-                onProductSearchChange={(value) => { setProductSearch(value); setProductPage(1); }}
-                onProductStatusChange={(value) => { setProductStatus(value); setProductPage(1); }}
-                onProductReset={() => { setProductSearch(''); setProductStatus(''); setProductPage(1); }}
-                onProductPageChange={setProductPage}
-                onProductSort={(nextSort) => {
-                  setProductOrder(productSort === nextSort && productOrder === 'asc' ? 'desc' : 'asc');
-                  setProductSort(nextSort);
-                  setProductPage(1);
-                }}
-                onSupplierSearchChange={(value) => { setSupplierSearch(value); setSupplierPage(1); }}
-                onSupplierStatusChange={(value) => { setSupplierStatus(value); setSupplierPage(1); }}
-                onSupplierReset={() => { setSupplierSearch(''); setSupplierStatus(''); setSupplierPage(1); }}
-                onSupplierPageChange={setSupplierPage}
-                onSupplierSort={(nextSort) => {
-                  setSupplierOrder(supplierSort === nextSort && supplierOrder === 'asc' ? 'desc' : 'asc');
-                  setSupplierSort(nextSort);
-                  setSupplierPage(1);
-                }}
-                onWarehouseSearchChange={(value) => { setWarehouseSearch(value); setWarehousePage(1); }}
-                onWarehouseStatusChange={(value) => { setWarehouseStatus(value); setWarehousePage(1); }}
-                onWarehouseReset={() => { setWarehouseSearch(''); setWarehouseStatus(''); setWarehousePage(1); }}
-                onWarehousePageChange={setWarehousePage}
-                onWarehouseSort={(nextSort) => {
-                  setWarehouseOrder(warehouseSort === nextSort && warehouseOrder === 'asc' ? 'desc' : 'asc');
-                  setWarehouseSort(nextSort);
-                  setWarehousePage(1);
-                }}
-                onCreateProduct={handleCreateProduct}
-                onCreateSupplier={handleCreateSupplier}
-                onCreateWarehouse={handleCreateWarehouse}
-                onUpdateProduct={handleUpdateProduct}
-                onDeleteProduct={handleDeleteProduct}
-                onUpdateSupplier={handleUpdateSupplier}
-                onDeleteSupplier={handleDeleteSupplier}
-                onUpdateWarehouse={handleUpdateWarehouse}
-                onDeleteWarehouse={handleDeleteWarehouse}
-              />
-            )}
           </div>
         )}
       </div>
@@ -970,8 +429,8 @@ export function InventoryClient({}: { currentUser: UserSession }) {
         activeDetail={activeDetail}
         onClose={() => setActiveDetail(null)}
         formatCurrency={formatCurrency}
-        onConfirmPo={handleConfirmPo}
-        onConfirmReceipt={handleConfirmReceipt}
+        onConfirmPo={() => {}}
+        onConfirmReceipt={() => {}}
         onConfirmSales={handleConfirmSales}
         onCancelDocument={handleCancelDocument}
       />

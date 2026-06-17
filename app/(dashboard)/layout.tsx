@@ -137,6 +137,26 @@ export default async function DashboardLayout({
           )
         },
         {
+          name: "Mua hàng & Nhập kho",
+          href: "/purchases",
+          permission: "inventory.view.all",
+          icon: (
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            </svg>
+          )
+        },
+        {
+          name: "Danh mục cơ sở",
+          href: "/masters",
+          permission: "inventory.view.all",
+          icon: (
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            </svg>
+          )
+        },
+        {
           name: "Công nợ thu chi",
           href: "/receivables",
           permission: "receivables.view.team",
