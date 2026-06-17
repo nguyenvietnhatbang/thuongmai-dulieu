@@ -369,7 +369,7 @@ export async function runReminderSystemTriggers(): Promise<void> {
     // Update all 'not_due', 'due_soon', 'due_today', 'partially_paid' receivables where due_date < CURRENT_DATE
     const overdueQuery = await client.query(`
       UPDATE app.receivables
-      SET status = 'overdue', updated_at = NOW()
+      SET status = 'overdue', last_reminded_at = NOW(), updated_at = NOW()
       WHERE status IN ('not_due', 'due_soon', 'due_today', 'pending') 
         AND due_date < CURRENT_DATE 
         AND amount_paid < amount_due
@@ -395,7 +395,7 @@ export async function runReminderSystemTriggers(): Promise<void> {
     // Update all 'not_due' receivables where due_date <= CURRENT_DATE + 3 days to 'due_soon'
     const dueSoonQuery = await client.query(`
       UPDATE app.receivables
-      SET status = 'due_soon', updated_at = NOW()
+      SET status = 'due_soon', last_reminded_at = NOW(), updated_at = NOW()
       WHERE status IN ('not_due', 'pending') 
         AND due_date <= CURRENT_DATE + INTERVAL '3 days' 
         AND due_date >= CURRENT_DATE

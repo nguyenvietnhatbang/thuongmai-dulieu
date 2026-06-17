@@ -99,7 +99,8 @@ export async function getReceivables(params: {
         r.sales_order_id as "salesOrderId", so.code as "salesOrderCode",
         r.due_date::text as "dueDate", r.amount_due::numeric as "amountDue",
         r.amount_paid::numeric as "amountPaid", (r.amount_due - r.amount_paid)::numeric as "remainingAmount",
-        r.status, r.collector_user_id as "collectorUserId", u.full_name as "collectorName", r.notes
+        r.status, r.collector_user_id as "collectorUserId", u.full_name as "collectorName", r.notes,
+        r.last_reminded_at as "lastRemindedAt"
       FROM app.receivables r
       INNER JOIN app.customers c ON r.customer_id = c.id
       LEFT JOIN app.contracts ctr ON r.contract_id = ctr.id
@@ -195,6 +196,48 @@ export async function collectReceivable(
         WHERE id = $1
       `, [rec.payment_milestone_id, newAmountPaid]);
     }
+
+    const finalRes = await getReceivables({ search: rec.code, limit: 1, offset: 0, page: 1 });
+    return finalRes.data[0];
+  });
+}
+
+/**
+ * Trigger manual reminder for a receivable
+ */
+export async function remindCollector(id: string, userId: string): Promise<Receivable> {
+  return transaction(async (client) => {
+    // 1. Fetch current receivable
+    const recRes = await client.query('SELECT * FROM app.receivables WHERE id = $1 AND deleted_at IS NULL', [id]);
+    if (recRes.rows.length === 0) throw new Error('Receivable not found');
+    const rec = recRes.rows[0];
+
+    // 2. Update last_reminded_at
+    await client.query(`
+      UPDATE app.receivables
+      SET last_reminded_at = NOW(), updated_at = NOW()
+      WHERE id = $1
+    `, [id]);
+
+    // 3. Insert internal notification for collector
+    if (rec.collector_user_id) {
+      const remaining = Number(rec.amount_due) - Number(rec.amount_paid);
+      await client.query(`
+        INSERT INTO app.notifications (recipient_user_id, actor_user_id, title, body, entity_type, entity_id)
+        VALUES ($1, $2, 'Nhắc nhở xử lý công nợ', $3, 'receivable', $4)
+      `, [
+        rec.collector_user_id,
+        userId,
+        `Yêu cầu kiểm tra khoản công nợ ${rec.code} với số tiền còn lại: ${new Intl.NumberFormat('vi-VN', {style: 'currency', currency: 'VND'}).format(remaining)}`,
+        id
+      ]);
+    }
+
+    // 4. Audit Log
+    await client.query(`
+      INSERT INTO app.audit_logs (actor_user_id, action, entity_type, entity_id, metadata)
+      VALUES ($1, 'remind_receivable', 'receivable', $2, $3)
+    `, [userId, id, JSON.stringify({ code: rec.code })]);
 
     const finalRes = await getReceivables({ search: rec.code, limit: 1, offset: 0, page: 1 });
     return finalRes.data[0];
