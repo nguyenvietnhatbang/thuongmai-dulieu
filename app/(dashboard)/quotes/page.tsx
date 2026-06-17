@@ -4,7 +4,11 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
-export default async function QuotesPage() {
+interface PageProps {
+  searchParams: Promise<{ opportunityId?: string }>;
+}
+
+export default async function QuotesPage({ searchParams }: PageProps) {
   const currentUser = await getCurrentUser();
 
   if (!currentUser) {
@@ -42,5 +46,7 @@ export default async function QuotesPage() {
     );
   }
 
-  return <QuotesClient currentUser={currentUser} />;
+  const { opportunityId } = await searchParams;
+
+  return <QuotesClient currentUser={currentUser} initialOpportunityId={opportunityId} />;
 }

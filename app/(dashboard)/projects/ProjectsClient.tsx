@@ -33,7 +33,7 @@ export function ProjectsClient({ currentUser }: { currentUser: UserSession }) {
 
   // Active Project Workspace states
   const [activeProj, setActiveProj] = useState<Project | null>(null);
-  const [workspaceTab, setWorkspaceTab] = useState<'tasks' | 'schedules' | 'notes' | 'close'>('tasks');
+  const [workspaceTab, setWorkspaceTab] = useState<'tasks' | 'schedules' | 'notes' | 'close' | 'settings'>('tasks');
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [notes, setNotes] = useState<InternalNote[]>([]);
@@ -199,6 +199,28 @@ export function ProjectsClient({ currentUser }: { currentUser: UserSession }) {
     }
   };
 
+  const handleUpdateTask = async (taskId: string, taskData: any) => {
+    try {
+      const res = await fetch(`/api/projects/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(taskData)
+      });
+      const json = await res.json();
+      if (json.success) {
+        loadWorkspaceDetails();
+        fetchProjects();
+        return true;
+      } else {
+        alert(json.error || 'Failed to update task');
+        return false;
+      }
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  };
+
   const handleCreateSchedule = async (scheduleData: any) => {
     if (!activeProj) return false;
     try {
@@ -216,6 +238,46 @@ export function ProjectsClient({ currentUser }: { currentUser: UserSession }) {
         return true;
       } else {
         alert(json.error || 'Failed to add schedule');
+        return false;
+      }
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  };
+
+  const handleUpdateSchedule = async (scheduleId: string, scheduleData: any) => {
+    try {
+      const res = await fetch(`/api/projects/schedules/${scheduleId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(scheduleData)
+      });
+      const json = await res.json();
+      if (json.success) {
+        loadWorkspaceDetails();
+        return true;
+      } else {
+        alert(json.error || 'Failed to update schedule');
+        return false;
+      }
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  };
+
+  const handleDeleteSchedule = async (scheduleId: string) => {
+    try {
+      const res = await fetch(`/api/projects/schedules/${scheduleId}`, {
+        method: 'DELETE'
+      });
+      const json = await res.json();
+      if (json.success) {
+        loadWorkspaceDetails();
+        return true;
+      } else {
+        alert(json.error || 'Failed to delete schedule');
         return false;
       }
     } catch (err) {
@@ -249,6 +311,27 @@ export function ProjectsClient({ currentUser }: { currentUser: UserSession }) {
     }
   };
 
+  const handleUpdateNoteStatus = async (noteId: string, status: string) => {
+    try {
+      const res = await fetch(`/api/projects/notes/${noteId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      const json = await res.json();
+      if (json.success) {
+        loadWorkspaceDetails();
+        return true;
+      } else {
+        alert(json.error || 'Failed to update note status');
+        return false;
+      }
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  };
+
   const handleCloseProjectSubmit = async (closureData: any) => {
     if (!activeProj) return false;
     try {
@@ -265,6 +348,50 @@ export function ProjectsClient({ currentUser }: { currentUser: UserSession }) {
         return true;
       } else {
         alert(json.error || 'Failed to submit project closure');
+        return false;
+      }
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  };
+
+  const handleUpdateProject = async (projectData: any) => {
+    if (!activeProj) return false;
+    try {
+      const res = await fetch(`/api/projects/${activeProj.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(projectData)
+      });
+      const json = await res.json();
+      if (json.success) {
+        setActiveProj(json.data);
+        fetchProjects();
+        return true;
+      } else {
+        alert(json.error || 'Failed to update project');
+        return false;
+      }
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!activeProj) return false;
+    try {
+      const res = await fetch(`/api/projects/${activeProj.id}`, {
+        method: 'DELETE'
+      });
+      const json = await res.json();
+      if (json.success) {
+        setActiveProj(null);
+        fetchProjects();
+        return true;
+      } else {
+        alert(json.error || 'Failed to delete project');
         return false;
       }
     } catch (err) {
@@ -370,9 +497,15 @@ export function ProjectsClient({ currentUser }: { currentUser: UserSession }) {
         isPM={isPM}
         onTaskCheckboxChange={handleTaskCheckboxChange}
         onCreateTask={handleCreateTask}
+        onUpdateTask={handleUpdateTask}
         onCreateSchedule={handleCreateSchedule}
+        onUpdateSchedule={handleUpdateSchedule}
+        onDeleteSchedule={handleDeleteSchedule}
         onCreateNote={handleCreateNote}
+        onUpdateNoteStatus={handleUpdateNoteStatus}
         onCloseProjectSubmit={handleCloseProjectSubmit}
+        onUpdateProject={handleUpdateProject}
+        onDeleteProject={handleDeleteProject}
         getStatusBadge={getStatusBadge}
         getStatusText={getStatusText}
       />

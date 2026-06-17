@@ -16,7 +16,13 @@ interface UserSession {
   permissions: string[];
 }
 
-export function QuotesClient({ currentUser }: { currentUser: UserSession }) {
+export function QuotesClient({
+  currentUser,
+  initialOpportunityId
+}: {
+  currentUser: UserSession;
+  initialOpportunityId?: string;
+}) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [opportunities, setOpportunities] = useState<any[]>([]);
@@ -88,6 +94,13 @@ export function QuotesClient({ currentUser }: { currentUser: UserSession }) {
   useEffect(() => {
     fetchDropdownData();
   }, []);
+
+  // Trigger open if opportunityId is prefilled on mount
+  useEffect(() => {
+    if (initialOpportunityId) {
+      setIsCreateOpen(true);
+    }
+  }, [initialOpportunityId]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -304,6 +317,7 @@ export function QuotesClient({ currentUser }: { currentUser: UserSession }) {
         onClose={() => setIsCreateOpen(false)}
         customers={customers}
         opportunities={opportunities}
+        prefilledOpportunityId={initialOpportunityId}
         formatCurrency={formatCurrency}
         onCreate={handleCreateQuote}
       />

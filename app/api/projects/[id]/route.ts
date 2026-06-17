@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getPermissionScope } from '@/lib/auth';
-import { getProjectById } from '@/features/projects/services/project.service';
+import { getProjectById, updateProject, deleteProject } from '@/features/projects/services/project.service';
 import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -38,6 +38,17 @@ async function canAccessProject(
 }
 
 /**
+ * Check write permission for project
+ */
+async function canModifyProject(projectId: string, userId: string, roles: string[]): Promise<boolean> {
+  if (roles.includes('system_management') || roles.includes('project_operation')) return true;
+
+  const res = await query('SELECT project_manager_user_id FROM app.projects WHERE id = $1', [projectId]);
+  if (res.rows.length === 0) return false;
+  return res.rows[0].project_manager_user_id === userId;
+}
+
+/**
  * GET: Retrieve details of a single project
  */
 export async function GET(
@@ -72,5 +83,71 @@ export async function GET(
       { success: false, error: 'Failed to retrieve project', details: error.message },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * PATCH: Update project details
+ */
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const allowed = await canModifyProject(id, user.id, user.roles);
+    if (!allowed) {
+      return NextResponse.json({ success: false, error: 'Forbidden: Missing modify permissions' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const updated = await updateProject(id, body, user.id);
+
+    return NextResponse.json({
+      success: true,
+      data: updated,
+      message: 'Dự án đã được cập nhật thành công!'
+    });
+  } catch (error: any) {
+    console.error('API Project PATCH error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE: Soft delete project
+ */
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const allowed = user.roles.includes('system_management');
+    if (!allowed) {
+      return NextResponse.json({ success: false, error: 'Forbidden: Only administrators can delete projects' }, { status: 403 });
+    }
+
+    const deleted = await deleteProject(id, user.id);
+    return NextResponse.json({
+      success: true,
+      deleted,
+      message: 'Đã xóa dự án triển khai thành công!'
+    });
+  } catch (error: any) {
+    console.error('API Project DELETE error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Opportunity } from '@/features/opportunities/services/opportunity.service';
 import { Customer } from '@/features/customers/services/customer.service';
 import { ListToolbar } from '@/components/ui/ListControls';
@@ -23,6 +24,7 @@ interface UserDropdown {
 }
 
 export function OpportunitiesClient({ currentUser }: { currentUser: UserSession }) {
+  const router = useRouter();
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [users, setUsers] = useState<UserDropdown[]>([]);
@@ -350,7 +352,7 @@ export function OpportunitiesClient({ currentUser }: { currentUser: UserSession 
               </div>
               <h2 className="text-base font-bold text-foreground mt-2">{activeOpp.title}</h2>
             </div>
-            
+
             <button
               onClick={() => setActiveOpp(null)}
               className="p-1 rounded-lg text-slate-400 hover:bg-muted hover:text-foreground cursor-pointer"
@@ -518,7 +520,15 @@ export function OpportunitiesClient({ currentUser }: { currentUser: UserSession 
           </div>
 
           {/* Footer */}
-          <div className="p-6 border-t border-border bg-slate-50/50 flex">
+          <div className="p-6 border-t border-border bg-slate-50/50 flex gap-3">
+            <button
+              onClick={() => {
+                router.push(`/quotes?opportunityId=${activeOpp.id}`);
+              }}
+              className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg text-center cursor-pointer shadow-md shadow-emerald-500/15"
+            >
+              Tạo báo giá
+            </button>
             <button
               onClick={() => setActiveOpp(null)}
               className="flex-1 py-2 border border-border text-sm font-semibold rounded-lg bg-card hover:bg-muted text-center cursor-pointer"

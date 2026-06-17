@@ -17,12 +17,20 @@ interface ProjectWorkspaceDrawerProps {
   schedules: Schedule[];
   notes: InternalNote[];
   workspaceLoading: boolean;
-  workspaceTab: 'tasks' | 'schedules' | 'notes' | 'close';
-  setWorkspaceTab: (tab: 'tasks' | 'schedules' | 'notes' | 'close') => void;
+  workspaceTab: 'tasks' | 'schedules' | 'notes' | 'close' | 'settings';
+  setWorkspaceTab: (tab: 'tasks' | 'schedules' | 'notes' | 'close' | 'settings') => void;
   canAssign: boolean;
   isPM: boolean;
   onTaskCheckboxChange: (task: ProjectTask) => void;
   onCreateTask: (taskData: {
+    title: string;
+    description: string;
+    assigneeUserId: string;
+    startDate: string;
+    dueDate: string;
+    priority: 'low' | 'normal' | 'high' | 'urgent';
+  }) => Promise<boolean>;
+  onUpdateTask: (taskId: string, taskData: {
     title: string;
     description: string;
     assigneeUserId: string;
@@ -37,10 +45,13 @@ interface ProjectWorkspaceDrawerProps {
     endsAt: string;
     notes: string;
   }) => Promise<boolean>;
+  onUpdateSchedule: (scheduleId: string, scheduleData: any) => Promise<boolean>;
+  onDeleteSchedule: (scheduleId: string) => Promise<boolean>;
   onCreateNote: (noteData: {
     recipientUserId: string;
     content: string;
   }) => Promise<boolean>;
+  onUpdateNoteStatus: (noteId: string, status: string) => Promise<boolean>;
   onCloseProjectSubmit: (closureData: {
     code: string;
     closedDate: string;
@@ -48,6 +59,15 @@ interface ProjectWorkspaceDrawerProps {
     archiveStatus: 'archived' | 'not_archived';
     notes: string;
   }) => Promise<boolean>;
+  onUpdateProject: (projectData: {
+    name: string;
+    projectManagerUserId: string;
+    startDate: string;
+    plannedEndDate: string;
+    status: string;
+    notes: string;
+  }) => Promise<boolean>;
+  onDeleteProject: () => Promise<boolean>;
   getStatusBadge: (status: string) => string;
   getStatusText: (status: string) => string;
 }
@@ -67,9 +87,15 @@ export function ProjectWorkspaceDrawer({
   isPM,
   onTaskCheckboxChange,
   onCreateTask,
+  onUpdateTask,
   onCreateSchedule,
+  onUpdateSchedule,
+  onDeleteSchedule,
   onCreateNote,
+  onUpdateNoteStatus,
   onCloseProjectSubmit,
+  onUpdateProject,
+  onDeleteProject,
   getStatusBadge,
   getStatusText,
 }: ProjectWorkspaceDrawerProps) {
@@ -83,6 +109,8 @@ export function ProjectWorkspaceDrawer({
     priority: 'normal' as 'low' | 'normal' | 'high' | 'urgent'
   });
 
+  const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
+
   const [newSchedule, setNewSchedule] = useState({
     title: '',
     scheduleType: 'meeting' as 'meeting' | 'survey' | 'deployment' | 'acceptance' | 'customer_care' | 'other',
@@ -90,6 +118,8 @@ export function ProjectWorkspaceDrawer({
     endsAt: '',
     notes: ''
   });
+
+  const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
 
   const [newNote, setNewNote] = useState({
     recipientUserId: '',
@@ -101,6 +131,15 @@ export function ProjectWorkspaceDrawer({
     closedDate: new Date().toISOString().substring(0, 10),
     acceptanceStatus: 'accepted' as 'accepted' | 'rejected',
     archiveStatus: 'archived' as 'archived' | 'not_archived',
+    notes: ''
+  });
+
+  const [projSettings, setProjSettings] = useState({
+    name: '',
+    projectManagerUserId: '',
+    startDate: '',
+    plannedEndDate: '',
+    status: '',
     notes: ''
   });
 
@@ -121,6 +160,7 @@ export function ProjectWorkspaceDrawer({
         dueDate: '',
         priority: 'normal'
       });
+      setEditingTask(null);
       setNewSchedule({
         title: '',
         scheduleType: 'meeting',
@@ -128,9 +168,18 @@ export function ProjectWorkspaceDrawer({
         endsAt: '',
         notes: ''
       });
+      setEditingSchedule(null);
       setNewNote({
         recipientUserId: '',
         content: ''
+      });
+      setProjSettings({
+        name: activeProj.name,
+        projectManagerUserId: activeProj.projectManagerUserId || '',
+        startDate: activeProj.startDate ? activeProj.startDate.substring(0, 10) : '',
+        plannedEndDate: activeProj.plannedEndDate ? activeProj.plannedEndDate.substring(0, 10) : '',
+        status: activeProj.status,
+        notes: activeProj.notes || ''
       });
     }
   }, [activeProj]);
@@ -139,30 +188,59 @@ export function ProjectWorkspaceDrawer({
 
   const handleTaskSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await onCreateTask(newTask);
-    if (success) {
-      setNewTask({
-        title: '',
-        description: '',
-        assigneeUserId: '',
-        startDate: '',
-        dueDate: '',
-        priority: 'normal'
-      });
+    if (editingTask) {
+      const success = await onUpdateTask(editingTask.id, newTask);
+      if (success) {
+        setNewTask({
+          title: '',
+          description: '',
+          assigneeUserId: '',
+          startDate: '',
+          dueDate: '',
+          priority: 'normal'
+        });
+        setEditingTask(null);
+      }
+    } else {
+      const success = await onCreateTask(newTask);
+      if (success) {
+        setNewTask({
+          title: '',
+          description: '',
+          assigneeUserId: '',
+          startDate: '',
+          dueDate: '',
+          priority: 'normal'
+        });
+      }
     }
   };
 
   const handleScheduleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await onCreateSchedule(newSchedule);
-    if (success) {
-      setNewSchedule({
-        title: '',
-        scheduleType: 'meeting',
-        startsAt: '',
-        endsAt: '',
-        notes: ''
-      });
+    if (editingSchedule) {
+      const success = await onUpdateSchedule(editingSchedule.id, newSchedule);
+      if (success) {
+        setNewSchedule({
+          title: '',
+          scheduleType: 'meeting',
+          startsAt: '',
+          endsAt: '',
+          notes: ''
+        });
+        setEditingSchedule(null);
+      }
+    } else {
+      const success = await onCreateSchedule(newSchedule);
+      if (success) {
+        setNewSchedule({
+          title: '',
+          scheduleType: 'meeting',
+          startsAt: '',
+          endsAt: '',
+          notes: ''
+        });
+      }
     }
   };
 
@@ -177,6 +255,24 @@ export function ProjectWorkspaceDrawer({
   const handleClosureSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await onCloseProjectSubmit(closure);
+  };
+
+  const handleProjectSettingsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const success = await onUpdateProject(projSettings);
+    if (success) {
+      alert('Cập nhật thông tin dự án thành công!');
+    }
+  };
+
+  const handleDeleteProjectClick = async () => {
+    if (confirm(`Bạn có chắc chắn muốn XÓA dự án "${activeProj.name}"? Mọi công việc, lịch trình và ghi chú liên quan sẽ bị ẩn.`)) {
+      const success = await onDeleteProject();
+      if (success) {
+        alert('Đã xóa dự án thành công!');
+        onClose();
+      }
+    }
   };
 
   const getPriorityBadge = (priority: string) => {
@@ -199,6 +295,8 @@ export function ProjectWorkspaceDrawer({
       default: return 'Lịch khác';
     }
   };
+
+  const isSettingsAllowed = currentUser.roles.includes('system_management') || currentUser.roles.includes('project_operation') || isPM;
 
   return (
     <div className="fixed inset-y-0 right-0 z-40 w-full max-w-2xl bg-card border-l border-border shadow-2xl flex flex-col justify-between animate-fade-in">
@@ -228,10 +326,10 @@ export function ProjectWorkspaceDrawer({
       </div>
 
       {/* Tab Headers */}
-      <div className="flex border-b border-border text-xs font-semibold">
+      <div className="flex border-b border-border text-xs font-semibold overflow-x-auto scrollbar-thin">
         <button
           onClick={() => setWorkspaceTab('tasks')}
-          className={`flex-1 text-center py-3 border-b-2 transition-all cursor-pointer ${
+          className={`flex-1 text-center py-3 px-3 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             workspaceTab === 'tasks' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
@@ -239,7 +337,7 @@ export function ProjectWorkspaceDrawer({
         </button>
         <button
           onClick={() => setWorkspaceTab('schedules')}
-          className={`flex-1 text-center py-3 border-b-2 transition-all cursor-pointer ${
+          className={`flex-1 text-center py-3 px-3 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             workspaceTab === 'schedules' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
@@ -247,7 +345,7 @@ export function ProjectWorkspaceDrawer({
         </button>
         <button
           onClick={() => setWorkspaceTab('notes')}
-          className={`flex-1 text-center py-3 border-b-2 transition-all cursor-pointer ${
+          className={`flex-1 text-center py-3 px-3 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             workspaceTab === 'notes' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
@@ -256,11 +354,21 @@ export function ProjectWorkspaceDrawer({
         {isPM && (
           <button
             onClick={() => setWorkspaceTab('close')}
-            className={`flex-1 text-center py-3 border-b-2 transition-all cursor-pointer ${
+            className={`flex-1 text-center py-3 px-3 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               workspaceTab === 'close' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
             Nghiệm thu đóng dự án
+          </button>
+        )}
+        {isSettingsAllowed && (
+          <button
+            onClick={() => setWorkspaceTab('settings')}
+            className={`flex-1 text-center py-3 px-3 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+              workspaceTab === 'settings' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Cấu hình dự án
           </button>
         )}
       </div>
@@ -305,9 +413,30 @@ export function ProjectWorkspaceDrawer({
                           {t.description && (
                             <p className="text-xs text-muted-foreground mt-1 leading-normal line-clamp-2">{t.description}</p>
                           )}
-                          <div className="flex gap-4 text-[10px] text-muted-foreground mt-2 font-semibold">
-                            <span>Phụ trách: {t.assigneeName || 'Chưa gán'}</span>
-                            {t.dueDate && <span>Hạn chốt: {new Date(t.dueDate).toLocaleDateString('vi-VN')}</span>}
+                          <div className="flex gap-4 text-[10px] text-muted-foreground mt-2 font-semibold justify-between items-center">
+                            <div>
+                              <span>Phụ trách: {t.assigneeName || 'Chưa gán'}</span>
+                              {t.dueDate && <span className="ml-4">Hạn chốt: {new Date(t.dueDate).toLocaleDateString('vi-VN')}</span>}
+                            </div>
+                            {canAssign && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingTask(t);
+                                  setNewTask({
+                                    title: t.title,
+                                    description: t.description || '',
+                                    assigneeUserId: t.assigneeUserId || '',
+                                    startDate: t.startDate ? t.startDate.substring(0, 10) : '',
+                                    dueDate: t.dueDate ? t.dueDate.substring(0, 10) : '',
+                                    priority: t.priority
+                                  });
+                                }}
+                                className="text-[10px] font-bold text-primary hover:underline cursor-pointer border-0 bg-transparent"
+                              >
+                                Sửa
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -317,10 +446,26 @@ export function ProjectWorkspaceDrawer({
               )}
             </div>
 
-            {/* Create Task Form (for PMs) */}
+            {/* Create / Edit Task Form (for PMs) */}
             {canAssign && (
               <form onSubmit={handleTaskSubmit} className="border border-border p-4 rounded-xl bg-slate-50/50 space-y-4">
-                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Phân công việc mới</h4>
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                    {editingTask ? 'Chỉnh sửa công việc' : 'Phân công việc mới'}
+                  </h4>
+                  {editingTask && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingTask(null);
+                        setNewTask({ title: '', description: '', assigneeUserId: '', startDate: '', dueDate: '', priority: 'normal' });
+                      }}
+                      className="text-[10px] text-muted-foreground hover:underline cursor-pointer"
+                    >
+                      Hủy sửa
+                    </button>
+                  )}
+                </div>
                 
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Tiêu đề công việc *</label>
@@ -401,7 +546,7 @@ export function ProjectWorkspaceDrawer({
                   type="submit"
                   className="w-full py-2 bg-primary text-primary-foreground text-xs font-bold rounded-lg hover:bg-primary/95 transition-all shadow shadow-primary/10 cursor-pointer"
                 >
-                  Giao việc
+                  {editingTask ? 'Lưu thay đổi' : 'Giao việc'}
                 </button>
               </form>
             )}
@@ -420,7 +565,7 @@ export function ProjectWorkspaceDrawer({
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-sm text-foreground">{sch.title}</span>
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-secondary text-primary">
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-secondary text-primary font-mono">
                             {getScheduleTypeLabel(sch.scheduleType)}
                           </span>
                         </div>
@@ -432,8 +577,58 @@ export function ProjectWorkspaceDrawer({
                             Chú thích: {sch.notes}
                           </p>
                         )}
+                        <p className="text-[10px] text-muted-foreground mt-2">PM: {sch.ownerName || '-'}</p>
                       </div>
-                      <span className="text-[10px] font-semibold text-slate-500">PM: {sch.ownerName || '-'}</span>
+
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold border ${
+                          sch.status === 'done' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                          sch.status === 'cancelled' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                          'bg-slate-50 text-slate-700 border-slate-200'
+                        }`}>
+                          {sch.status === 'done' ? 'Hoàn tất' : sch.status === 'cancelled' ? 'Đã hủy' : 'Lên kế hoạch'}
+                        </span>
+                        
+                        <div className="flex gap-1.5 mt-1">
+                          {sch.status === 'planned' && (
+                            <>
+                              <button
+                                onClick={() => onUpdateSchedule(sch.id, { status: 'done' })}
+                                className="px-1.5 py-0.5 text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded hover:bg-emerald-100 cursor-pointer"
+                              >
+                                Đóng
+                              </button>
+                              <button
+                                onClick={() => onUpdateSchedule(sch.id, { status: 'cancelled' })}
+                                className="px-1.5 py-0.5 text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200 rounded hover:bg-rose-100 cursor-pointer"
+                              >
+                                Hủy
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => {
+                              setEditingSchedule(sch);
+                              setNewSchedule({
+                                title: sch.title,
+                                scheduleType: sch.scheduleType,
+                                startsAt: sch.startsAt ? sch.startsAt.substring(0, 16) : '',
+                                endsAt: sch.endsAt ? sch.endsAt.substring(0, 16) : '',
+                                notes: sch.notes || ''
+                              });
+                            }}
+                            className="px-1.5 py-0.5 text-[9px] font-bold bg-slate-50 text-slate-600 border border-slate-200 rounded hover:bg-slate-100 cursor-pointer"
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            onClick={() => onDeleteSchedule(sch.id)}
+                            className="px-1.5 py-0.5 text-[9px] font-bold bg-rose-50 text-rose-600 border border-rose-150 rounded hover:bg-rose-100 cursor-pointer"
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -442,7 +637,23 @@ export function ProjectWorkspaceDrawer({
 
             {/* Create Schedule Form */}
             <form onSubmit={handleScheduleSubmit} className="border border-border p-4 rounded-xl bg-slate-50/50 space-y-4">
-              <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Lên lịch hẹn mới</h4>
+              <div className="flex justify-between items-center">
+                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                  {editingSchedule ? 'Chỉnh sửa cuộc hẹn' : 'Lên lịch hẹn mới'}
+                </h4>
+                {editingSchedule && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingSchedule(null);
+                      setNewSchedule({ title: '', scheduleType: 'meeting', startsAt: '', endsAt: '', notes: '' });
+                    }}
+                    className="text-[10px] text-muted-foreground hover:underline cursor-pointer"
+                  >
+                    Hủy sửa
+                  </button>
+                )}
+              </div>
               
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
@@ -500,7 +711,7 @@ export function ProjectWorkspaceDrawer({
                 type="submit"
                 className="w-full py-2 bg-primary text-primary-foreground text-xs font-bold rounded-lg hover:bg-primary/95 transition-all shadow shadow-primary/10 cursor-pointer"
               >
-                Lên lịch hẹn
+                {editingSchedule ? 'Lưu thay đổi' : 'Lên lịch hẹn'}
               </button>
             </form>
           </div>
@@ -524,9 +735,48 @@ export function ProjectWorkspaceDrawer({
                       }`}>
                         <p className="whitespace-pre-wrap">{n.content}</p>
                       </div>
-                      <span className="text-[9px] text-muted-foreground px-1 mt-1 font-mono">
-                        {new Date(n.createdAt).toLocaleTimeString('vi-VN')}
-                      </span>
+                      <div className="flex gap-2 items-center mt-1 text-[9px] px-1">
+                        <span className="text-muted-foreground font-mono">
+                          {new Date(n.createdAt).toLocaleTimeString('vi-VN')}
+                        </span>
+                        <span className={`px-1 rounded-sm font-bold scale-90 ${
+                          n.status === 'unread' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                          n.status === 'processed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                          n.status === 'archived' ? 'bg-slate-100 text-slate-500 border border-slate-200' :
+                          'bg-blue-50 text-blue-700 border border-blue-100'
+                        }`}>
+                          {n.status === 'unread' ? 'Chưa đọc' : n.status === 'read' ? 'Đã đọc' : n.status === 'processed' ? 'Đã xử lý' : 'Đã đóng'}
+                        </span>
+                        {!isMe && n.status !== 'archived' && (
+                          <div className="flex gap-1.5 ml-2">
+                            {n.status === 'unread' && (
+                              <button
+                                type="button"
+                                onClick={() => onUpdateNoteStatus(n.id, 'read')}
+                                className="text-primary hover:underline font-semibold cursor-pointer border-0 bg-transparent"
+                              >
+                                Đã đọc
+                              </button>
+                            )}
+                            {n.status !== 'processed' && (
+                              <button
+                                type="button"
+                                onClick={() => onUpdateNoteStatus(n.id, 'processed')}
+                                className="text-emerald-600 hover:underline font-semibold cursor-pointer border-0 bg-transparent"
+                              >
+                                Đã xử lý
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => onUpdateNoteStatus(n.id, 'archived')}
+                              className="text-rose-600 hover:underline font-semibold cursor-pointer border-0 bg-transparent"
+                            >
+                              Lưu trữ
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })
@@ -568,7 +818,7 @@ export function ProjectWorkspaceDrawer({
               </div>
             </form>
           </div>
-        ) : (
+        ) : workspaceTab === 'close' ? (
           /* Project Closure Form */
           <div className="space-y-6">
             <div className="border border-border p-4 rounded-xl bg-slate-50/50">
@@ -643,6 +893,113 @@ export function ProjectWorkspaceDrawer({
               >
                 Xác nhận đóng dự án
               </button>
+            </form>
+          </div>
+        ) : (
+          /* Project Configuration / Settings Tab */
+          <div className="space-y-6">
+            <div className="border border-border p-4 rounded-xl bg-slate-50/50">
+              <h3 className="text-xs font-bold text-slate-800 uppercase mb-2">Cấu hình thông tin dự án</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Cho phép PM và Quản trị hệ thống điều chỉnh thông tin cốt lõi, người phụ trách dự án và ngày triển khai thực tế.
+              </p>
+            </div>
+
+            <form onSubmit={handleProjectSettingsSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Tên dự án *</label>
+                <input
+                  type="text"
+                  required
+                  value={projSettings.name}
+                  onChange={(e) => setProjSettings({ ...projSettings, name: e.target.value })}
+                  className="premium-input"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Project Manager (PM) *</label>
+                <select
+                  required
+                  value={projSettings.projectManagerUserId}
+                  onChange={(e) => setProjSettings({ ...projSettings, projectManagerUserId: e.target.value })}
+                  className="premium-input"
+                >
+                  <option value="">-- Chọn PM phụ trách --</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>{u.fullName}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ngày bắt đầu</label>
+                  <input
+                    type="date"
+                    value={projSettings.startDate}
+                    onChange={(e) => setProjSettings({ ...projSettings, startDate: e.target.value })}
+                    className="premium-input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Hạn kết thúc dự kiến</label>
+                  <input
+                    type="date"
+                    value={projSettings.plannedEndDate}
+                    onChange={(e) => setProjSettings({ ...projSettings, plannedEndDate: e.target.value })}
+                    className="premium-input"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Trạng thái vận hành *</label>
+                  <select
+                    value={projSettings.status}
+                    onChange={(e) => setProjSettings({ ...projSettings, status: e.target.value })}
+                    className="premium-input"
+                  >
+                    <option value="new">Mới khởi tạo</option>
+                    <option value="waiting_deployment">Chờ triển khai</option>
+                    <option value="in_progress">Đang thực hiện</option>
+                    <option value="paused">Tạm dừng (Pause)</option>
+                    <option value="waiting_acceptance">Chờ nghiệm thu</option>
+                    <option value="accepted">Đã nghiệm thu</option>
+                    <option value="closed">Đã đóng</option>
+                    <option value="cancelled">Đã hủy (Cancel)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ghi chú dự án</label>
+                <textarea
+                  placeholder="Mô tả dự án, thông tin lưu ý..."
+                  value={projSettings.notes}
+                  onChange={(e) => setProjSettings({ ...projSettings, notes: e.target.value })}
+                  className="premium-input h-20"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  className="flex-1 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-lg hover:bg-primary/95 transition-all shadow cursor-pointer"
+                >
+                  Lưu thay đổi cấu hình
+                </button>
+                {currentUser.roles.includes('system_management') && (
+                  <button
+                    type="button"
+                    onClick={handleDeleteProjectClick}
+                    className="px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold rounded-lg transition-all cursor-pointer"
+                  >
+                    Xóa dự án
+                  </button>
+                )}
+              </div>
             </form>
           </div>
         )}

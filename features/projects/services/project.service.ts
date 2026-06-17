@@ -517,3 +517,195 @@ export async function closeProject(
     return closureRes.rows[0];
   });
 }
+
+/**
+ * Update project details
+ */
+export async function updateProject(
+  id: string,
+  data: Partial<Omit<Project, 'id' | 'code' | 'contractId' | 'customerName'>>,
+  userId: string
+): Promise<Project> {
+  return transaction(async (client) => {
+    const setClauses: string[] = ['updated_at = NOW()'];
+    const values: any[] = [id];
+
+    const fieldsMapping: Record<string, string> = {
+      name: 'name',
+      projectManagerUserId: 'project_manager_user_id',
+      startDate: 'start_date',
+      plannedEndDate: 'planned_end_date',
+      status: 'status',
+      notes: 'notes'
+    };
+
+    Object.entries(data).forEach(([key, val]) => {
+      const dbField = fieldsMapping[key];
+      if (dbField) {
+        values.push(val === undefined ? null : val);
+        setClauses.push(`${dbField} = $${values.length}`);
+      }
+    });
+
+    await client.query(`
+      UPDATE app.projects
+      SET ${setClauses.join(', ')}
+      WHERE id = $1
+    `, values);
+
+    // Audit Log
+    await client.query(`
+      INSERT INTO app.audit_logs(actor_user_id, action, entity_type, entity_id, metadata)
+      VALUES ($1, 'update_project', 'project', $2, $3)
+    `, [userId, id, JSON.stringify(data)]);
+
+    const updated = await getProjectById(id);
+    if (!updated) throw new Error('Project not found after update');
+    return updated;
+  });
+}
+
+/**
+ * Delete (soft delete) project
+ */
+export async function deleteProject(id: string, userId: string): Promise<boolean> {
+  return transaction(async (client) => {
+    const res = await client.query(`
+      UPDATE app.projects
+      SET deleted_at = NOW()
+      WHERE id = $1 AND deleted_at IS NULL
+    `, [id]);
+
+    await client.query(`
+      INSERT INTO app.audit_logs (actor_user_id, action, entity_type, entity_id)
+      VALUES ($1, 'delete_project', 'project', $2)
+    `, [userId, id]);
+
+    return (res.rowCount ?? 0) > 0;
+  });
+}
+
+/**
+ * Update project schedule lifecycle
+ */
+export async function updateProjectSchedule(
+  scheduleId: string,
+  data: Partial<Omit<Schedule, 'id' | 'projectId' | 'customerName' | 'ownerName'>>,
+  userId: string
+): Promise<Schedule> {
+  return transaction(async (client) => {
+    const setClauses: string[] = ['updated_at = NOW()'];
+    const values: any[] = [scheduleId];
+
+    const fieldsMapping: Record<string, string> = {
+      scheduleType: 'schedule_type',
+      title: 'title',
+      startsAt: 'starts_at',
+      endsAt: 'ends_at',
+      ownerUserId: 'owner_user_id',
+      status: 'status',
+      notes: 'notes'
+    };
+
+    Object.entries(data).forEach(([key, val]) => {
+      const dbField = fieldsMapping[key];
+      if (dbField) {
+        values.push(val === undefined ? null : val);
+        setClauses.push(`${dbField} = $${values.length}`);
+      }
+    });
+
+    await client.query(`
+      UPDATE app.schedules
+      SET ${setClauses.join(', ')}
+      WHERE id = $1
+    `, values);
+
+    // Audit Log
+    await client.query(`
+      INSERT INTO app.audit_logs (actor_user_id, action, entity_type, entity_id, metadata)
+      VALUES ($1, 'update_schedule', 'schedule', $2, $3)
+    `, [userId, scheduleId, JSON.stringify(data)]);
+
+    const res = await client.query(`
+      SELECT 
+        s.id, s.project_id as "projectId", s.customer_id as "customerId",
+        s.schedule_type as "scheduleType", s.title, s.starts_at as "startsAt",
+        s.ends_at as "endsAt", s.owner_user_id as "ownerUserId", s.status, s.notes,
+        s.created_at as "createdAt", u.full_name as "ownerName"
+      FROM app.schedules s
+      LEFT JOIN app.users u ON s.owner_user_id = u.id
+      WHERE s.id = $1
+    `, [scheduleId]);
+
+    return res.rows[0] as Schedule;
+  });
+}
+
+/**
+ * Delete schedule (soft delete)
+ */
+export async function deleteProjectSchedule(scheduleId: string, userId: string): Promise<boolean> {
+  return transaction(async (client) => {
+    const res = await client.query(`
+      UPDATE app.schedules
+      SET deleted_at = NOW()
+      WHERE id = $1 AND deleted_at IS NULL
+    `, [scheduleId]);
+
+    await client.query(`
+      INSERT INTO app.audit_logs (actor_user_id, action, entity_type, entity_id)
+      VALUES ($1, 'delete_schedule', 'schedule', $2)
+    `, [userId, scheduleId]);
+
+    return (res.rowCount ?? 0) > 0;
+  });
+}
+
+/**
+ * Update internal note lifecycle (read, processed, archived)
+ */
+export async function updateProjectNote(
+  noteId: string,
+  status: 'unread' | 'read' | 'processed' | 'archived',
+  userId: string
+): Promise<InternalNote> {
+  return transaction(async (client) => {
+    const setClauses: string[] = ['status = $2', 'updated_at = NOW()'];
+    const values: any[] = [noteId, status];
+
+    if (status === 'read') {
+      setClauses.push('read_at = NOW()');
+    } else if (status === 'processed') {
+      setClauses.push('processed_at = NOW()');
+    }
+
+    await client.query(`
+      UPDATE app.internal_notes
+      SET ${setClauses.join(', ')}
+      WHERE id = $1
+    `, values);
+
+    // Audit Log
+    await client.query(`
+      INSERT INTO app.audit_logs (actor_user_id, action, entity_type, entity_id, metadata)
+      VALUES ($1, 'update_note_status', 'internal_note', $2, $3)
+    `, [userId, noteId, JSON.stringify({ status })]);
+
+    const res = await client.query(`
+      SELECT 
+        n.id, n.customer_id as "customerId", n.project_id as "projectId",
+        n.task_id as "taskId", n.parent_note_id as "parentNoteId",
+        n.sender_user_id as "senderUserId", n.recipient_user_id as "recipientUserId",
+        n.content, n.status, n.read_at as "readAt", n.processed_at as "processedAt",
+        n.created_at as "createdAt",
+        u1.full_name as "senderName", u2.full_name as "recipientName"
+      FROM app.internal_notes n
+      INNER JOIN app.users u1 ON n.sender_user_id = u1.id
+      INNER JOIN app.users u2 ON n.recipient_user_id = u2.id
+      WHERE n.id = $1
+    `, [noteId]);
+
+    return res.rows[0] as InternalNote;
+  });
+}

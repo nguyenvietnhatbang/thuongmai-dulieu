@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getPermissionScope, hasPermission } from '@/lib/auth';
-import { getReceivables, collectReceivable } from '@/features/receivables/services/receivable.service';
+import { getReceivables, collectReceivable, remindCollector } from '@/features/receivables/services/receivable.service';
 import { parsePagination, parseSort } from '@/lib/list-query';
 
 export const dynamic = 'force-dynamic';
@@ -52,10 +52,19 @@ export async function PATCH(request: Request) {
     if (!allowed) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
 
     const body = await request.json();
-    const { id, amountPaid, notes } = body;
+    const { id, action, amountPaid, notes } = body;
 
-    if (!id || amountPaid === undefined) {
-      return NextResponse.json({ success: false, error: 'id and amountPaid are required' }, { status: 400 });
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 });
+    }
+
+    if (action === 'remind') {
+      const updated = await remindCollector(id, user.id);
+      return NextResponse.json({ success: true, data: updated, message: 'Gửi nhắc nhở công nợ thành công!' });
+    }
+
+    if (amountPaid === undefined) {
+      return NextResponse.json({ success: false, error: 'amountPaid is required' }, { status: 400 });
     }
 
     const updated = await collectReceivable(id, {

@@ -46,6 +46,14 @@ export function ReportsClient({ currentUser }: { currentUser: UserSession }) {
   const [suppliers, setSuppliers] = useState<ReportOption[]>([]);
   const [warehouses, setWarehouses] = useState<ReportOption[]>([]);
 
+  // Detail drill-down list states
+  const [detailType, setDetailType] = useState<'sales' | 'purchases' | 'inventory'>('sales');
+  const [detailData, setDetailData] = useState<any[]>([]);
+  const [detailPage, setDetailPage] = useState(1);
+  const [detailTotal, setDetailTotal] = useState(0);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const detailLimit = 20;
+
   useEffect(() => {
     const fetchOptions = async () => {
       const [customerRes, supplierRes, warehouseRes] = await Promise.all([
@@ -90,6 +98,54 @@ export function ReportsClient({ currentUser }: { currentUser: UserSession }) {
     fetchSummary();
   }, [dateFrom, dateTo, customerId, supplierId, warehouseId]);
 
+  const fetchDetailData = async () => {
+    setDetailLoading(true);
+    try {
+      const params = new URLSearchParams({
+        type: detailType,
+        page: detailPage.toString(),
+        limit: detailLimit.toString(),
+      });
+      if (dateFrom) params.set('dateFrom', dateFrom);
+      if (dateTo) params.set('dateTo', dateTo);
+      if (customerId) params.set('customerId', customerId);
+      if (supplierId) params.set('supplierId', supplierId);
+      if (warehouseId) params.set('warehouseId', warehouseId);
+
+      const res = await fetch(`/api/reports/details?${params.toString()}`);
+      const json = await res.json();
+      if (json.success) {
+        setDetailData(json.data);
+        setDetailTotal(json.pagination.total || json.data.length);
+      }
+    } catch (err) {
+      console.error('Failed to fetch details:', err);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDetailData();
+  }, [detailType, detailPage, dateFrom, dateTo, customerId, supplierId, warehouseId]);
+
+  useEffect(() => {
+    setDetailPage(1);
+  }, [detailType, dateFrom, dateTo, customerId, supplierId, warehouseId]);
+
+  const handleExportDetail = () => {
+    const params = new URLSearchParams({
+      type: detailType,
+    });
+    if (dateFrom) params.set('dateFrom', dateFrom);
+    if (dateTo) params.set('dateTo', dateTo);
+    if (customerId) params.set('customerId', customerId);
+    if (supplierId) params.set('supplierId', supplierId);
+    if (warehouseId) params.set('warehouseId', warehouseId);
+
+    window.open(`/api/reports/details/export?${params.toString()}`);
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
   };
@@ -100,6 +156,7 @@ export function ReportsClient({ currentUser }: { currentUser: UserSession }) {
       case 'ordered': return 'Đã đặt hàng';
       case 'received': return 'Đã nhập đủ';
       case 'confirmed': return 'Đã xác nhận';
+      case 'delivered': return 'Đã giao hàng';
       case 'partially_paid': return 'Thu một phần';
       case 'paid': return 'Đã thu đủ';
       case 'cancelled': return 'Đã hủy';
@@ -179,7 +236,7 @@ export function ReportsClient({ currentUser }: { currentUser: UserSession }) {
 
       {loading ? (
         <div className="glass-panel py-20 text-center text-muted-foreground rounded-xl">
-          <p className="text-xs">Đang tải dữ liệu báo cáo...</p>
+          <p className="text-xs animate-pulse">Đang tải dữ liệu báo cáo...</p>
         </div>
       ) : error ? (
         <div className="glass-panel py-20 text-center text-rose-600 rounded-xl">
@@ -256,6 +313,159 @@ export function ReportsClient({ currentUser }: { currentUser: UserSession }) {
           </div>
         </>
       )}
+
+      {/* Reports Detailed Drill-Down Section */}
+      <div className="glass-panel rounded-xl overflow-hidden border border-border mt-8">
+        <div className="px-6 py-4 border-b border-border bg-slate-50/50 flex justify-between items-center flex-wrap gap-4">
+          <div className="flex gap-2">
+            {[
+              { key: 'sales', label: 'Chi tiết bán hàng' },
+              { key: 'purchases', label: 'Chi tiết mua hàng' },
+              { key: 'inventory', label: 'Chi tiết tồn kho' },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setDetailType(tab.key as any)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  detailType === tab.key
+                    ? 'bg-primary text-primary-foreground shadow'
+                    : 'bg-card text-muted-foreground hover:text-foreground border border-border'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {canExport && (
+            <button
+              onClick={handleExportDetail}
+              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-primary-foreground text-xs font-semibold shadow-md shadow-emerald-500/15 transition-all flex items-center gap-1 cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Xuất CSV chi tiết</span>
+            </button>
+          )}
+        </div>
+
+        <div className="overflow-x-auto min-h-[200px]">
+          {detailLoading ? (
+            <div className="py-16 text-center text-muted-foreground flex flex-col items-center gap-2">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              <p className="text-[11px]">Đang tải dữ liệu chi tiết...</p>
+            </div>
+          ) : detailData.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-16">Không tìm thấy bản ghi chi tiết nào phù hợp.</p>
+          ) : (
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="bg-slate-50/50 border-b border-border text-muted-foreground text-xs uppercase font-semibold">
+                  {detailType === 'sales' && (
+                    <>
+                      <th className="px-6 py-4">Mã đơn bán</th>
+                      <th className="px-6 py-4">Ngày bán</th>
+                      <th className="px-6 py-4">Khách hàng</th>
+                      <th className="px-6 py-4 text-right">Tổng trị giá</th>
+                      <th className="px-6 py-4 text-right">Đã thanh toán</th>
+                      <th className="px-6 py-4 text-right">Còn nợ</th>
+                      <th className="px-6 py-4">Trạng thái</th>
+                    </>
+                  )}
+                  {detailType === 'purchases' && (
+                    <>
+                      <th className="px-6 py-4">Mã phiếu mua</th>
+                      <th className="px-6 py-4">Ngày mua</th>
+                      <th className="px-6 py-4">Nhà cung cấp</th>
+                      <th className="px-6 py-4 text-right">Tổng thanh toán</th>
+                      <th className="px-6 py-4">Trạng thái</th>
+                    </>
+                  )}
+                  {detailType === 'inventory' && (
+                    <>
+                      <th className="px-6 py-4">Mã sản phẩm</th>
+                      <th className="px-6 py-4">Tên sản phẩm</th>
+                      <th className="px-6 py-4">Kho hàng</th>
+                      <th className="px-6 py-4 text-right">Tồn thực tế</th>
+                      <th className="px-6 py-4 text-right">Định mức tối thiểu</th>
+                    </>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border text-xs">
+                {detailData.map((row) => (
+                  <tr key={row.id} className="hover:bg-slate-50/20">
+                    {detailType === 'sales' && (
+                      <>
+                        <td className="px-6 py-4 font-mono font-bold text-primary">{row.code}</td>
+                        <td className="px-6 py-4 text-muted-foreground">{row.saleDate ? new Date(row.saleDate).toLocaleDateString('vi-VN') : '-'}</td>
+                        <td className="px-6 py-4 font-bold text-foreground">{row.customerName}</td>
+                        <td className="px-6 py-4 text-right font-bold text-foreground">{formatCurrency(row.totalAmount)}</td>
+                        <td className="px-6 py-4 text-right font-medium text-emerald-600">{formatCurrency(row.paidAmount)}</td>
+                        <td className="px-6 py-4 text-right font-bold text-rose-600">{formatCurrency(row.debtAmount)}</td>
+                        <td className="px-6 py-4">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 border border-slate-200 text-slate-700">
+                            {statusText(row.status)}
+                          </span>
+                        </td>
+                      </>
+                    )}
+                    {detailType === 'purchases' && (
+                      <>
+                        <td className="px-6 py-4 font-mono font-bold text-primary">{row.code}</td>
+                        <td className="px-6 py-4 text-muted-foreground">{row.purchaseDate ? new Date(row.purchaseDate).toLocaleDateString('vi-VN') : '-'}</td>
+                        <td className="px-6 py-4 font-bold text-foreground">{row.supplierName}</td>
+                        <td className="px-6 py-4 text-right font-bold text-foreground">{formatCurrency(row.totalAmount)}</td>
+                        <td className="px-6 py-4">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 border border-slate-200 text-slate-700">
+                            {statusText(row.status)}
+                          </span>
+                        </td>
+                      </>
+                    )}
+                    {detailType === 'inventory' && (
+                      <>
+                        <td className="px-6 py-4 font-mono font-bold text-primary">{row.productCode}</td>
+                        <td className="px-6 py-4 font-bold text-foreground">{row.productName}</td>
+                        <td className="px-6 py-4 font-semibold text-slate-600">{row.warehouseName}</td>
+                        <td className="px-6 py-4 text-right font-bold text-slate-700">{row.quantityOnHand} {row.unitCode}</td>
+                        <td className="px-6 py-4 text-right font-semibold text-slate-400">{row.minQuantity} {row.unitCode}</td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Inline detailed pagination controls */}
+        {!detailLoading && detailTotal > detailLimit && (
+          <div className="flex justify-between items-center px-6 py-4 bg-slate-50/50 border-t border-border text-xs shrink-0 select-none">
+            <span className="font-semibold text-muted-foreground">
+              Hiển thị {((detailPage - 1) * detailLimit) + 1} - {Math.min(detailPage * detailLimit, detailTotal)} trong tổng số {detailTotal} dòng
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                disabled={detailPage === 1}
+                onClick={() => setDetailPage(p => Math.max(p - 1, 1))}
+                className="px-2 py-1 rounded border border-border bg-card font-bold hover:bg-muted disabled:opacity-50 disabled:hover:bg-card cursor-pointer"
+              >
+                Trước
+              </button>
+              <span className="px-3 py-1 font-bold text-foreground bg-secondary/50 rounded">{detailPage}</span>
+              <button
+                disabled={detailPage * detailLimit >= detailTotal}
+                onClick={() => setDetailPage(p => p + 1)}
+                className="px-2 py-1 rounded border border-border bg-card font-bold hover:bg-muted disabled:opacity-50 disabled:hover:bg-card cursor-pointer"
+              >
+                Sau
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

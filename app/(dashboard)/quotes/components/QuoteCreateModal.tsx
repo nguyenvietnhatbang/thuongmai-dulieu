@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Customer } from '@/features/customers/services/customer.service';
 
@@ -9,6 +9,7 @@ interface QuoteCreateModalProps {
   onClose: () => void;
   customers: Customer[];
   opportunities: any[];
+  prefilledOpportunityId?: string;
   formatCurrency: (amount: number) => string;
   onCreate: (quoteData: {
     code: string;
@@ -32,6 +33,7 @@ export function QuoteCreateModal({
   onClose,
   customers,
   opportunities,
+  prefilledOpportunityId,
   formatCurrency,
   onCreate,
 }: QuoteCreateModalProps) {
@@ -45,6 +47,29 @@ export function QuoteCreateModal({
     items: [] as any[]
   });
   const [submitting, setSubmitting] = useState(false);
+
+  // Handle URL prefilled opportunity parameters
+  useEffect(() => {
+    if (isOpen && prefilledOpportunityId && opportunities.length > 0) {
+      const opp = opportunities.find(o => o.id === prefilledOpportunityId);
+      if (opp) {
+        setNewQuote(prev => ({
+          ...prev,
+          opportunityId: prefilledOpportunityId,
+          customerId: opp.customerId || '',
+          code: prev.code || `BG-${opp.code || 'NEW'}`,
+          quoteNumber: prev.quoteNumber || `QUO-${opp.code || 'NEW'}`,
+          items: prev.items.length === 0 ? [{
+            itemName: opp.title,
+            description: opp.needDescription || 'Được điền tự động từ cơ hội',
+            unitCode: 'package',
+            quantity: 1,
+            unitPrice: Number(opp.expectedValue || 0)
+          }] : prev.items
+        }));
+      }
+    }
+  }, [isOpen, prefilledOpportunityId, opportunities]);
 
   const calculateTotal = (itemsList: any[]) => {
     const subtotal = itemsList.reduce((acc, curr) => acc + (Number(curr.quantity || 0) * Number(curr.unitPrice || 0)), 0);
@@ -68,6 +93,28 @@ export function QuoteCreateModal({
     const targetList = [...newQuote.items];
     targetList[idx] = { ...targetList[idx], [field]: value };
     setNewQuote({ ...newQuote, items: targetList });
+  };
+
+  const handleOpportunityChange = (oppId: string) => {
+    const opp = opportunities.find(o => o.id === oppId);
+    if (opp) {
+      setNewQuote(prev => ({
+        ...prev,
+        opportunityId: oppId,
+        customerId: opp.customerId || prev.customerId,
+        code: prev.code || `BG-${opp.code || 'NEW'}`,
+        quoteNumber: prev.quoteNumber || `QUO-${opp.code || 'NEW'}`,
+        items: prev.items.length === 0 ? [{
+          itemName: opp.title,
+          description: opp.needDescription || 'Được điền tự động từ cơ hội',
+          unitCode: 'package',
+          quantity: 1,
+          unitPrice: Number(opp.expectedValue || 0)
+        }] : prev.items
+      }));
+    } else {
+      setNewQuote(prev => ({ ...prev, opportunityId: oppId }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -154,7 +201,7 @@ export function QuoteCreateModal({
             <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">Chọn Cơ hội liên quan</label>
             <select
               value={newQuote.opportunityId}
-              onChange={(e) => setNewQuote({ ...newQuote, opportunityId: e.target.value })}
+              onChange={(e) => handleOpportunityChange(e.target.value)}
               className="premium-input"
             >
               <option value="">-- Chọn cơ hội bán hàng --</option>

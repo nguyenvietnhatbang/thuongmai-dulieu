@@ -386,7 +386,18 @@ export function QuoteDetailDrawer({
       </div>
 
       {/* Footer close */}
-      <div className="p-6 border-t border-border bg-slate-50/50 flex">
+      <div className="p-6 border-t border-border bg-slate-50/50 flex gap-3">
+        <button
+          onClick={() => {
+            window.open(`/quotes/${activeQuote.id}/print`, '_blank');
+          }}
+          className="flex-1 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-lg text-center cursor-pointer transition-all flex items-center justify-center gap-1.5 shadow"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 00-2 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          </svg>
+          <span>In báo giá / Xuất PDF</span>
+        </button>
         <button
           onClick={onClose}
           className="flex-1 py-2 border border-border text-sm font-semibold rounded-lg bg-card hover:bg-muted text-center cursor-pointer"
