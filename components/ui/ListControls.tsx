@@ -12,11 +12,14 @@ interface ListToolbarProps {
   searchPlaceholder: string;
   onSearchChange: (value: string) => void;
   onSearchSubmit: (event: React.FormEvent) => void;
+  showSearchButton?: boolean;
+  searchClassName?: string;
   filters?: Array<{
     value: string;
     options: FilterOption[];
     placeholder: string;
     onChange: (value: string) => void;
+    className?: string;
   }>;
   onReset: () => void;
   rightSlot?: React.ReactNode;
@@ -27,6 +30,7 @@ interface PaginationControlsProps {
   limit: number;
   total: number;
   onPageChange: (page: number) => void;
+  alwaysShow?: boolean;
 }
 
 interface SortableHeaderProps {
@@ -43,35 +47,39 @@ export function ListToolbar({
   searchPlaceholder,
   onSearchChange,
   onSearchSubmit,
+  showSearchButton = true,
+  searchClassName = '',
   filters = [],
   onReset,
   rightSlot,
 }: ListToolbarProps) {
   return (
-    <div className="glass-panel p-4 rounded-xl flex flex-col sm:flex-row gap-4 items-center justify-between">
-      <form onSubmit={onSearchSubmit} className="flex gap-2 w-full sm:w-auto">
+    <div className="glass-panel p-4 rounded-xl flex flex-nowrap gap-3 items-center justify-between overflow-x-auto">
+      <form onSubmit={onSearchSubmit} className="flex gap-2 shrink-0">
         <input
           type="text"
           placeholder={searchPlaceholder}
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
-          className="premium-input max-w-xs"
+          className={`premium-input h-10 !w-56 max-w-[70vw] ${searchClassName}`}
         />
-        <button
-          type="submit"
-          className="px-4 py-2 bg-secondary text-primary font-semibold text-sm rounded-lg hover:bg-primary/10 transition-all cursor-pointer"
-        >
-          Tìm kiếm
-        </button>
+        {showSearchButton && (
+          <button
+            type="submit"
+            className="h-10 px-4 bg-secondary text-primary font-semibold text-sm rounded-lg hover:bg-primary/10 transition-all cursor-pointer whitespace-nowrap shrink-0"
+          >
+            Tìm kiếm
+          </button>
+        )}
       </form>
 
-      <div className="flex gap-3 w-full sm:w-auto overflow-x-auto justify-end">
+      <div className="flex flex-nowrap gap-2 items-center justify-end shrink-0">
         {filters.map((filter, index) => (
           <select
             key={`${filter.placeholder}-${index}`}
             value={filter.value}
             onChange={(event) => filter.onChange(event.target.value)}
-            className="premium-input max-w-[180px]"
+            className={`premium-input h-10 !w-36 shrink-0 truncate pr-8 ${filter.className || ''}`}
           >
             <option value="">{filter.placeholder}</option>
             {filter.options.map((option) => (
@@ -84,21 +92,23 @@ export function ListToolbar({
         <button
           type="button"
           onClick={onReset}
-          className="px-3 py-2 border border-border rounded-lg bg-card text-xs font-semibold text-slate-600 hover:bg-muted transition-all cursor-pointer"
+          className="h-10 px-3 border border-border rounded-lg bg-card text-xs font-semibold text-slate-600 hover:bg-muted transition-all cursor-pointer whitespace-nowrap shrink-0"
         >
           Xóa lọc
         </button>
-        {rightSlot}
+        <div className="shrink-0 [&_button]:h-10 [&_button]:whitespace-nowrap">
+          {rightSlot}
+        </div>
       </div>
     </div>
   );
 }
 
-export function PaginationControls({ page, limit, total, onPageChange }: PaginationControlsProps) {
-  if (total <= limit) return null;
+export function PaginationControls({ page, limit, total, onPageChange, alwaysShow = false }: PaginationControlsProps) {
+  if (!alwaysShow && total <= limit) return null;
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
-  const start = (page - 1) * limit + 1;
+  const start = total === 0 ? 0 : (page - 1) * limit + 1;
   const end = Math.min(page * limit, total);
 
   return (

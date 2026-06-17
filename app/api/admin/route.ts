@@ -23,9 +23,9 @@ export async function GET() {
     const bindingsRes = await query('SELECT role_id as "roleId", permission_code as "permissionCode" FROM app.role_permissions');
 
     const departmentsRes = await query(`
-      SELECT id, code, name
+      SELECT id, code, name, status
       FROM app.departments
-      WHERE deleted_at IS NULL AND status = 'active'
+      WHERE deleted_at IS NULL
       ORDER BY name ASC
     `);
 
@@ -135,6 +135,92 @@ export async function POST(request: Request) {
       });
 
       return NextResponse.json({ success: true, data: createdUser }, { status: 201 });
+    }
+
+    if (action === 'createDepartment') {
+      const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
+      const name = typeof body.name === 'string' ? body.name.trim() : '';
+      const status = body.status === 'inactive' ? 'inactive' : 'active';
+
+      if (!code || !/^[A-Z0-9_]+$/.test(code)) {
+        return NextResponse.json({ success: false, error: 'Mã phòng ban chỉ gồm chữ in hoa, số và dấu gạch dưới.' }, { status: 400 });
+      }
+      if (!name) {
+        return NextResponse.json({ success: false, error: 'Tên phòng ban là bắt buộc.' }, { status: 400 });
+      }
+
+      const deptRes = await query(`
+        INSERT INTO app.departments (code, name, status)
+        VALUES ($1, $2, $3)
+        RETURNING id, code, name, status
+      `, [code, name, status]);
+
+      await query(`
+        INSERT INTO app.audit_logs (actor_user_id, action, entity_type, entity_id, metadata)
+        VALUES ($1, 'create_department', 'department', $2, $3)
+      `, [user.id, deptRes.rows[0].id, JSON.stringify({ code })]);
+
+      return NextResponse.json({ success: true, data: deptRes.rows[0] }, { status: 201 });
+    }
+
+    if (action === 'updateDepartment') {
+      const departmentId = typeof body.departmentId === 'string' ? body.departmentId : '';
+      const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
+      const name = typeof body.name === 'string' ? body.name.trim() : '';
+      const status = body.status === 'inactive' ? 'inactive' : 'active';
+
+      if (!departmentId) {
+        return NextResponse.json({ success: false, error: 'departmentId is required' }, { status: 400 });
+      }
+      if (!code || !/^[A-Z0-9_]+$/.test(code)) {
+        return NextResponse.json({ success: false, error: 'Mã phòng ban chỉ gồm chữ in hoa, số và dấu gạch dưới.' }, { status: 400 });
+      }
+      if (!name) {
+        return NextResponse.json({ success: false, error: 'Tên phòng ban là bắt buộc.' }, { status: 400 });
+      }
+
+      const deptRes = await query(`
+        UPDATE app.departments
+        SET code = $2, name = $3, status = $4
+        WHERE id = $1 AND deleted_at IS NULL
+        RETURNING id, code, name, status
+      `, [departmentId, code, name, status]);
+
+      if (deptRes.rows.length === 0) {
+        return NextResponse.json({ success: false, error: 'Không tìm thấy phòng ban.' }, { status: 404 });
+      }
+
+      await query(`
+        INSERT INTO app.audit_logs (actor_user_id, action, entity_type, entity_id, metadata)
+        VALUES ($1, 'update_department', 'department', $2, $3)
+      `, [user.id, departmentId, JSON.stringify({ code })]);
+
+      return NextResponse.json({ success: true, data: deptRes.rows[0] });
+    }
+
+    if (action === 'deleteDepartment') {
+      const departmentId = typeof body.departmentId === 'string' ? body.departmentId : '';
+      if (!departmentId) {
+        return NextResponse.json({ success: false, error: 'departmentId is required' }, { status: 400 });
+      }
+
+      const usageRes = await query('SELECT COUNT(*)::int as count FROM app.users WHERE department_id = $1 AND deleted_at IS NULL', [departmentId]);
+      if (usageRes.rows[0].count > 0) {
+        return NextResponse.json({ success: false, error: 'Phòng ban đang có người dùng, không thể xóa.' }, { status: 400 });
+      }
+
+      await query(`
+        UPDATE app.departments
+        SET deleted_at = NOW(), status = 'inactive'
+        WHERE id = $1 AND deleted_at IS NULL
+      `, [departmentId]);
+
+      await query(`
+        INSERT INTO app.audit_logs (actor_user_id, action, entity_type, entity_id, metadata)
+        VALUES ($1, 'delete_department', 'department', $2, '{}'::jsonb)
+      `, [user.id, departmentId]);
+
+      return NextResponse.json({ success: true });
     }
 
     if (action === 'updateRole') {
