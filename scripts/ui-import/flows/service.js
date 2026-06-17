@@ -21,30 +21,51 @@ function createServiceData(config) {
   return {
     customer: {
       code: `${config.batchId}-CUS-SVC`,
-      name: `${config.batchLabel} Khach hang dich vu`,
+      name: `${config.batchLabel} Công ty Cổ phần Ánh Dương`,
       phone: `09${phoneSuffix}`,
-      email: `${config.batchId.toLowerCase()}-service@example.com`,
-      address: 'Toa nha Automation, Quan 1, TP.HCM',
-      notes: 'Khach hang mau duoc tao bang Playwright UI import.',
+      email: `${config.batchId.toLowerCase()}-dichvu@example.com`,
+      address: '126 Nguyễn Đình Chiểu, Phường Xuân Hòa, TP. Hồ Chí Minh',
+      notes: 'Khách hàng mẫu thuộc mảng dịch vụ tư vấn chuyển đổi số và triển khai CRM nội bộ.',
     },
     opportunity: {
       code: `${config.batchId}-OPP`,
-      title: `${config.batchLabel} Co hoi tu van chuyen doi so`,
+      title: `Tư vấn triển khai CRM hợp nhất cho ${config.batchLabel} Ánh Dương`,
       expectedValue: '125000000',
-      needDescription: 'Tu van CRM, quy trinh ban hang va trien khai van hanh.',
-      notes: 'Theo doi tu batch UI import.',
+      needDescription: 'Khách hàng cần tư vấn chuẩn hóa quy trình bán hàng, chăm sóc khách hàng và triển khai CRM đồng bộ nhiều phòng ban.',
+      notes: 'Cơ hội phát sinh từ hội thảo chuyển đổi số quý III, cần theo dõi sát tiến độ chốt.',
     },
     quote: {
       code: `${config.batchId}-Q`,
       quoteNumber: `${config.batchId}-QUO`,
-      termsNote: 'Thanh toan 50% khi ky hop dong, 50% khi nghiem thu.',
+      termsNote: 'Thanh toán 50% khi ký hợp đồng, 50% còn lại sau nghiệm thu và bàn giao vận hành.',
     },
     reminder: {
-      content: `${config.batchLabel} Goi nhac lich cham soc va chot ke hoach trien khai.`,
-      result: `${config.batchLabel} Da goi xac nhan va hen lich cham soc tiep theo.`,
-      nextContent: `${config.batchLabel} Theo doi phan hoi sau lan cham soc dau tien.`,
+      content: `Gọi xác nhận phạm vi tư vấn, lịch kickoff và đầu mối phối hợp của ${config.batchLabel} Ánh Dương.`,
+      result: `Đã trao đổi với khách hàng, thống nhất lịch kickoff và ghi nhận thêm yêu cầu về báo cáo doanh thu theo vùng.`,
+      nextContent: `Theo dõi phản hồi sau buổi kickoff, chốt danh sách người dùng và kế hoạch nhập dữ liệu ban đầu.`,
     },
   };
+}
+
+async function pollReceivables(page, config, searchValue, matcher) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const responsePromise = page.waitForResponse(
+      buildPathResponseMatcher('/api/receivables', 'GET'),
+      { timeout: config.responseTimeoutMs }
+    );
+
+    await page.locator('input[placeholder="Tìm theo mã nợ, khách hàng..."]').fill(searchValue);
+    const response = await responsePromise;
+    const json = await response.json();
+    const match = (json.data || []).find(matcher);
+    if (match) {
+      return match;
+    }
+
+    await page.waitForTimeout(800);
+  }
+
+  return null;
 }
 
 async function createCustomer(page, state, config, data) {
@@ -263,16 +284,12 @@ async function verifyServiceReceivable(page, state, config, contract) {
 
   return runStep(state, page, 'service', 'Kiểm tra milestone và công nợ dịch vụ', async () => {
     await gotoPath(page, `${config.baseURL}/receivables`);
-    const responsePromise = page.waitForResponse(
-      buildPathResponseMatcher('/api/receivables', 'GET'),
-      { timeout: config.responseTimeoutMs }
+    const receivable = await pollReceivables(
+      page,
+      config,
+      contract.contractNumber,
+      (item) => item.contractNumber === contract.contractNumber
     );
-
-    await page.locator('input[placeholder="Tìm theo mã nợ, khách hàng..."]').fill(contract.contractNumber);
-    const response = await responsePromise;
-    const json = await response.json();
-
-    const receivable = (json.data || []).find((item) => item.contractNumber === contract.contractNumber);
     if (!receivable) {
       throw new Error(`Không tìm thấy công nợ dịch vụ cho hợp đồng ${contract.contractNumber}.`);
     }

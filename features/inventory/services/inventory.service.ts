@@ -932,12 +932,14 @@ export async function confirmSalesOrder(soId: string, userId: string): Promise<v
         INSERT INTO app.receivables (
           code, customer_id, sales_order_id, due_date, amount_due, amount_paid, status, collector_user_id
         )
-        VALUES ($1, $2, $3, CURRENT_DATE + INTERVAL '15 days', $4, 0, 'pending', $5)
+        VALUES ($1, $2, $3, CURRENT_DATE + INTERVAL '15 days', $4, $5, $6, $7)
       `, [
         recCode,
         so.customer_id,
         soId,
         debt,
+        0,
+        'not_due',
         so.salesperson_user_id
       ]);
     }

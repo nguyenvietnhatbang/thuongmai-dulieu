@@ -22,47 +22,68 @@ function createCommerceData(config) {
   return {
     customer: {
       code: `${config.batchId}-CUS-COM`,
-      name: `${config.batchLabel} Khach hang thuong mai`,
+      name: `${config.batchLabel} Siêu thị Minh Châu`,
       phone: `08${phoneSuffix}`,
-      email: `${config.batchId.toLowerCase()}-commerce@example.com`,
-      address: 'Khu thuong mai Automation, Thu Duc, TP.HCM',
-      notes: 'Khach hang thuong mai mau duoc tao tu script UI import.',
+      email: `${config.batchId.toLowerCase()}-thuongmai@example.com`,
+      address: '58 Võ Văn Ngân, Phường Thủ Đức, TP. Hồ Chí Minh',
+      notes: 'Khách hàng thương mại mẫu chuyên nhập hàng định kỳ cho chuỗi bán lẻ nội địa.',
     },
     product: {
       code: `${config.batchId}-SKU-01`,
-      name: `${config.batchLabel} San pham mau`,
+      name: `${config.batchLabel} Máy in hóa đơn nhiệt`,
       minStockQuantity: '5',
     },
     supplier: {
       code: `${config.batchId}-SUP`,
-      name: `${config.batchLabel} Nha cung cap mau`,
+      name: `${config.batchLabel} Công ty TNHH Thiết bị Sao Việt`,
       phone: '0280000000',
-      email: `${config.batchId.toLowerCase()}-supplier@example.com`,
-      address: 'Khu cong nghiep logistics UI import',
+      email: `${config.batchId.toLowerCase()}-nhacungcap@example.com`,
+      address: 'Lô B2 Khu công nghiệp Tân Bình, TP. Hồ Chí Minh',
     },
     warehouse: {
       code: `${config.batchId}-WH`,
-      name: `${config.batchLabel} Kho trung tam`,
-      address: 'Kho trung chuyen batch UI import',
+      name: `${config.batchLabel} Kho trung tâm miền Nam`,
+      address: '12 Đường số 7, Khu công nghiệp Sóng Thần, Bình Dương',
     },
     purchaseOrder: {
       code: `${config.batchId}-PO`,
-      notes: 'Don mua hang duoc tao tu Playwright UI import.',
+      notes: 'Đơn mua hàng mẫu nhập lô thiết bị bán lẻ phục vụ kiểm thử quy trình mua - nhập kho.',
       quantity: '10',
       unitPrice: '250000',
     },
     receipt: {
       code: `${config.batchId}-GRN`,
-      notes: 'Phieu nhap kho duoc lap tu batch UI import.',
+      notes: 'Phiếu nhập kho xác nhận hàng đã về đủ theo đơn mua hàng mẫu.',
     },
     salesOrder: {
       code: `${config.batchId}-SO`,
-      notes: 'Don ban hang thuong mai tu batch UI import.',
+      notes: 'Đơn bán hàng mẫu cho khách sỉ, dùng để kiểm thử xuất kho và phát sinh công nợ.',
       quantity: '3',
       unitPrice: '400000',
       paidAmount: '0',
     },
   };
+}
+
+async function pollReceivables(page, config, searchValue, matcher) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const responsePromise = page.waitForResponse(
+      buildPathResponseMatcher('/api/receivables', 'GET'),
+      { timeout: config.responseTimeoutMs }
+    );
+
+    await page.locator('input[placeholder="Tìm theo mã nợ, khách hàng..."]').fill(searchValue);
+    const response = await responsePromise;
+    const json = await response.json();
+    const match = (json.data || []).find(matcher);
+    if (match) {
+      return match;
+    }
+
+    await page.waitForTimeout(800);
+  }
+
+  return null;
 }
 
 async function createCommerceCustomer(page, state, config, data) {
@@ -455,15 +476,12 @@ async function verifyCommerceReceivable(page, state, config, salesOrder) {
 
   return runStep(state, page, 'commerce', 'Kiểm tra công nợ thương mại sau bán hàng', async () => {
     await gotoPath(page, `${config.baseURL}/receivables`);
-    const responsePromise = page.waitForResponse(
-      buildPathResponseMatcher('/api/receivables', 'GET'),
-      { timeout: config.responseTimeoutMs }
+    const receivable = await pollReceivables(
+      page,
+      config,
+      salesOrder.code,
+      (item) => item.salesOrderCode === salesOrder.code
     );
-
-    await page.locator('input[placeholder="Tìm theo mã nợ, khách hàng..."]').fill(salesOrder.code);
-    const response = await responsePromise;
-    const json = await response.json();
-    const receivable = (json.data || []).find((item) => item.salesOrderCode === salesOrder.code);
     if (!receivable) {
       throw new Error(`Không tìm thấy công nợ thương mại phát sinh từ đơn bán ${salesOrder.code}.`);
     }
