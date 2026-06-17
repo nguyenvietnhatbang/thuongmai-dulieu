@@ -1,16 +1,33 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, hasPermission } from '@/lib/auth';
 import { getProducts, createProduct } from '@/features/inventory/services/inventory.service';
+import { parsePagination, parseSort } from '@/lib/list-query';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+const productSorts = {
+  code: 'code',
+  name: 'name',
+  unitCode: 'unit_code',
+  minStockQuantity: 'min_stock_quantity',
+  status: 'status',
+};
+
+export async function GET(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-    const products = await getProducts();
-    return NextResponse.json({ success: true, data: products });
+    const { searchParams } = new URL(request.url);
+    const pagination = parsePagination(searchParams);
+    const sort = parseSort(searchParams, productSorts, 'name');
+    const products = await getProducts({
+      ...pagination,
+      ...sort,
+      search: searchParams.get('search') || undefined,
+      status: searchParams.get('status') || undefined,
+    });
+    return NextResponse.json({ success: true, data: products.data, pagination: products.pagination });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

@@ -39,8 +39,27 @@ export interface InventoryBalance {
   minQuantity: number;
 }
 
+export interface InventoryOverview {
+  totalProducts: number;
+  lowStockItems: number;
+  totalQuantityOnHand: number;
+}
+
 export type InventoryBalanceSort = 'productName' | 'productCode' | 'warehouseName' | 'quantityOnHand' | 'minQuantity';
 export type InventoryMovementSort = 'createdAt' | 'productName' | 'productCode' | 'warehouseName' | 'movementType' | 'quantityDelta' | 'unitCost';
+export type ProductSort = 'code' | 'name' | 'unitCode' | 'minStockQuantity' | 'status';
+export type SupplierSort = 'code' | 'name' | 'email' | 'status';
+export type WarehouseSort = 'code' | 'name' | 'status';
+export type PurchaseOrderSort = 'code' | 'supplierName' | 'purchaseDate' | 'totalAmount' | 'status';
+export type StockReceiptSort = 'code' | 'purchaseOrderCode' | 'warehouseName' | 'receiptDate' | 'totalAmount' | 'status';
+export type SalesOrderSort = 'code' | 'customerName' | 'saleDate' | 'totalAmount' | 'paidAmount' | 'debtAmount' | 'status';
+
+type InventoryListOptions<TSort extends string> = Partial<PaginationInput> & {
+  search?: string;
+  status?: string;
+  sort?: TSort;
+  order?: SortDirection;
+};
 
 export interface PurchaseOrder {
   id: string;
@@ -82,9 +101,43 @@ export interface SalesOrder {
 /**
  * Suppliers CRUD
  */
-export async function getSuppliers(): Promise<Supplier[]> {
-  const res = await query('SELECT id, code, name, phone, email, address, status FROM app.suppliers WHERE deleted_at IS NULL ORDER BY name ASC');
-  return res.rows as Supplier[];
+const supplierSorts: Record<SupplierSort, string> = {
+  code: 'code',
+  name: 'name',
+  email: 'email',
+  status: 'status',
+};
+
+export async function getSuppliers(options?: InventoryListOptions<SupplierSort>): Promise<PaginatedResult<Supplier>> {
+  const page = options?.page || 1;
+  const limit = options?.limit || 20;
+  const offset = options?.offset || 0;
+  const sort = options?.sort || 'name';
+  const order = options?.order || 'asc';
+  const values: unknown[] = [];
+  const where = ['deleted_at IS NULL'];
+
+  if (options?.search) {
+    values.push(`%${options.search.toLowerCase()}%`);
+    where.push(`(lower(code) LIKE $${values.length} OR lower(name) LIKE $${values.length} OR lower(coalesce(phone, '')) LIKE $${values.length} OR lower(coalesce(email, '')) LIKE $${values.length})`);
+  }
+
+  if (options?.status && ['active', 'inactive'].includes(options.status)) {
+    values.push(options.status);
+    where.push(`status = $${values.length}`);
+  }
+
+  const whereSql = `WHERE ${where.join(' AND ')}`;
+  const countRes = await query<{ total: string }>(`SELECT COUNT(*)::int as total FROM app.suppliers ${whereSql}`, values);
+  values.push(limit, offset);
+  const res = await query(`
+    SELECT id, code, name, phone, email, address, status
+    FROM app.suppliers
+    ${whereSql}
+    ORDER BY ${getSortSql(sort, order, supplierSorts)}, name ASC
+    LIMIT $${values.length - 1} OFFSET $${values.length}
+  `, values);
+  return buildPagination(res.rows as Supplier[], Number(countRes.rows[0]?.total || 0), { page, limit, offset });
 }
 
 export async function createSupplier(data: Omit<Supplier, 'id'>): Promise<Supplier> {
@@ -99,9 +152,45 @@ export async function createSupplier(data: Omit<Supplier, 'id'>): Promise<Suppli
 /**
  * Products CRUD
  */
-export async function getProducts(): Promise<Product[]> {
-  const res = await query('SELECT id, code, name, unit_code as "unitCode", min_stock_quantity::numeric as "minStockQuantity", status FROM app.products WHERE deleted_at IS NULL ORDER BY name ASC');
-  return res.rows.map(r => ({ ...r, minStockQuantity: Number(r.minStockQuantity) })) as Product[];
+const productSorts: Record<ProductSort, string> = {
+  code: 'code',
+  name: 'name',
+  unitCode: 'unit_code',
+  minStockQuantity: 'min_stock_quantity',
+  status: 'status',
+};
+
+export async function getProducts(options?: InventoryListOptions<ProductSort>): Promise<PaginatedResult<Product>> {
+  const page = options?.page || 1;
+  const limit = options?.limit || 20;
+  const offset = options?.offset || 0;
+  const sort = options?.sort || 'name';
+  const order = options?.order || 'asc';
+  const values: unknown[] = [];
+  const where = ['deleted_at IS NULL'];
+
+  if (options?.search) {
+    values.push(`%${options.search.toLowerCase()}%`);
+    where.push(`(lower(code) LIKE $${values.length} OR lower(name) LIKE $${values.length} OR lower(unit_code) LIKE $${values.length})`);
+  }
+
+  if (options?.status && ['active', 'inactive'].includes(options.status)) {
+    values.push(options.status);
+    where.push(`status = $${values.length}`);
+  }
+
+  const whereSql = `WHERE ${where.join(' AND ')}`;
+  const countRes = await query<{ total: string }>(`SELECT COUNT(*)::int as total FROM app.products ${whereSql}`, values);
+  values.push(limit, offset);
+  const res = await query(`
+    SELECT id, code, name, unit_code as "unitCode", min_stock_quantity::numeric as "minStockQuantity", status
+    FROM app.products
+    ${whereSql}
+    ORDER BY ${getSortSql(sort, order, productSorts)}, name ASC
+    LIMIT $${values.length - 1} OFFSET $${values.length}
+  `, values);
+  const data = res.rows.map(r => ({ ...r, minStockQuantity: Number(r.minStockQuantity) })) as Product[];
+  return buildPagination(data, Number(countRes.rows[0]?.total || 0), { page, limit, offset });
 }
 
 export async function createProduct(data: Omit<Product, 'id'>): Promise<Product> {
@@ -116,9 +205,42 @@ export async function createProduct(data: Omit<Product, 'id'>): Promise<Product>
 /**
  * Warehouses CRUD
  */
-export async function getWarehouses(): Promise<Warehouse[]> {
-  const res = await query('SELECT id, code, name, address, status FROM app.warehouses WHERE deleted_at IS NULL ORDER BY name ASC');
-  return res.rows as Warehouse[];
+const warehouseSorts: Record<WarehouseSort, string> = {
+  code: 'code',
+  name: 'name',
+  status: 'status',
+};
+
+export async function getWarehouses(options?: InventoryListOptions<WarehouseSort>): Promise<PaginatedResult<Warehouse>> {
+  const page = options?.page || 1;
+  const limit = options?.limit || 20;
+  const offset = options?.offset || 0;
+  const sort = options?.sort || 'name';
+  const order = options?.order || 'asc';
+  const values: unknown[] = [];
+  const where = ['deleted_at IS NULL'];
+
+  if (options?.search) {
+    values.push(`%${options.search.toLowerCase()}%`);
+    where.push(`(lower(code) LIKE $${values.length} OR lower(name) LIKE $${values.length} OR lower(coalesce(address, '')) LIKE $${values.length})`);
+  }
+
+  if (options?.status && ['active', 'inactive'].includes(options.status)) {
+    values.push(options.status);
+    where.push(`status = $${values.length}`);
+  }
+
+  const whereSql = `WHERE ${where.join(' AND ')}`;
+  const countRes = await query<{ total: string }>(`SELECT COUNT(*)::int as total FROM app.warehouses ${whereSql}`, values);
+  values.push(limit, offset);
+  const res = await query(`
+    SELECT id, code, name, address, status
+    FROM app.warehouses
+    ${whereSql}
+    ORDER BY ${getSortSql(sort, order, warehouseSorts)}, name ASC
+    LIMIT $${values.length - 1} OFFSET $${values.length}
+  `, values);
+  return buildPagination(res.rows as Warehouse[], Number(countRes.rows[0]?.total || 0), { page, limit, offset });
 }
 
 export async function createWarehouse(data: Omit<Warehouse, 'id'>): Promise<Warehouse> {
@@ -256,20 +378,80 @@ export async function getInventoryBalances(options?: Partial<PaginationInput> & 
   return buildPagination(data, Number(countRes.rows[0]?.total || 0), { page, limit, offset });
 }
 
+export async function getInventoryOverview(): Promise<InventoryOverview> {
+  const res = await query(`
+    SELECT
+      (SELECT COUNT(*)::int FROM app.products WHERE deleted_at IS NULL) as "totalProducts",
+      COUNT(*) FILTER (WHERE b.quantity_on_hand <= b.min_quantity)::int as "lowStockItems",
+      COALESCE(SUM(b.quantity_on_hand), 0)::numeric as "totalQuantityOnHand"
+    FROM app.inventory_balances b
+  `);
+
+  return {
+    totalProducts: Number(res.rows[0]?.totalProducts || 0),
+    lowStockItems: Number(res.rows[0]?.lowStockItems || 0),
+    totalQuantityOnHand: Number(res.rows[0]?.totalQuantityOnHand || 0),
+  };
+}
+
 /**
  * Purchase Orders
  */
-export async function getPurchaseOrders(): Promise<PurchaseOrder[]> {
+const purchaseOrderSorts: Record<PurchaseOrderSort, string> = {
+  code: 'po.code',
+  supplierName: 's.name',
+  purchaseDate: 'po.purchase_date',
+  totalAmount: 'po.total_amount',
+  status: 'po.status',
+};
+
+export async function getPurchaseOrders(options?: InventoryListOptions<PurchaseOrderSort> & {
+  supplierId?: string;
+}): Promise<PaginatedResult<PurchaseOrder>> {
+  const page = options?.page || 1;
+  const limit = options?.limit || 20;
+  const offset = options?.offset || 0;
+  const sort = options?.sort || 'purchaseDate';
+  const order = options?.order || 'desc';
+  const values: unknown[] = [];
+  const where = ['po.deleted_at IS NULL'];
+
+  if (options?.search) {
+    values.push(`%${options.search.toLowerCase()}%`);
+    where.push(`(lower(po.code) LIKE $${values.length} OR lower(s.name) LIKE $${values.length})`);
+  }
+
+  if (options?.status && ['draft', 'ordered', 'partially_received', 'received', 'cancelled'].includes(options.status)) {
+    values.push(options.status);
+    where.push(`po.status = $${values.length}`);
+  }
+
+  if (options?.supplierId) {
+    values.push(options.supplierId);
+    where.push(`po.supplier_id = $${values.length}`);
+  }
+
+  const whereSql = `WHERE ${where.join(' AND ')}`;
+  const countRes = await query<{ total: string }>(`
+    SELECT COUNT(*)::int as total
+    FROM app.purchase_orders po
+    INNER JOIN app.suppliers s ON po.supplier_id = s.id
+    ${whereSql}
+  `, values);
+
+  values.push(limit, offset);
   const res = await query(`
     SELECT 
       po.id, po.code, po.supplier_id as "supplierId", s.name as "supplierName",
       po.purchase_date::text as "purchaseDate", po.total_amount::numeric as "totalAmount", po.status
     FROM app.purchase_orders po
     INNER JOIN app.suppliers s ON po.supplier_id = s.id
-    WHERE po.deleted_at IS NULL
-    ORDER BY po.created_at DESC
-  `);
-  return res.rows.map(r => ({ ...r, totalAmount: Number(r.totalAmount) })) as PurchaseOrder[];
+    ${whereSql}
+    ORDER BY ${getSortSql(sort, order, purchaseOrderSorts)}, po.created_at DESC
+    LIMIT $${values.length - 1} OFFSET $${values.length}
+  `, values);
+  const data = res.rows.map(r => ({ ...r, totalAmount: Number(r.totalAmount) })) as PurchaseOrder[];
+  return buildPagination(data, Number(countRes.rows[0]?.total || 0), { page, limit, offset });
 }
 
 export async function createPurchaseOrder(
@@ -318,7 +500,51 @@ export async function createPurchaseOrder(
 /**
  * Stock Receipts (Goods Inward)
  */
-export async function getStockReceipts(): Promise<StockReceipt[]> {
+const stockReceiptSorts: Record<StockReceiptSort, string> = {
+  code: 'sr.code',
+  purchaseOrderCode: 'po.code',
+  warehouseName: 'w.name',
+  receiptDate: 'sr.receipt_date',
+  totalAmount: 'sr.total_amount',
+  status: 'sr.status',
+};
+
+export async function getStockReceipts(options?: InventoryListOptions<StockReceiptSort> & {
+  warehouseId?: string;
+}): Promise<PaginatedResult<StockReceipt>> {
+  const page = options?.page || 1;
+  const limit = options?.limit || 20;
+  const offset = options?.offset || 0;
+  const sort = options?.sort || 'receiptDate';
+  const order = options?.order || 'desc';
+  const values: unknown[] = [];
+  const where = ['sr.deleted_at IS NULL'];
+
+  if (options?.search) {
+    values.push(`%${options.search.toLowerCase()}%`);
+    where.push(`(lower(sr.code) LIKE $${values.length} OR lower(coalesce(po.code, '')) LIKE $${values.length} OR lower(w.name) LIKE $${values.length})`);
+  }
+
+  if (options?.status && ['draft', 'confirmed', 'cancelled'].includes(options.status)) {
+    values.push(options.status);
+    where.push(`sr.status = $${values.length}`);
+  }
+
+  if (options?.warehouseId) {
+    values.push(options.warehouseId);
+    where.push(`sr.warehouse_id = $${values.length}`);
+  }
+
+  const whereSql = `WHERE ${where.join(' AND ')}`;
+  const countRes = await query<{ total: string }>(`
+    SELECT COUNT(*)::int as total
+    FROM app.stock_receipts sr
+    LEFT JOIN app.purchase_orders po ON sr.purchase_order_id = po.id
+    INNER JOIN app.warehouses w ON sr.warehouse_id = w.id
+    ${whereSql}
+  `, values);
+
+  values.push(limit, offset);
   const res = await query(`
     SELECT 
       sr.id, sr.code, sr.purchase_order_id as "purchaseOrderId", po.code as "purchaseOrderCode",
@@ -327,10 +553,12 @@ export async function getStockReceipts(): Promise<StockReceipt[]> {
     FROM app.stock_receipts sr
     LEFT JOIN app.purchase_orders po ON sr.purchase_order_id = po.id
     INNER JOIN app.warehouses w ON sr.warehouse_id = w.id
-    WHERE sr.deleted_at IS NULL
-    ORDER BY sr.created_at DESC
-  `);
-  return res.rows.map(r => ({ ...r, totalAmount: Number(r.totalAmount) })) as StockReceipt[];
+    ${whereSql}
+    ORDER BY ${getSortSql(sort, order, stockReceiptSorts)}, sr.created_at DESC
+    LIMIT $${values.length - 1} OFFSET $${values.length}
+  `, values);
+  const data = res.rows.map(r => ({ ...r, totalAmount: Number(r.totalAmount) })) as StockReceipt[];
+  return buildPagination(data, Number(countRes.rows[0]?.total || 0), { page, limit, offset });
 }
 
 export async function createStockReceipt(
@@ -428,7 +656,51 @@ export async function confirmStockReceipt(receiptId: string, userId: string): Pr
 /**
  * Sales Orders
  */
-export async function getSalesOrders(): Promise<SalesOrder[]> {
+const salesOrderSorts: Record<SalesOrderSort, string> = {
+  code: 'so.code',
+  customerName: 'c.name',
+  saleDate: 'so.sale_date',
+  totalAmount: 'so.total_amount',
+  paidAmount: 'so.paid_amount',
+  debtAmount: 'so.debt_amount',
+  status: 'so.status',
+};
+
+export async function getSalesOrders(options?: InventoryListOptions<SalesOrderSort> & {
+  customerId?: string;
+}): Promise<PaginatedResult<SalesOrder>> {
+  const page = options?.page || 1;
+  const limit = options?.limit || 20;
+  const offset = options?.offset || 0;
+  const sort = options?.sort || 'saleDate';
+  const order = options?.order || 'desc';
+  const values: unknown[] = [];
+  const where = ['so.deleted_at IS NULL'];
+
+  if (options?.search) {
+    values.push(`%${options.search.toLowerCase()}%`);
+    where.push(`(lower(so.code) LIKE $${values.length} OR lower(c.name) LIKE $${values.length})`);
+  }
+
+  if (options?.status && ['draft', 'confirmed', 'delivered', 'partially_paid', 'paid', 'cancelled'].includes(options.status)) {
+    values.push(options.status);
+    where.push(`so.status = $${values.length}`);
+  }
+
+  if (options?.customerId) {
+    values.push(options.customerId);
+    where.push(`so.customer_id = $${values.length}`);
+  }
+
+  const whereSql = `WHERE ${where.join(' AND ')}`;
+  const countRes = await query<{ total: string }>(`
+    SELECT COUNT(*)::int as total
+    FROM app.sales_orders so
+    INNER JOIN app.customers c ON so.customer_id = c.id
+    ${whereSql}
+  `, values);
+
+  values.push(limit, offset);
   const res = await query(`
     SELECT 
       so.id, so.code, so.customer_id as "customerId", c.name as "customerName",
@@ -436,15 +708,18 @@ export async function getSalesOrders(): Promise<SalesOrder[]> {
       so.paid_amount::numeric as "paidAmount", so.debt_amount::numeric as "debtAmount", so.status
     FROM app.sales_orders so
     INNER JOIN app.customers c ON so.customer_id = c.id
-    WHERE so.deleted_at IS NULL
-    ORDER BY so.created_at DESC
-  `);
-  return res.rows.map(r => ({
+    ${whereSql}
+    ORDER BY ${getSortSql(sort, order, salesOrderSorts)}, so.created_at DESC
+    LIMIT $${values.length - 1} OFFSET $${values.length}
+  `, values);
+  const data = res.rows.map(r => ({
     ...r,
     totalAmount: Number(r.totalAmount),
     paidAmount: Number(r.paidAmount),
     debtAmount: Number(r.debtAmount)
   })) as SalesOrder[];
+
+  return buildPagination(data, Number(countRes.rows[0]?.total || 0), { page, limit, offset });
 }
 
 export async function createSalesOrder(

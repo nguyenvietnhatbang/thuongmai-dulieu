@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ListToolbar, PaginationControls, SortableHeader } from '@/components/ui/ListControls';
 import { Modal } from '@/components/ui/Modal';
 
@@ -37,6 +37,39 @@ interface MastersTabProps {
   products: Product[];
   suppliers: Supplier[];
   warehouses: Warehouse[];
+  productSearch: string;
+  productStatus: string;
+  productPage: number;
+  productTotal: number;
+  productSort: string;
+  productOrder: 'asc' | 'desc';
+  supplierSearch: string;
+  supplierStatus: string;
+  supplierPage: number;
+  supplierTotal: number;
+  supplierSort: string;
+  supplierOrder: 'asc' | 'desc';
+  warehouseSearch: string;
+  warehouseStatus: string;
+  warehousePage: number;
+  warehouseTotal: number;
+  warehouseSort: string;
+  warehouseOrder: 'asc' | 'desc';
+  onProductSearchChange: (value: string) => void;
+  onProductStatusChange: (value: string) => void;
+  onProductReset: () => void;
+  onProductPageChange: (page: number) => void;
+  onProductSort: (sortKey: string) => void;
+  onSupplierSearchChange: (value: string) => void;
+  onSupplierStatusChange: (value: string) => void;
+  onSupplierReset: () => void;
+  onSupplierPageChange: (page: number) => void;
+  onSupplierSort: (sortKey: string) => void;
+  onWarehouseSearchChange: (value: string) => void;
+  onWarehouseStatusChange: (value: string) => void;
+  onWarehouseReset: () => void;
+  onWarehousePageChange: (page: number) => void;
+  onWarehouseSort: (sortKey: string) => void;
   onCreateProduct: (data: Omit<Product, 'id'>) => Promise<boolean>;
   onCreateSupplier: (data: Omit<Supplier, 'id'>) => Promise<boolean>;
   onCreateWarehouse: (data: Omit<Warehouse, 'id'>) => Promise<boolean>;
@@ -48,6 +81,39 @@ export function MastersTab({
   products,
   suppliers,
   warehouses,
+  productSearch,
+  productStatus,
+  productPage,
+  productTotal,
+  productSort,
+  productOrder,
+  supplierSearch,
+  supplierStatus,
+  supplierPage,
+  supplierTotal,
+  supplierSort,
+  supplierOrder,
+  warehouseSearch,
+  warehouseStatus,
+  warehousePage,
+  warehouseTotal,
+  warehouseSort,
+  warehouseOrder,
+  onProductSearchChange,
+  onProductStatusChange,
+  onProductReset,
+  onProductPageChange,
+  onProductSort,
+  onSupplierSearchChange,
+  onSupplierStatusChange,
+  onSupplierReset,
+  onSupplierPageChange,
+  onSupplierSort,
+  onWarehouseSearchChange,
+  onWarehouseStatusChange,
+  onWarehouseReset,
+  onWarehousePageChange,
+  onWarehouseSort,
   onCreateProduct,
   onCreateSupplier,
   onCreateWarehouse,
@@ -55,11 +121,6 @@ export function MastersTab({
   onDeleteWarehouse
 }: MastersTabProps) {
   const [subtab, setSubtab] = useState<'products' | 'suppliers' | 'warehouses'>('products');
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
-  const [page, setPage] = useState(1);
-  const [sort, setSort] = useState('name');
-  const [order, setOrder] = useState<'asc' | 'desc'>('asc');
   
   // Modal states
   const [isProductOpen, setIsProductOpen] = useState(false);
@@ -119,66 +180,22 @@ export function MastersTab({
     setNewWarehouse({ code: '', name: '', address: '', status: 'active' });
   };
 
-  const filteredProducts = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return products
-      .filter((product) => !term || product.name.toLowerCase().includes(term) || product.code.toLowerCase().includes(term))
-      .filter((product) => !status || product.status === status)
-      .sort((a, b) => {
-        const left = a[sort as keyof Product];
-        const right = b[sort as keyof Product];
-        const result = typeof left === 'number' && typeof right === 'number'
-          ? left - right
-          : String(left || '').localeCompare(String(right || ''), 'vi');
-        return order === 'asc' ? result : -result;
-      });
-  }, [products, search, status, sort, order]);
-
-  const filteredSuppliers = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return suppliers
-      .filter((supplier) => !term || supplier.name.toLowerCase().includes(term) || supplier.code.toLowerCase().includes(term))
-      .filter((supplier) => !status || supplier.status === status)
-      .sort((a, b) => {
-        const left = a[sort as keyof Supplier];
-        const right = b[sort as keyof Supplier];
-        const result = String(left || '').localeCompare(String(right || ''), 'vi');
-        return order === 'asc' ? result : -result;
-      });
-  }, [suppliers, search, status, sort, order]);
-
-  const filteredWarehouses = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return warehouses
-      .filter((warehouse) => !term || warehouse.name.toLowerCase().includes(term) || warehouse.code.toLowerCase().includes(term))
-      .filter((warehouse) => !status || warehouse.status === status)
-      .sort((a, b) => {
-        const left = a[sort as keyof Warehouse];
-        const right = b[sort as keyof Warehouse];
-        const result = String(left || '').localeCompare(String(right || ''), 'vi');
-        return order === 'asc' ? result : -result;
-      });
-  }, [warehouses, search, status, sort, order]);
-
   const limit = 10;
-  const activeRows = subtab === 'products' ? filteredProducts : subtab === 'suppliers' ? filteredSuppliers : filteredWarehouses;
-  const pagedProducts = filteredProducts.slice((page - 1) * limit, page * limit);
-  const pagedSuppliers = filteredSuppliers.slice((page - 1) * limit, page * limit);
-  const pagedWarehouses = filteredWarehouses.slice((page - 1) * limit, page * limit);
 
   const changeSubtab = (nextSubtab: 'products' | 'suppliers' | 'warehouses') => {
     setSubtab(nextSubtab);
-    setSearch('');
-    setStatus('');
-    setPage(1);
-    setSort('name');
-    setOrder('asc');
   };
 
   const handleSort = (nextSort: string) => {
-    setOrder(sort === nextSort && order === 'asc' ? 'desc' : 'asc');
-    setSort(nextSort);
-    setPage(1);
+    if (subtab === 'products') {
+      onProductSort(nextSort);
+      return;
+    }
+    if (subtab === 'suppliers') {
+      onSupplierSort(nextSort);
+      return;
+    }
+    onWarehouseSort(nextSort);
   };
 
   return (
@@ -244,17 +261,17 @@ export function MastersTab({
       </div>
 
       <ListToolbar
-        search={search}
+        search={subtab === 'products' ? productSearch : subtab === 'suppliers' ? supplierSearch : warehouseSearch}
         searchPlaceholder={subtab === 'products' ? 'Tìm mã, tên sản phẩm...' : subtab === 'suppliers' ? 'Tìm mã, tên NCC...' : 'Tìm mã, tên kho...'}
-        onSearchChange={(value) => { setSearch(value); setPage(1); }}
+        onSearchChange={subtab === 'products' ? onProductSearchChange : subtab === 'suppliers' ? onSupplierSearchChange : onWarehouseSearchChange}
         onSearchSubmit={(event) => event.preventDefault()}
         showSearchButton={false}
         searchClassName="!w-64"
         filters={[
           {
-            value: status,
+            value: subtab === 'products' ? productStatus : subtab === 'suppliers' ? supplierStatus : warehouseStatus,
             placeholder: 'Tất cả trạng thái',
-            onChange: (value) => { setStatus(value); setPage(1); },
+            onChange: subtab === 'products' ? onProductStatusChange : subtab === 'suppliers' ? onSupplierStatusChange : onWarehouseStatusChange,
             options: [
               { value: 'active', label: 'Hoạt động' },
               { value: 'inactive', label: 'Ngừng hoạt động' },
@@ -262,7 +279,7 @@ export function MastersTab({
             className: '!w-40',
           },
         ]}
-        onReset={() => { setSearch(''); setStatus(''); setPage(1); }}
+        onReset={subtab === 'products' ? onProductReset : subtab === 'suppliers' ? onSupplierReset : onWarehouseReset}
       />
 
       <div className="glass-panel border border-border rounded-xl overflow-hidden">
@@ -271,22 +288,22 @@ export function MastersTab({
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-border text-muted-foreground text-xs uppercase font-semibold">
-                  <th className="px-6 py-4"><SortableHeader label="Mã sản phẩm" sortKey="code" activeSort={sort} order={order} onSort={handleSort} /></th>
-                  <th className="px-6 py-4"><SortableHeader label="Tên sản phẩm" sortKey="name" activeSort={sort} order={order} onSort={handleSort} /></th>
-                  <th className="px-6 py-4"><SortableHeader label="Đơn vị tính" sortKey="unitCode" activeSort={sort} order={order} onSort={handleSort} /></th>
-                  <th className="px-6 py-4 text-center"><SortableHeader label="Định mức" sortKey="minStockQuantity" activeSort={sort} order={order} onSort={handleSort} /></th>
-                  <th className="px-6 py-4"><SortableHeader label="Trạng thái" sortKey="status" activeSort={sort} order={order} onSort={handleSort} /></th>
+                  <th className="px-6 py-4"><SortableHeader label="Mã sản phẩm" sortKey="code" activeSort={productSort} order={productOrder} onSort={handleSort} /></th>
+                  <th className="px-6 py-4"><SortableHeader label="Tên sản phẩm" sortKey="name" activeSort={productSort} order={productOrder} onSort={handleSort} /></th>
+                  <th className="px-6 py-4"><SortableHeader label="Đơn vị tính" sortKey="unitCode" activeSort={productSort} order={productOrder} onSort={handleSort} /></th>
+                  <th className="px-6 py-4 text-center"><SortableHeader label="Định mức" sortKey="minStockQuantity" activeSort={productSort} order={productOrder} onSort={handleSort} /></th>
+                  <th className="px-6 py-4"><SortableHeader label="Trạng thái" sortKey="status" activeSort={productSort} order={productOrder} onSort={handleSort} /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {pagedProducts.length === 0 ? (
+                {products.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-10 text-center text-sm text-muted-foreground">
                       Không có sản phẩm phù hợp với bộ lọc.
                     </td>
                   </tr>
                 ) : (
-                  pagedProducts.map((p) => (
+                  products.map((p) => (
                     <tr key={p.id} className="hover:bg-slate-50/30 transition-colors">
                       <td className="px-6 py-4 font-mono text-xs font-semibold text-primary">{p.code}</td>
                       <td className="px-6 py-4 font-bold text-foreground">{p.name}</td>
@@ -312,22 +329,22 @@ export function MastersTab({
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-border text-muted-foreground text-xs uppercase font-semibold">
-                  <th className="px-6 py-4"><SortableHeader label="Mã số" sortKey="code" activeSort={sort} order={order} onSort={handleSort} /></th>
-                  <th className="px-6 py-4"><SortableHeader label="Tên nhà cung cấp" sortKey="name" activeSort={sort} order={order} onSort={handleSort} /></th>
+                  <th className="px-6 py-4"><SortableHeader label="Mã số" sortKey="code" activeSort={supplierSort} order={supplierOrder} onSort={handleSort} /></th>
+                  <th className="px-6 py-4"><SortableHeader label="Tên nhà cung cấp" sortKey="name" activeSort={supplierSort} order={supplierOrder} onSort={handleSort} /></th>
                   <th className="px-6 py-4">Số điện thoại</th>
-                  <th className="px-6 py-4"><SortableHeader label="Email" sortKey="email" activeSort={sort} order={order} onSort={handleSort} /></th>
+                  <th className="px-6 py-4"><SortableHeader label="Email" sortKey="email" activeSort={supplierSort} order={supplierOrder} onSort={handleSort} /></th>
                   <th className="px-6 py-4">Địa chỉ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {pagedSuppliers.length === 0 ? (
+                {suppliers.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-10 text-center text-sm text-muted-foreground">
                       Không có nhà cung cấp phù hợp với bộ lọc.
                     </td>
                   </tr>
                 ) : (
-                  pagedSuppliers.map((s) => (
+                  suppliers.map((s) => (
                     <tr key={s.id} className="hover:bg-slate-50/30 transition-colors">
                       <td className="px-6 py-4 font-mono text-xs font-semibold text-primary">{s.code}</td>
                       <td className="px-6 py-4 font-bold text-foreground">{s.name}</td>
@@ -347,22 +364,22 @@ export function MastersTab({
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-border text-muted-foreground text-xs uppercase font-semibold">
-                  <th className="px-6 py-4"><SortableHeader label="Mã kho" sortKey="code" activeSort={sort} order={order} onSort={handleSort} /></th>
-                  <th className="px-6 py-4"><SortableHeader label="Tên kho hàng" sortKey="name" activeSort={sort} order={order} onSort={handleSort} /></th>
+                  <th className="px-6 py-4"><SortableHeader label="Mã kho" sortKey="code" activeSort={warehouseSort} order={warehouseOrder} onSort={handleSort} /></th>
+                  <th className="px-6 py-4"><SortableHeader label="Tên kho hàng" sortKey="name" activeSort={warehouseSort} order={warehouseOrder} onSort={handleSort} /></th>
                   <th className="px-6 py-4">Địa chỉ kho</th>
-                  <th className="px-6 py-4"><SortableHeader label="Trạng thái" sortKey="status" activeSort={sort} order={order} onSort={handleSort} /></th>
+                  <th className="px-6 py-4"><SortableHeader label="Trạng thái" sortKey="status" activeSort={warehouseSort} order={warehouseOrder} onSort={handleSort} /></th>
                   <th className="px-6 py-4 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {pagedWarehouses.length === 0 ? (
+                {warehouses.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-10 text-center text-sm text-muted-foreground">
                       Không có kho hàng phù hợp với bộ lọc.
                     </td>
                   </tr>
                 ) : (
-                  pagedWarehouses.map((w) => (
+                  warehouses.map((w) => (
                     <tr key={w.id} className="hover:bg-slate-50/30 transition-colors">
                       <td className="px-6 py-4 font-mono text-xs font-semibold text-primary">{w.code}</td>
                       <td className="px-6 py-4 font-bold text-foreground">{w.name}</td>
@@ -399,7 +416,13 @@ export function MastersTab({
             </table>
           </div>
         )}
-        <PaginationControls page={page} limit={limit} total={activeRows.length} onPageChange={setPage} alwaysShow />
+        <PaginationControls
+          page={subtab === 'products' ? productPage : subtab === 'suppliers' ? supplierPage : warehousePage}
+          limit={limit}
+          total={subtab === 'products' ? productTotal : subtab === 'suppliers' ? supplierTotal : warehouseTotal}
+          onPageChange={subtab === 'products' ? onProductPageChange : subtab === 'suppliers' ? onSupplierPageChange : onWarehousePageChange}
+          alwaysShow
+        />
       </div>
 
       {/* CREATE PRODUCT MODAL */}

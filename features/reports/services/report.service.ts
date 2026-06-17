@@ -42,7 +42,71 @@ export interface CommerceReportSummary {
   }>;
 }
 
-export async function getCommerceReportSummary(): Promise<CommerceReportSummary> {
+export interface CommerceReportFilters {
+  dateFrom?: string;
+  dateTo?: string;
+  customerId?: string;
+  supplierId?: string;
+  warehouseId?: string;
+}
+
+function addDateRangeFilter(
+  where: string[],
+  values: unknown[],
+  column: string,
+  filters: CommerceReportFilters,
+) {
+  if (filters.dateFrom) {
+    values.push(filters.dateFrom);
+    where.push(`${column} >= $${values.length}`);
+  }
+
+  if (filters.dateTo) {
+    values.push(filters.dateTo);
+    where.push(`${column} <= $${values.length}`);
+  }
+}
+
+function whereSql(where: string[]) {
+  return where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+}
+
+export async function getCommerceReportSummary(filters: CommerceReportFilters = {}): Promise<CommerceReportSummary> {
+  const purchaseValues: unknown[] = [];
+  const purchaseWhere = ['deleted_at IS NULL', "status != 'cancelled'"];
+  addDateRangeFilter(purchaseWhere, purchaseValues, 'purchase_date', filters);
+  if (filters.supplierId) {
+    purchaseValues.push(filters.supplierId);
+    purchaseWhere.push(`supplier_id = $${purchaseValues.length}`);
+  }
+
+  const salesValues: unknown[] = [];
+  const salesWhere = ['deleted_at IS NULL', "status != 'cancelled'"];
+  addDateRangeFilter(salesWhere, salesValues, 'sale_date', filters);
+  if (filters.customerId) {
+    salesValues.push(filters.customerId);
+    salesWhere.push(`customer_id = $${salesValues.length}`);
+  }
+
+  const receivableValues: unknown[] = [];
+  const receivableWhere = ['deleted_at IS NULL'];
+  addDateRangeFilter(receivableWhere, receivableValues, 'due_date', filters);
+  if (filters.customerId) {
+    receivableValues.push(filters.customerId);
+    receivableWhere.push(`customer_id = $${receivableValues.length}`);
+  }
+
+  const inventoryValues: unknown[] = [];
+  const inventoryWhere: string[] = [];
+  if (filters.warehouseId) {
+    inventoryValues.push(filters.warehouseId);
+    inventoryWhere.push(`b.warehouse_id = $${inventoryValues.length}`);
+  }
+
+  const purchaseStatusValues = [...purchaseValues];
+  const salesStatusValues = [...salesValues];
+  const lowStockValues = [...inventoryValues];
+
   const [
     purchaseSummary,
     salesSummary,
@@ -55,8 +119,8 @@ export async function getCommerceReportSummary(): Promise<CommerceReportSummary>
     query(`
       SELECT COUNT(*)::int as count, COALESCE(SUM(total_amount), 0)::numeric as "totalAmount"
       FROM app.purchase_orders
-      WHERE deleted_at IS NULL AND status != 'cancelled'
-    `),
+      ${whereSql(purchaseWhere)}
+    `, purchaseValues),
     query(`
       SELECT
         COUNT(*)::int as count,
@@ -64,15 +128,16 @@ export async function getCommerceReportSummary(): Promise<CommerceReportSummary>
         COALESCE(SUM(paid_amount), 0)::numeric as "paidAmount",
         COALESCE(SUM(debt_amount), 0)::numeric as "debtAmount"
       FROM app.sales_orders
-      WHERE deleted_at IS NULL AND status != 'cancelled'
-    `),
+      ${whereSql(salesWhere)}
+    `, salesValues),
     query(`
       SELECT
         (SELECT COUNT(*)::int FROM app.products WHERE deleted_at IS NULL) as "totalProducts",
         COUNT(*) FILTER (WHERE b.quantity_on_hand <= b.min_quantity)::int as "lowStockItems",
         COALESCE(SUM(b.quantity_on_hand), 0)::numeric as "totalQuantityOnHand"
       FROM app.inventory_balances b
-    `),
+      ${whereSql(inventoryWhere)}
+    `, inventoryValues),
     query(`
       SELECT
         COALESCE(SUM(amount_due), 0)::numeric as "totalDue",
@@ -82,22 +147,22 @@ export async function getCommerceReportSummary(): Promise<CommerceReportSummary>
           WHERE status = 'overdue' OR (due_date < CURRENT_DATE AND status NOT IN ('paid', 'cancelled'))
         )::int as "overdueCount"
       FROM app.receivables
-      WHERE deleted_at IS NULL
-    `),
+      ${whereSql(receivableWhere)}
+    `, receivableValues),
     query(`
       SELECT status, COUNT(*)::int as count, COALESCE(SUM(total_amount), 0)::numeric as "totalAmount"
       FROM app.sales_orders
-      WHERE deleted_at IS NULL
+      ${whereSql(salesWhere)}
       GROUP BY status
       ORDER BY status ASC
-    `),
+    `, salesStatusValues),
     query(`
       SELECT status, COUNT(*)::int as count, COALESCE(SUM(total_amount), 0)::numeric as "totalAmount"
       FROM app.purchase_orders
-      WHERE deleted_at IS NULL
+      ${whereSql(purchaseWhere)}
       GROUP BY status
       ORDER BY status ASC
-    `),
+    `, purchaseStatusValues),
     query(`
       SELECT
         p.code as "productCode",
@@ -109,10 +174,10 @@ export async function getCommerceReportSummary(): Promise<CommerceReportSummary>
       FROM app.inventory_balances b
       INNER JOIN app.products p ON b.product_id = p.id
       INNER JOIN app.warehouses w ON b.warehouse_id = w.id
-      WHERE b.quantity_on_hand <= b.min_quantity
+      ${whereSql([...inventoryWhere, 'b.quantity_on_hand <= b.min_quantity'])}
       ORDER BY p.name ASC, w.name ASC
       LIMIT 20
-    `),
+    `, lowStockValues),
   ]);
 
   return {

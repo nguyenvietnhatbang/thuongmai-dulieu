@@ -27,17 +27,53 @@ interface ReportSummary {
   }>;
 }
 
+interface ReportOption {
+  id: string;
+  name: string;
+  code?: string;
+}
+
 export function ReportsClient({ currentUser }: { currentUser: UserSession }) {
   const [summary, setSummary] = useState<ReportSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [customerId, setCustomerId] = useState('');
+  const [supplierId, setSupplierId] = useState('');
+  const [warehouseId, setWarehouseId] = useState('');
+  const [customers, setCustomers] = useState<ReportOption[]>([]);
+  const [suppliers, setSuppliers] = useState<ReportOption[]>([]);
+  const [warehouses, setWarehouses] = useState<ReportOption[]>([]);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      const [customerRes, supplierRes, warehouseRes] = await Promise.all([
+        fetch('/api/customers?limit=100').then((res) => res.json()),
+        fetch('/api/inventory/suppliers?limit=100&status=active&sort=name&order=asc').then((res) => res.json()),
+        fetch('/api/inventory/warehouses?limit=100&status=active&sort=name&order=asc').then((res) => res.json()),
+      ]);
+      if (customerRes.success) setCustomers(customerRes.data);
+      if (supplierRes.success) setSuppliers(supplierRes.data);
+      if (warehouseRes.success) setWarehouses(warehouseRes.data);
+    };
+
+    fetchOptions().catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const fetchSummary = async () => {
       setLoading(true);
       setError('');
       try {
-        const res = await fetch('/api/reports/summary');
+        const params = new URLSearchParams();
+        if (dateFrom) params.set('dateFrom', dateFrom);
+        if (dateTo) params.set('dateTo', dateTo);
+        if (customerId) params.set('customerId', customerId);
+        if (supplierId) params.set('supplierId', supplierId);
+        if (warehouseId) params.set('warehouseId', warehouseId);
+
+        const res = await fetch(`/api/reports/summary?${params.toString()}`);
         const json = await res.json();
         if (json.success) {
           setSummary(json.data);
@@ -52,7 +88,7 @@ export function ReportsClient({ currentUser }: { currentUser: UserSession }) {
     };
 
     fetchSummary();
-  }, []);
+  }, [dateFrom, dateTo, customerId, supplierId, warehouseId]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
@@ -72,6 +108,13 @@ export function ReportsClient({ currentUser }: { currentUser: UserSession }) {
   };
 
   const canExport = currentUser.roles.includes('system_management') || currentUser.permissions.includes('reports.export.team');
+  const resetFilters = () => {
+    setDateFrom('');
+    setDateTo('');
+    setCustomerId('');
+    setSupplierId('');
+    setWarehouseId('');
+  };
 
   return (
     <div className="space-y-6">
@@ -92,6 +135,48 @@ export function ReportsClient({ currentUser }: { currentUser: UserSession }) {
         )}
       </div>
 
+      <div className="glass-panel p-4 rounded-xl flex flex-nowrap gap-3 items-center overflow-x-auto">
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(event) => setDateFrom(event.target.value)}
+          className="premium-input h-10 !w-40 shrink-0"
+          aria-label="Từ ngày"
+        />
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(event) => setDateTo(event.target.value)}
+          className="premium-input h-10 !w-40 shrink-0"
+          aria-label="Đến ngày"
+        />
+        <select value={customerId} onChange={(event) => setCustomerId(event.target.value)} className="premium-input h-10 !w-48 shrink-0">
+          <option value="">Tất cả khách hàng</option>
+          {customers.map((customer) => (
+            <option key={customer.id} value={customer.id}>{customer.name}</option>
+          ))}
+        </select>
+        <select value={supplierId} onChange={(event) => setSupplierId(event.target.value)} className="premium-input h-10 !w-48 shrink-0">
+          <option value="">Tất cả NCC</option>
+          {suppliers.map((supplier) => (
+            <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+          ))}
+        </select>
+        <select value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)} className="premium-input h-10 !w-44 shrink-0">
+          <option value="">Tất cả kho</option>
+          {warehouses.map((warehouse) => (
+            <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={resetFilters}
+          className="h-10 px-3 border border-border rounded-lg bg-card text-xs font-semibold text-slate-600 hover:bg-muted transition-all cursor-pointer whitespace-nowrap shrink-0"
+        >
+          Xóa lọc
+        </button>
+      </div>
+
       {loading ? (
         <div className="glass-panel py-20 text-center text-muted-foreground rounded-xl">
           <p className="text-xs">Đang tải dữ liệu báo cáo...</p>
@@ -107,21 +192,25 @@ export function ReportsClient({ currentUser }: { currentUser: UserSession }) {
               <p className="text-[10px] text-muted-foreground uppercase font-bold">Mua hàng</p>
               <h3 className="text-xl font-extrabold text-foreground mt-1">{formatCurrency(summary.purchases.totalAmount)}</h3>
               <p className="text-xs text-muted-foreground mt-1">{summary.purchases.count} phiếu mua</p>
+              <a href="/inventory" className="inline-block text-xs font-bold text-primary mt-3 hover:underline">Xem chứng từ mua</a>
             </div>
             <div className="glass-panel p-4 rounded-xl">
               <p className="text-[10px] text-muted-foreground uppercase font-bold">Bán hàng</p>
               <h3 className="text-xl font-extrabold text-emerald-600 mt-1">{formatCurrency(summary.sales.totalAmount)}</h3>
               <p className="text-xs text-muted-foreground mt-1">{summary.sales.count} đơn bán</p>
+              <a href="/inventory" className="inline-block text-xs font-bold text-primary mt-3 hover:underline">Xem đơn bán</a>
             </div>
             <div className="glass-panel p-4 rounded-xl">
               <p className="text-[10px] text-muted-foreground uppercase font-bold">Công nợ còn lại</p>
               <h3 className="text-xl font-extrabold text-rose-600 mt-1">{formatCurrency(summary.receivables.totalRemaining)}</h3>
               <p className="text-xs text-muted-foreground mt-1">{summary.receivables.overdueCount} khoản quá hạn</p>
+              <a href="/receivables" className="inline-block text-xs font-bold text-primary mt-3 hover:underline">Xem công nợ</a>
             </div>
             <div className="glass-panel p-4 rounded-xl">
               <p className="text-[10px] text-muted-foreground uppercase font-bold">Tồn kho</p>
               <h3 className="text-xl font-extrabold text-primary mt-1">{summary.inventory.totalQuantityOnHand}</h3>
               <p className="text-xs text-muted-foreground mt-1">{summary.inventory.lowStockItems} SKU dưới định mức</p>
+              <a href="/inventory" className="inline-block text-xs font-bold text-primary mt-3 hover:underline">Xem tồn kho</a>
             </div>
           </div>
 

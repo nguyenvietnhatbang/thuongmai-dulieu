@@ -1,16 +1,32 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, hasPermission } from '@/lib/auth';
 import { getSuppliers, createSupplier } from '@/features/inventory/services/inventory.service';
+import { parsePagination, parseSort } from '@/lib/list-query';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+const supplierSorts = {
+  code: 'code',
+  name: 'name',
+  email: 'email',
+  status: 'status',
+};
+
+export async function GET(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-    const suppliers = await getSuppliers();
-    return NextResponse.json({ success: true, data: suppliers });
+    const { searchParams } = new URL(request.url);
+    const pagination = parsePagination(searchParams);
+    const sort = parseSort(searchParams, supplierSorts, 'name');
+    const suppliers = await getSuppliers({
+      ...pagination,
+      ...sort,
+      search: searchParams.get('search') || undefined,
+      status: searchParams.get('status') || undefined,
+    });
+    return NextResponse.json({ success: true, data: suppliers.data, pagination: suppliers.pagination });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

@@ -1,16 +1,31 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, hasPermission } from '@/lib/auth';
 import { createWarehouse, deleteWarehouse, getWarehouses, updateWarehouse } from '@/features/inventory/services/inventory.service';
+import { parsePagination, parseSort } from '@/lib/list-query';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+const warehouseSorts = {
+  code: 'code',
+  name: 'name',
+  status: 'status',
+};
+
+export async function GET(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-    const warehouses = await getWarehouses();
-    return NextResponse.json({ success: true, data: warehouses });
+    const { searchParams } = new URL(request.url);
+    const pagination = parsePagination(searchParams);
+    const sort = parseSort(searchParams, warehouseSorts, 'name');
+    const warehouses = await getWarehouses({
+      ...pagination,
+      ...sort,
+      search: searchParams.get('search') || undefined,
+      status: searchParams.get('status') || undefined,
+    });
+    return NextResponse.json({ success: true, data: warehouses.data, pagination: warehouses.pagination });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

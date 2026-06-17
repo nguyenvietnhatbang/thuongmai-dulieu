@@ -26,11 +26,19 @@ export function InventoryClient({}: { currentUser: UserSession }) {
   const [products, setProducts] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [productRows, setProductRows] = useState<any[]>([]);
+  const [supplierRows, setSupplierRows] = useState<any[]>([]);
+  const [warehouseRows, setWarehouseRows] = useState<any[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [stockReceipts, setStockReceipts] = useState<any[]>([]);
   const [salesOrders, setSalesOrders] = useState<any[]>([]);
   const [movements, setMovements] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [overview, setOverview] = useState({
+    totalProducts: 0,
+    lowStockItems: 0,
+    totalQuantityOnHand: 0,
+  });
   const [balancePage, setBalancePage] = useState(1);
   const [balanceTotal, setBalanceTotal] = useState(0);
   const [balanceSearch, setBalanceSearch] = useState('');
@@ -45,6 +53,42 @@ export function InventoryClient({}: { currentUser: UserSession }) {
   const [movementType, setMovementType] = useState('');
   const [movementSort, setMovementSort] = useState('createdAt');
   const [movementOrder, setMovementOrder] = useState<'asc' | 'desc'>('desc');
+  const [purchasePage, setPurchasePage] = useState(1);
+  const [purchaseTotal, setPurchaseTotal] = useState(0);
+  const [purchaseSearch, setPurchaseSearch] = useState('');
+  const [purchaseStatus, setPurchaseStatus] = useState('');
+  const [purchaseSort, setPurchaseSort] = useState('purchaseDate');
+  const [purchaseOrder, setPurchaseOrder] = useState<'asc' | 'desc'>('desc');
+  const [receiptPage, setReceiptPage] = useState(1);
+  const [receiptTotal, setReceiptTotal] = useState(0);
+  const [receiptSearch, setReceiptSearch] = useState('');
+  const [receiptStatus, setReceiptStatus] = useState('');
+  const [receiptSort, setReceiptSort] = useState('receiptDate');
+  const [receiptOrder, setReceiptOrder] = useState<'asc' | 'desc'>('desc');
+  const [salesPage, setSalesPage] = useState(1);
+  const [salesTotal, setSalesTotal] = useState(0);
+  const [salesSearch, setSalesSearch] = useState('');
+  const [salesStatus, setSalesStatus] = useState('');
+  const [salesSort, setSalesSort] = useState('saleDate');
+  const [salesOrder, setSalesOrder] = useState<'asc' | 'desc'>('desc');
+  const [productPage, setProductPage] = useState(1);
+  const [productTotal, setProductTotal] = useState(0);
+  const [productSearch, setProductSearch] = useState('');
+  const [productStatus, setProductStatus] = useState('');
+  const [productSort, setProductSort] = useState('name');
+  const [productOrder, setProductOrder] = useState<'asc' | 'desc'>('asc');
+  const [supplierPage, setSupplierPage] = useState(1);
+  const [supplierTotal, setSupplierTotal] = useState(0);
+  const [supplierSearch, setSupplierSearch] = useState('');
+  const [supplierStatus, setSupplierStatus] = useState('');
+  const [supplierSort, setSupplierSort] = useState('name');
+  const [supplierOrder, setSupplierOrder] = useState<'asc' | 'desc'>('asc');
+  const [warehousePage, setWarehousePage] = useState(1);
+  const [warehouseTotal, setWarehouseTotal] = useState(0);
+  const [warehouseSearch, setWarehouseSearch] = useState('');
+  const [warehouseStatus, setWarehouseStatus] = useState('');
+  const [warehouseSort, setWarehouseSort] = useState('name');
+  const [warehouseOrder, setWarehouseOrder] = useState<'asc' | 'desc'>('asc');
 
   // Detail drawer
   const [activeDetail, setActiveDetail] = useState<{ type: 'po' | 'receipt' | 'sales'; id: string; data?: any } | null>(null);
@@ -52,22 +96,16 @@ export function InventoryClient({}: { currentUser: UserSession }) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const p2 = fetch('/api/inventory/products').then(r => r.json());
-      const p3 = fetch('/api/inventory/suppliers').then(r => r.json());
-      const p4 = fetch('/api/inventory/warehouses').then(r => r.json());
-      const p5 = fetch('/api/inventory/purchases').then(r => r.json());
-      const p6 = fetch('/api/inventory/receipts').then(r => r.json());
-      const p7 = fetch('/api/inventory/sales').then(r => r.json());
+      const p2 = fetch('/api/inventory/products?limit=100&status=active&sort=name&order=asc').then(r => r.json());
+      const p3 = fetch('/api/inventory/suppliers?limit=100&status=active&sort=name&order=asc').then(r => r.json());
+      const p4 = fetch('/api/inventory/warehouses?limit=100&status=active&sort=name&order=asc').then(r => r.json());
       const p8 = fetch('/api/customers?limit=100').then(r => r.json());
 
-      const [r2, r3, r4, r5, r6, r7, r8] = await Promise.all([p2, p3, p4, p5, p6, p7, p8]);
+      const [r2, r3, r4, r8] = await Promise.all([p2, p3, p4, p8]);
 
       if (r2.success) setProducts(r2.data);
       if (r3.success) setSuppliers(r3.data);
       if (r4.success) setWarehouses(r4.data);
-      if (r5.success) setPurchaseOrders(r5.data);
-      if (r6.success) setStockReceipts(r6.data);
-      if (r7.success) setSalesOrders(r7.data);
       if (r8.success) setCustomers(r8.data);
     } catch (err) {
       console.error('Error fetching inventory data:', err);
@@ -79,6 +117,14 @@ export function InventoryClient({}: { currentUser: UserSession }) {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const fetchOverview = async () => {
+    const res = await fetch('/api/inventory/summary');
+    const json = await res.json();
+    if (json.success) {
+      setOverview(json.data);
+    }
+  };
 
   const fetchBalances = async () => {
     const params = new URLSearchParams({
@@ -118,13 +164,146 @@ export function InventoryClient({}: { currentUser: UserSession }) {
     }
   };
 
+  const fetchPurchaseOrders = async () => {
+    const params = new URLSearchParams({
+      page: String(purchasePage),
+      limit: '10',
+      sort: purchaseSort,
+      order: purchaseOrder,
+    });
+    if (purchaseSearch) params.set('search', purchaseSearch);
+    if (purchaseStatus) params.set('status', purchaseStatus);
+
+    const res = await fetch(`/api/inventory/purchases?${params.toString()}`);
+    const json = await res.json();
+    if (json.success) {
+      setPurchaseOrders(json.data);
+      setPurchaseTotal(json.pagination?.total || 0);
+    }
+  };
+
+  const fetchStockReceipts = async () => {
+    const params = new URLSearchParams({
+      page: String(receiptPage),
+      limit: '10',
+      sort: receiptSort,
+      order: receiptOrder,
+    });
+    if (receiptSearch) params.set('search', receiptSearch);
+    if (receiptStatus) params.set('status', receiptStatus);
+
+    const res = await fetch(`/api/inventory/receipts?${params.toString()}`);
+    const json = await res.json();
+    if (json.success) {
+      setStockReceipts(json.data);
+      setReceiptTotal(json.pagination?.total || 0);
+    }
+  };
+
+  const fetchSalesOrders = async () => {
+    const params = new URLSearchParams({
+      page: String(salesPage),
+      limit: '10',
+      sort: salesSort,
+      order: salesOrder,
+    });
+    if (salesSearch) params.set('search', salesSearch);
+    if (salesStatus) params.set('status', salesStatus);
+
+    const res = await fetch(`/api/inventory/sales?${params.toString()}`);
+    const json = await res.json();
+    if (json.success) {
+      setSalesOrders(json.data);
+      setSalesTotal(json.pagination?.total || 0);
+    }
+  };
+
+  const fetchProductRows = async () => {
+    const params = new URLSearchParams({
+      page: String(productPage),
+      limit: '10',
+      sort: productSort,
+      order: productOrder,
+    });
+    if (productSearch) params.set('search', productSearch);
+    if (productStatus) params.set('status', productStatus);
+
+    const res = await fetch(`/api/inventory/products?${params.toString()}`);
+    const json = await res.json();
+    if (json.success) {
+      setProductRows(json.data);
+      setProductTotal(json.pagination?.total || 0);
+    }
+  };
+
+  const fetchSupplierRows = async () => {
+    const params = new URLSearchParams({
+      page: String(supplierPage),
+      limit: '10',
+      sort: supplierSort,
+      order: supplierOrder,
+    });
+    if (supplierSearch) params.set('search', supplierSearch);
+    if (supplierStatus) params.set('status', supplierStatus);
+
+    const res = await fetch(`/api/inventory/suppliers?${params.toString()}`);
+    const json = await res.json();
+    if (json.success) {
+      setSupplierRows(json.data);
+      setSupplierTotal(json.pagination?.total || 0);
+    }
+  };
+
+  const fetchWarehouseRows = async () => {
+    const params = new URLSearchParams({
+      page: String(warehousePage),
+      limit: '10',
+      sort: warehouseSort,
+      order: warehouseOrder,
+    });
+    if (warehouseSearch) params.set('search', warehouseSearch);
+    if (warehouseStatus) params.set('status', warehouseStatus);
+
+    const res = await fetch(`/api/inventory/warehouses?${params.toString()}`);
+    const json = await res.json();
+    if (json.success) {
+      setWarehouseRows(json.data);
+      setWarehouseTotal(json.pagination?.total || 0);
+    }
+  };
+
   useEffect(() => {
+    fetchOverview();
     fetchBalances();
   }, [balancePage, balanceSearch, balanceWarehouseId, balanceStockState, balanceSort, balanceOrder]);
 
   useEffect(() => {
     fetchMovements();
   }, [movementPage, movementSearch, movementWarehouseId, movementType, movementSort, movementOrder]);
+
+  useEffect(() => {
+    fetchPurchaseOrders();
+  }, [purchasePage, purchaseSearch, purchaseStatus, purchaseSort, purchaseOrder]);
+
+  useEffect(() => {
+    fetchStockReceipts();
+  }, [receiptPage, receiptSearch, receiptStatus, receiptSort, receiptOrder]);
+
+  useEffect(() => {
+    fetchSalesOrders();
+  }, [salesPage, salesSearch, salesStatus, salesSort, salesOrder]);
+
+  useEffect(() => {
+    fetchProductRows();
+  }, [productPage, productSearch, productStatus, productSort, productOrder]);
+
+  useEffect(() => {
+    fetchSupplierRows();
+  }, [supplierPage, supplierSearch, supplierStatus, supplierSort, supplierOrder]);
+
+  useEffect(() => {
+    fetchWarehouseRows();
+  }, [warehousePage, warehouseSearch, warehouseStatus, warehouseSort, warehouseOrder]);
 
   // Fetch detailed drawer information
   const fetchDetails = async (type: 'po' | 'receipt' | 'sales', id: string) => {
@@ -157,6 +336,8 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       const json = await res.json();
       if (json.success) {
         fetchData();
+        fetchProductRows();
+        fetchOverview();
         return true;
       } else {
         alert(json.error || 'Error creating product');
@@ -178,6 +359,7 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       const json = await res.json();
       if (json.success) {
         fetchData();
+        fetchSupplierRows();
         return true;
       } else {
         alert(json.error || 'Error creating supplier');
@@ -199,6 +381,7 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       const json = await res.json();
       if (json.success) {
         fetchData();
+        fetchWarehouseRows();
         return true;
       } else {
         alert(json.error || 'Error creating warehouse');
@@ -220,6 +403,7 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       const json = await res.json();
       if (json.success) {
         fetchData();
+        fetchWarehouseRows();
         return true;
       }
       alert(json.error || 'Error updating warehouse');
@@ -237,6 +421,7 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       const json = await res.json();
       if (json.success) {
         fetchData();
+        fetchWarehouseRows();
         return true;
       }
       alert(json.error || 'Error deleting warehouse');
@@ -256,7 +441,7 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       });
       const json = await res.json();
       if (json.success) {
-        fetchData();
+        fetchPurchaseOrders();
         return true;
       } else {
         alert(json.error || 'Error creating purchase order');
@@ -277,7 +462,7 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       });
       const json = await res.json();
       if (json.success) {
-        fetchData();
+        fetchStockReceipts();
         return true;
       } else {
         alert(json.error || 'Error creating stock receipt');
@@ -298,7 +483,7 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       });
       const json = await res.json();
       if (json.success) {
-        fetchData();
+        fetchSalesOrders();
         return true;
       } else {
         alert(json.error || 'Error creating sales order');
@@ -317,7 +502,7 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       const json = await res.json();
       if (json.success) {
         alert('Đã xác nhận đặt đơn mua hàng thành công!');
-        fetchData();
+        fetchPurchaseOrders();
         if (activeDetail && activeDetail.id === id) {
           fetchDetails('po', id);
         }
@@ -336,7 +521,9 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       const json = await res.json();
       if (json.success) {
         alert('Đã xác nhận nhập kho thành công!');
-        fetchData();
+        fetchStockReceipts();
+        fetchPurchaseOrders();
+        fetchOverview();
         fetchBalances();
         fetchMovements();
         if (activeDetail && activeDetail.id === id) {
@@ -357,7 +544,8 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       const json = await res.json();
       if (json.success) {
         alert('Xác nhận đơn hàng & trừ kho thành công!');
-        fetchData();
+        fetchSalesOrders();
+        fetchOverview();
         fetchBalances();
         fetchMovements();
         if (activeDetail && activeDetail.id === id) {
@@ -383,7 +571,9 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       const json = await res.json();
       if (json.success) {
         alert('Đã hủy chứng từ thành công.');
-        fetchData();
+        if (type === 'po') fetchPurchaseOrders();
+        if (type === 'receipt') fetchStockReceipts();
+        if (type === 'sales') fetchSalesOrders();
         fetchBalances();
         fetchMovements();
         setActiveDetail(null);
@@ -402,9 +592,9 @@ export function InventoryClient({}: { currentUser: UserSession }) {
   };
 
   // Compute stats
-  const totalSku = products.length;
-  const lowStockCount = balances.filter(b => b.quantityOnHand <= b.minQuantity).length;
-  const totalStockQty = balances.reduce((acc, curr) => acc + Number(curr.quantityOnHand), 0);
+  const totalSku = overview.totalProducts;
+  const lowStockCount = overview.lowStockItems;
+  const totalStockQty = overview.totalQuantityOnHand;
 
   return (
     <div className="space-y-6">
@@ -541,6 +731,36 @@ export function InventoryClient({}: { currentUser: UserSession }) {
                 products={products}
                 suppliers={suppliers}
                 warehouses={warehouses}
+                purchaseSearch={purchaseSearch}
+                purchaseStatus={purchaseStatus}
+                purchasePage={purchasePage}
+                purchaseTotal={purchaseTotal}
+                purchaseSort={purchaseSort}
+                purchaseOrder={purchaseOrder}
+                receiptSearch={receiptSearch}
+                receiptStatus={receiptStatus}
+                receiptPage={receiptPage}
+                receiptTotal={receiptTotal}
+                receiptSort={receiptSort}
+                receiptOrder={receiptOrder}
+                onPurchaseSearchChange={(value) => { setPurchaseSearch(value); setPurchasePage(1); }}
+                onPurchaseStatusChange={(value) => { setPurchaseStatus(value); setPurchasePage(1); }}
+                onPurchaseReset={() => { setPurchaseSearch(''); setPurchaseStatus(''); setPurchasePage(1); }}
+                onPurchasePageChange={setPurchasePage}
+                onPurchaseSort={(nextSort) => {
+                  setPurchaseOrder(purchaseSort === nextSort && purchaseOrder === 'asc' ? 'desc' : 'asc');
+                  setPurchaseSort(nextSort);
+                  setPurchasePage(1);
+                }}
+                onReceiptSearchChange={(value) => { setReceiptSearch(value); setReceiptPage(1); }}
+                onReceiptStatusChange={(value) => { setReceiptStatus(value); setReceiptPage(1); }}
+                onReceiptReset={() => { setReceiptSearch(''); setReceiptStatus(''); setReceiptPage(1); }}
+                onReceiptPageChange={setReceiptPage}
+                onReceiptSort={(nextSort) => {
+                  setReceiptOrder(receiptSort === nextSort && receiptOrder === 'asc' ? 'desc' : 'asc');
+                  setReceiptSort(nextSort);
+                  setReceiptPage(1);
+                }}
                 formatCurrency={formatCurrency}
                 onViewDetails={(type, id) => handleViewDetails(type, id)}
                 onCreatePo={handleCreatePo}
@@ -554,6 +774,21 @@ export function InventoryClient({}: { currentUser: UserSession }) {
                 customers={customers}
                 products={products}
                 warehouses={warehouses}
+                search={salesSearch}
+                status={salesStatus}
+                page={salesPage}
+                total={salesTotal}
+                sort={salesSort}
+                order={salesOrder}
+                onSearchChange={(value) => { setSalesSearch(value); setSalesPage(1); }}
+                onStatusChange={(value) => { setSalesStatus(value); setSalesPage(1); }}
+                onReset={() => { setSalesSearch(''); setSalesStatus(''); setSalesPage(1); }}
+                onPageChange={setSalesPage}
+                onSort={(nextSort) => {
+                  setSalesOrder(salesSort === nextSort && salesOrder === 'asc' ? 'desc' : 'asc');
+                  setSalesSort(nextSort);
+                  setSalesPage(1);
+                }}
                 formatCurrency={formatCurrency}
                 onViewDetails={(type, id) => handleViewDetails(type, id)}
                 onCreateSalesOrder={handleCreateSalesOrder}
@@ -587,9 +822,54 @@ export function InventoryClient({}: { currentUser: UserSession }) {
 
             {activeTab === 'masters' && (
               <MastersTab
-                products={products}
-                suppliers={suppliers}
-                warehouses={warehouses}
+                products={productRows}
+                suppliers={supplierRows}
+                warehouses={warehouseRows}
+                productSearch={productSearch}
+                productStatus={productStatus}
+                productPage={productPage}
+                productTotal={productTotal}
+                productSort={productSort}
+                productOrder={productOrder}
+                supplierSearch={supplierSearch}
+                supplierStatus={supplierStatus}
+                supplierPage={supplierPage}
+                supplierTotal={supplierTotal}
+                supplierSort={supplierSort}
+                supplierOrder={supplierOrder}
+                warehouseSearch={warehouseSearch}
+                warehouseStatus={warehouseStatus}
+                warehousePage={warehousePage}
+                warehouseTotal={warehouseTotal}
+                warehouseSort={warehouseSort}
+                warehouseOrder={warehouseOrder}
+                onProductSearchChange={(value) => { setProductSearch(value); setProductPage(1); }}
+                onProductStatusChange={(value) => { setProductStatus(value); setProductPage(1); }}
+                onProductReset={() => { setProductSearch(''); setProductStatus(''); setProductPage(1); }}
+                onProductPageChange={setProductPage}
+                onProductSort={(nextSort) => {
+                  setProductOrder(productSort === nextSort && productOrder === 'asc' ? 'desc' : 'asc');
+                  setProductSort(nextSort);
+                  setProductPage(1);
+                }}
+                onSupplierSearchChange={(value) => { setSupplierSearch(value); setSupplierPage(1); }}
+                onSupplierStatusChange={(value) => { setSupplierStatus(value); setSupplierPage(1); }}
+                onSupplierReset={() => { setSupplierSearch(''); setSupplierStatus(''); setSupplierPage(1); }}
+                onSupplierPageChange={setSupplierPage}
+                onSupplierSort={(nextSort) => {
+                  setSupplierOrder(supplierSort === nextSort && supplierOrder === 'asc' ? 'desc' : 'asc');
+                  setSupplierSort(nextSort);
+                  setSupplierPage(1);
+                }}
+                onWarehouseSearchChange={(value) => { setWarehouseSearch(value); setWarehousePage(1); }}
+                onWarehouseStatusChange={(value) => { setWarehouseStatus(value); setWarehousePage(1); }}
+                onWarehouseReset={() => { setWarehouseSearch(''); setWarehouseStatus(''); setWarehousePage(1); }}
+                onWarehousePageChange={setWarehousePage}
+                onWarehouseSort={(nextSort) => {
+                  setWarehouseOrder(warehouseSort === nextSort && warehouseOrder === 'asc' ? 'desc' : 'asc');
+                  setWarehouseSort(nextSort);
+                  setWarehousePage(1);
+                }}
                 onCreateProduct={handleCreateProduct}
                 onCreateSupplier={handleCreateSupplier}
                 onCreateWarehouse={handleCreateWarehouse}

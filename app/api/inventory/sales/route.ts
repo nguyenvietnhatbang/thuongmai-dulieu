@@ -1,10 +1,21 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, hasPermission } from '@/lib/auth';
 import { getSalesOrders, createSalesOrder } from '@/features/inventory/services/inventory.service';
+import { parsePagination, parseSort } from '@/lib/list-query';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+const salesSorts = {
+  code: 'so.code',
+  customerName: 'c.name',
+  saleDate: 'so.sale_date',
+  totalAmount: 'so.total_amount',
+  paidAmount: 'so.paid_amount',
+  debtAmount: 'so.debt_amount',
+  status: 'so.status',
+};
+
+export async function GET(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
@@ -12,8 +23,17 @@ export async function GET() {
     const allowed = user.roles.includes('system_management') || await hasPermission('inventory.view.all') || await hasPermission('sales_orders.create.all');
     if (!allowed) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
 
-    const sales = await getSalesOrders();
-    return NextResponse.json({ success: true, data: sales });
+    const { searchParams } = new URL(request.url);
+    const pagination = parsePagination(searchParams);
+    const sort = parseSort(searchParams, salesSorts, 'saleDate');
+    const sales = await getSalesOrders({
+      ...pagination,
+      ...sort,
+      search: searchParams.get('search') || undefined,
+      status: searchParams.get('status') || undefined,
+      customerId: searchParams.get('customerId') || undefined,
+    });
+    return NextResponse.json({ success: true, data: sales.data, pagination: sales.pagination });
   } catch (error: any) {
     console.error('API Sales GET error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

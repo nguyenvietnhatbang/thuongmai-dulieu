@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ListToolbar, PaginationControls, SortableHeader } from '@/components/ui/ListControls';
 import { Modal } from '@/components/ui/Modal';
 
@@ -21,6 +21,17 @@ interface SalesOrdersTabProps {
   customers: any[];
   products: any[];
   warehouses: any[];
+  search: string;
+  status: string;
+  page: number;
+  total: number;
+  sort: string;
+  order: 'asc' | 'desc';
+  onSearchChange: (value: string) => void;
+  onStatusChange: (value: string) => void;
+  onReset: () => void;
+  onPageChange: (page: number) => void;
+  onSort: (sortKey: string) => void;
   formatCurrency: (val: number) => string;
   onViewDetails: (type: 'sales', id: string) => void;
   onCreateSalesOrder: (data: any) => Promise<boolean>;
@@ -31,16 +42,22 @@ export function SalesOrdersTab({
   customers,
   products,
   warehouses,
+  search,
+  status,
+  page,
+  total,
+  sort,
+  order,
+  onSearchChange,
+  onStatusChange,
+  onReset,
+  onPageChange,
+  onSort,
   formatCurrency,
   onViewDetails,
   onCreateSalesOrder
 }: SalesOrdersTabProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
-  const [page, setPage] = useState(1);
-  const [sort, setSort] = useState('saleDate');
-  const [order, setOrder] = useState<'asc' | 'desc'>('desc');
   
   const [newSo, setNewSo] = useState({
     code: '',
@@ -85,36 +102,14 @@ export function SalesOrdersTab({
     }
   };
 
-  const filteredOrders = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return salesOrders
-      .filter((so) => !term || so.code.toLowerCase().includes(term) || so.customerName.toLowerCase().includes(term))
-      .filter((so) => !status || so.status === status)
-      .sort((a, b) => {
-        const left = a[sort as keyof SalesOrder];
-        const right = b[sort as keyof SalesOrder];
-        const result = typeof left === 'number' && typeof right === 'number'
-          ? left - right
-          : String(left || '').localeCompare(String(right || ''), 'vi');
-        return order === 'asc' ? result : -result;
-      });
-  }, [salesOrders, search, status, sort, order]);
-
   const limit = 10;
-  const pagedOrders = filteredOrders.slice((page - 1) * limit, page * limit);
-
-  const handleSort = (nextSort: string) => {
-    setOrder(sort === nextSort && order === 'asc' ? 'desc' : 'asc');
-    setSort(nextSort);
-    setPage(1);
-  };
 
   return (
     <div className="space-y-4">
       <ListToolbar
         search={search}
         searchPlaceholder="Tìm mã đơn, khách hàng..."
-        onSearchChange={(value) => { setSearch(value); setPage(1); }}
+        onSearchChange={onSearchChange}
         onSearchSubmit={(event) => event.preventDefault()}
         showSearchButton={false}
         searchClassName="!w-64"
@@ -122,7 +117,7 @@ export function SalesOrdersTab({
           {
             value: status,
             placeholder: 'Tất cả trạng thái',
-            onChange: (value) => { setStatus(value); setPage(1); },
+            onChange: onStatusChange,
             options: [
               { value: 'draft', label: 'Bản nháp' },
               { value: 'confirmed', label: 'Đã xuất kho' },
@@ -133,7 +128,7 @@ export function SalesOrdersTab({
             className: '!w-40',
           },
         ]}
-        onReset={() => { setSearch(''); setStatus(''); setPage(1); }}
+        onReset={onReset}
         rightSlot={(
           <button
             type="button"
@@ -150,25 +145,25 @@ export function SalesOrdersTab({
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-border text-muted-foreground text-xs uppercase font-semibold">
-                <th className="px-6 py-4"><SortableHeader label="Mã đơn" sortKey="code" activeSort={sort} order={order} onSort={handleSort} /></th>
-                <th className="px-6 py-4"><SortableHeader label="Khách hàng" sortKey="customerName" activeSort={sort} order={order} onSort={handleSort} /></th>
-                <th className="px-6 py-4"><SortableHeader label="Ngày bán" sortKey="saleDate" activeSort={sort} order={order} onSort={handleSort} /></th>
-                <th className="px-6 py-4"><SortableHeader label="Tổng tiền" sortKey="totalAmount" activeSort={sort} order={order} onSort={handleSort} /></th>
-                <th className="px-6 py-4"><SortableHeader label="Đã thanh toán" sortKey="paidAmount" activeSort={sort} order={order} onSort={handleSort} /></th>
-                <th className="px-6 py-4"><SortableHeader label="Còn nợ" sortKey="debtAmount" activeSort={sort} order={order} onSort={handleSort} /></th>
-                <th className="px-6 py-4"><SortableHeader label="Trạng thái" sortKey="status" activeSort={sort} order={order} onSort={handleSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Mã đơn" sortKey="code" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Khách hàng" sortKey="customerName" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Ngày bán" sortKey="saleDate" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Tổng tiền" sortKey="totalAmount" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Đã thanh toán" sortKey="paidAmount" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Còn nợ" sortKey="debtAmount" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Trạng thái" sortKey="status" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4 text-right">Chi tiết</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {pagedOrders.length === 0 ? (
+              {salesOrders.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-6 py-10 text-center text-sm text-muted-foreground">
                     Không có đơn bán hàng phù hợp với bộ lọc.
                   </td>
                 </tr>
               ) : (
-                pagedOrders.map((so) => (
+                salesOrders.map((so) => (
                   <tr key={so.id} className="hover:bg-slate-50/30 transition-colors">
                     <td className="px-6 py-4 font-mono text-xs font-bold text-primary">{so.code}</td>
                     <td className="px-6 py-4 font-bold text-foreground">{so.customerName}</td>
@@ -202,7 +197,7 @@ export function SalesOrdersTab({
             </tbody>
           </table>
         </div>
-        <PaginationControls page={page} limit={limit} total={filteredOrders.length} onPageChange={setPage} alwaysShow />
+        <PaginationControls page={page} limit={limit} total={total} onPageChange={onPageChange} alwaysShow />
       </div>
 
       {/* SO CREATION MODAL */}

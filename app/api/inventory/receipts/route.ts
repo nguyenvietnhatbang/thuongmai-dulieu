@@ -1,10 +1,20 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, hasPermission } from '@/lib/auth';
 import { getStockReceipts, createStockReceipt } from '@/features/inventory/services/inventory.service';
+import { parsePagination, parseSort } from '@/lib/list-query';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+const receiptSorts = {
+  code: 'sr.code',
+  purchaseOrderCode: 'po.code',
+  warehouseName: 'w.name',
+  receiptDate: 'sr.receipt_date',
+  totalAmount: 'sr.total_amount',
+  status: 'sr.status',
+};
+
+export async function GET(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
@@ -12,8 +22,17 @@ export async function GET() {
     const allowed = user.roles.includes('system_management') || await hasPermission('inventory.view.all');
     if (!allowed) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
 
-    const receipts = await getStockReceipts();
-    return NextResponse.json({ success: true, data: receipts });
+    const { searchParams } = new URL(request.url);
+    const pagination = parsePagination(searchParams);
+    const sort = parseSort(searchParams, receiptSorts, 'receiptDate');
+    const receipts = await getStockReceipts({
+      ...pagination,
+      ...sort,
+      search: searchParams.get('search') || undefined,
+      status: searchParams.get('status') || undefined,
+      warehouseId: searchParams.get('warehouseId') || undefined,
+    });
+    return NextResponse.json({ success: true, data: receipts.data, pagination: receipts.pagination });
   } catch (error: any) {
     console.error('API Receipts GET error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
