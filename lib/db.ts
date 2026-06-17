@@ -31,7 +31,8 @@ export async function query<T extends QueryResultRow = any>(
   try {
     const res = await pool.query<T>(text, params);
     const duration = Date.now() - start;
-    if (process.env.NODE_ENV !== 'production' && duration > 100) {
+    const slowQueryThresholdMs = Number(process.env.SLOW_QUERY_THRESHOLD_MS || 500);
+    if (process.env.NODE_ENV !== 'production' && duration > slowQueryThresholdMs) {
       console.warn(`Slow query: ${text.substring(0, 100)}... (${duration}ms)`);
     }
     return res;

@@ -13,6 +13,7 @@ function createRunState(config) {
     errors: [],
     dialogs: [],
     logLines: [],
+    coverage: {},
     hasFailures: false,
   };
 }
@@ -40,6 +41,11 @@ function addEntity(state, type, entity) {
   }
 
   state.entities[type].push(entity);
+}
+
+function addCoverage(state, key, message) {
+  state.coverage[key] = message;
+  pushLog(state, 'INFO', `COVERAGE: ${message}`);
 }
 
 function addDialog(state, dialog) {
@@ -91,6 +97,7 @@ async function flushLogFile(state) {
 }
 
 module.exports = {
+  addCoverage,
   addDialog,
   addEntity,
   completeStep,

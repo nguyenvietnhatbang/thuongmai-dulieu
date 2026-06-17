@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { UserSwitcher } from '@/components/ui/UserSwitcher';
@@ -82,7 +81,7 @@ export default async function DashboardLayout({
         </header>
 
         {/* Content body container (overflow-hidden to support custom page scroll scrollbars) */}
-        <main className="flex-1 overflow-hidden p-8 relative animate-fade-in">
+        <main className="flex-1 overflow-hidden p-4 md:p-6 xl:p-8 relative animate-fade-in">
           {children}
         </main>
       </div>

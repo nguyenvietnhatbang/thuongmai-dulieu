@@ -62,7 +62,7 @@ export async function GET(
 
     // 2. Quotes
     const quotesRes = await query(
-      `SELECT id, code, expected_value as "expectedValue", status, created_at as "createdAt", opportunity_id as "opportunityId"
+      `SELECT id, code, quote_number as "quoteNumber", total_amount as "expectedValue", status, created_at as "createdAt", opportunity_id as "opportunityId"
        FROM app.quotes
        WHERE customer_id = $1 AND deleted_at IS NULL
        ORDER BY created_at DESC`,
@@ -71,7 +71,7 @@ export async function GET(
 
     // 3. Contracts
     const contractsRes = await query(
-      `SELECT id, code, title, value, status, signed_date as "signedDate", created_at as "createdAt"
+      `SELECT id, code, contract_number as "title", contract_value as "value", status, signed_date as "signedDate", created_at as "createdAt"
        FROM app.contracts
        WHERE customer_id = $1 AND deleted_at IS NULL
        ORDER BY created_at DESC`,
@@ -80,7 +80,7 @@ export async function GET(
 
     // 4. Projects
     const projectsRes = await query(
-      `SELECT id, code, name, status, start_date as "startDate", planned_end_date as "plannedEndDate", progress_percentage as "progressPercentage", created_at as "createdAt"
+      `SELECT id, code, name, status, start_date as "startDate", planned_end_date as "plannedEndDate", progress_percent as "progressPercentage", created_at as "createdAt"
        FROM app.projects
        WHERE customer_id = $1 AND deleted_at IS NULL
        ORDER BY created_at DESC`,

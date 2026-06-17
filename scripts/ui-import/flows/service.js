@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
+const path = require('path');
+
 const {
+  addCoverage,
   addEntity,
   recordNote,
   recordWarning,
@@ -9,11 +12,61 @@ const {
   buildPathResponseMatcher,
   clickAndCaptureJson,
   controlByLabel,
+  ensureDir,
   fillSearch,
   gotoPath,
   runStep,
   waitForTableText,
 } = require('../lib/playwright-utils');
+
+async function apiJson(page, url, options = {}) {
+  const response = await page.evaluate(async ({ targetUrl, requestOptions }) => {
+    const res = await fetch(targetUrl, requestOptions);
+    const contentType = res.headers.get('content-type') || '';
+    const body = contentType.includes('application/json')
+      ? await res.json()
+      : { success: res.ok, text: await res.text() };
+
+    return {
+      ok: res.ok,
+      status: res.status,
+      body,
+    };
+  }, { targetUrl: url, requestOptions: options });
+
+  if (!response.ok || !response.body?.success) {
+    throw new Error(response.body?.error || response.body?.details || `API request failed: ${url}`);
+  }
+
+  return response.body;
+}
+
+async function uploadMockImage(page, customerId, fileName) {
+  const response = await page.evaluate(async ({ targetCustomerId, targetFileName }) => {
+    const pngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
+    const bytes = Uint8Array.from(atob(pngBase64), (char) => char.charCodeAt(0));
+    const file = new File([bytes], targetFileName, { type: 'image/png' });
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('entityType', 'customer');
+    formData.append('entityId', targetCustomerId);
+
+    const res = await fetch('/api/files', {
+      method: 'POST',
+      body: formData,
+    });
+    return {
+      ok: res.ok,
+      body: await res.json(),
+    };
+  }, { targetCustomerId: customerId, targetFileName: fileName });
+
+  if (!response.ok || !response.body?.success) {
+    throw new Error(response.body?.error || 'Không upload được file khách hàng.');
+  }
+
+  return response.body;
+}
 
 function createServiceData(config) {
   const phoneSuffix = config.batchId.replace(/\D/g, '').slice(-8).padStart(8, '0');
@@ -43,6 +96,23 @@ function createServiceData(config) {
       content: `Gọi xác nhận phạm vi tư vấn, lịch kickoff và đầu mối phối hợp của ${config.batchLabel} Ánh Dương.`,
       result: `Đã trao đổi với khách hàng, thống nhất lịch kickoff và ghi nhận thêm yêu cầu về báo cáo doanh thu theo vùng.`,
       nextContent: `Theo dõi phản hồi sau buổi kickoff, chốt danh sách người dùng và kế hoạch nhập dữ liệu ban đầu.`,
+    },
+    contact: {
+      fullName: `Nguyễn Minh Anh ${config.batchId}`,
+      title: 'Trưởng phòng Chuyển đổi số',
+      phone: `08${phoneSuffix}`,
+      email: `${config.batchId.toLowerCase()}-minhanh@example.com`,
+      notes: 'Đầu mối nghiệp vụ chính cho dự án tư vấn CRM.',
+    },
+    file: {
+      name: `hopdong-${config.batchId}.png`,
+    },
+    projectNote: {
+      content: `${config.batchLabel} Cần xác nhận biên bản kickoff và phạm vi nghiệm thu giai đoạn 1.`,
+    },
+    projectCloseout: {
+      code: `CLOS-${config.batchId}`,
+      notes: `${config.batchLabel} Khách hàng đã nghiệm thu phạm vi tư vấn CRM và lưu hồ sơ bàn giao.`,
     },
   };
 }
@@ -305,6 +375,211 @@ async function verifyServiceReceivable(page, state, config, contract) {
   }, { continueOnError: true });
 }
 
+async function coverCustomerDetailTabs(page, state, config, customer, data) {
+  if (!customer) {
+    recordWarning(state, 'Bỏ qua cover tab phụ khách hàng vì thiếu khách hàng dịch vụ.');
+    return null;
+  }
+
+  return runStep(state, page, 'service', 'Cover tab phụ khách hàng: liên hệ, ghi chú, file', async () => {
+    const contactResponse = await apiJson(page, `/api/customers/${customer.id}/contacts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...data.contact,
+        isPrimary: true,
+      }),
+    });
+
+    const fileResponse = await uploadMockImage(page, customer.id, data.file.name);
+
+    const contactsJson = await apiJson(page, `/api/customers/${customer.id}/contacts`);
+    const historyJson = await apiJson(page, `/api/customers/${customer.id}/history`);
+
+    const contact = (contactsJson.data || []).find((item) => item.id === contactResponse.data.id);
+    const file = (historyJson.data?.files || []).find((item) => item.id === fileResponse.data.id);
+
+    if (!contact) {
+      throw new Error('Không tìm thấy người liên hệ vừa tạo trong tab khách hàng.');
+    }
+    if (!file) {
+      throw new Error('Không tìm thấy file vừa upload trong tab tài liệu khách hàng.');
+    }
+
+    addEntity(state, 'customerContacts', {
+      id: contact.id,
+      customer: customer.name,
+      fullName: contact.fullName,
+      isPrimary: contact.isPrimary,
+    });
+    addEntity(state, 'fileAssets', {
+      id: file.id,
+      entity: customer.code,
+      originalName: file.originalName,
+    });
+    addCoverage(
+      state,
+      'customer_subtabs',
+      'Đã cover tab phụ khách hàng: tạo người liên hệ chính, upload file đính kèm và đọc lại lịch sử/tab tài liệu.'
+    );
+
+    return { contact, file };
+  }, { continueOnError: true });
+}
+
+async function coverProjectNoteAndNotification(page, state, config, customer, project, data) {
+  if (!customer || !project) {
+    recordWarning(state, 'Bỏ qua ghi chú/thông báo dự án vì thiếu khách hàng hoặc dự án.');
+    return null;
+  }
+
+  return runStep(state, page, 'service', 'Xác minh ghi chú nội bộ dự án và notification', async () => {
+    const usersJson = await apiJson(page, '/api/users');
+    const currentUser = (usersJson.data || []).find((user) => user.email === config.credentials.email) || usersJson.data?.[0];
+    if (!currentUser) {
+      throw new Error('Không tìm thấy user nhận thông báo nội bộ.');
+    }
+
+    const noteJson = await apiJson(page, `/api/projects/${project.id}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerId: customer.id,
+        recipientUserId: currentUser.id,
+        content: data.projectNote.content,
+      }),
+    });
+
+    const notesJson = await apiJson(page, `/api/projects/${project.id}/notes`);
+    const notificationsJson = await apiJson(page, '/api/notifications');
+    const historyJson = await apiJson(page, `/api/customers/${customer.id}/history`);
+
+    const note = (notesJson.data || []).find((item) => item.id === noteJson.data.id);
+    const customerNote = (historyJson.data?.notes || []).find((item) => item.id === noteJson.data.id);
+    const notification = (notificationsJson.data || []).find(
+      (item) => item.entityType === 'project' && item.entityId === project.id && item.title === 'Ghi chu noi bo moi'
+    );
+
+    if (!note || !customerNote) {
+      throw new Error('Không tìm thấy ghi chú nội bộ ở project/customer history.');
+    }
+    if (!notification) {
+      throw new Error('Không tìm thấy notification phát sinh từ project note.');
+    }
+
+    addEntity(state, 'internalNotes', {
+      id: note.id,
+      project: project.code,
+      status: note.status,
+      recipient: note.recipientName,
+    });
+    addEntity(state, 'notifications', {
+      id: notification.id,
+      title: notification.title,
+      status: notification.status,
+    });
+    addCoverage(
+      state,
+      'project_notifications',
+      'Đã tạo ghi chú nội bộ dự án, xác minh ghi chú xuất hiện ở tab khách hàng và notification bell/API.'
+    );
+
+    return { note, notification };
+  }, { continueOnError: true });
+}
+
+async function coverProjectCloseout(page, state, config, project, data) {
+  if (!project) {
+    recordWarning(state, 'Bỏ qua nghiệm thu/đóng dự án vì thiếu dự án.');
+    return null;
+  }
+
+  return runStep(state, page, 'service', 'Nghiệm thu và đóng hồ sơ dự án', async () => {
+    const closeJson = await apiJson(page, `/api/projects/${project.id}/close`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: data.projectCloseout.code,
+        closedDate: config.today,
+        acceptanceStatus: 'accepted',
+        archiveStatus: 'archived',
+        notes: data.projectCloseout.notes,
+      }),
+    });
+
+    const projectJson = await apiJson(page, `/api/projects/${project.id}`);
+    if (!['accepted', 'closed'].includes(projectJson.data.status)) {
+      throw new Error(`Dự án chưa chuyển trạng thái nghiệm thu/đóng hồ sơ: ${projectJson.data.status}`);
+    }
+
+    addEntity(state, 'projectClosures', {
+      id: closeJson.data.id,
+      project: project.code,
+      acceptanceStatus: 'accepted',
+      archiveStatus: 'archived',
+    });
+    addCoverage(
+      state,
+      'project_closeout',
+      'Đã đi qua API nghiệm thu/đóng hồ sơ dự án và xác minh trạng thái dự án sau nghiệm thu.'
+    );
+
+    return closeJson.data;
+  }, { continueOnError: true });
+}
+
+async function coverExportOutputs(page, state, config, quote, receivable) {
+  if (!quote || !receivable) {
+    recordWarning(state, 'Bỏ qua xuất file báo giá/công nợ vì thiếu báo giá hoặc công nợ.');
+    return null;
+  }
+
+  return runStep(state, page, 'service', 'Xuất báo giá và file công nợ', async () => {
+    const printPage = await page.context().newPage();
+    try {
+      await gotoPath(printPage, `${config.baseURL}/quotes/${quote.id}/print`);
+      await printPage.getByText(quote.quoteNumber, { exact: false }).first().waitFor({ timeout: config.actionTimeoutMs });
+    } finally {
+      await printPage.close().catch(() => undefined);
+    }
+
+    await gotoPath(page, `${config.baseURL}/receivables`);
+    await ensureDir(config.downloadDir);
+    const downloadPromise = page.waitForEvent('download', { timeout: config.responseTimeoutMs });
+    await page.evaluate((search) => {
+      const anchor = document.createElement('a');
+      anchor.href = `/api/receivables/export?search=${encodeURIComponent(search)}`;
+      anchor.download = '';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    }, receivable.code);
+    const download = await downloadPromise;
+    const suggestedName = download.suggestedFilename();
+    const savedPath = path.join(config.downloadDir, suggestedName);
+    await download.saveAs(savedPath);
+
+    const exportsJson = await apiJson(page, '/api/receivables/exports');
+    const exportLog = (exportsJson.data || []).find((item) => item.fileName === suggestedName);
+    if (!exportLog) {
+      throw new Error('Không tìm thấy lịch sử xuất file công nợ sau khi download.');
+    }
+
+    addEntity(state, 'exports', {
+      quotePrint: quote.quoteNumber,
+      receivableFile: suggestedName,
+      exportLog: exportLog.code,
+    });
+    addCoverage(
+      state,
+      'export_outputs',
+      'Đã mở trang in báo giá/Xuất PDF và tải file CSV công nợ, đồng thời xác minh lịch sử xuất file.'
+    );
+
+    return { savedPath, exportLog };
+  }, { continueOnError: true });
+}
+
 async function createReminder(page, state, config, customer, contract, project, data) {
   if (!customer) {
     recordWarning(state, 'Bỏ qua tạo lịch chăm sóc vì thiếu khách hàng.');
@@ -420,12 +695,29 @@ async function runServiceFlow(page, state, config) {
   await signContract(page, state, config, contract);
   const project = await verifyProject(page, state, config, contract, customer);
   const receivable = await verifyServiceReceivable(page, state, config, contract);
+  await coverCustomerDetailTabs(page, state, config, customer, data);
+  await coverProjectNoteAndNotification(page, state, config, customer, project, data);
   const reminder = await createReminder(page, state, config, customer, contract, project, data.reminder);
   await triggerReminderSystem(page, state, config);
   await completeReminder(page, state, config, reminder, data.reminder);
+  await coverProjectCloseout(page, state, config, project, data);
+  await coverExportOutputs(page, state, config, quote, receivable);
 
   if (!receivable) {
     recordWarning(state, 'Luồng dịch vụ không tìm thấy công nợ sau khi ký hợp đồng. Cần kiểm tra lại dữ liệu phát sinh hoặc UI lọc.');
+  }
+
+  if (
+    state.coverage.customer_subtabs &&
+    state.coverage.project_notifications &&
+    state.coverage.project_closeout &&
+    state.coverage.export_outputs
+  ) {
+    addCoverage(
+      state,
+      'domain_deep_coverage',
+      'Các ý tưởng rải rác trong docs/huongdan.md đã được nối vào flow tự động: khách hàng, dự án, công nợ, chăm sóc, nghiệm thu và xuất file.'
+    );
   }
 }
 

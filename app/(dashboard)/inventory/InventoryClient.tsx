@@ -32,6 +32,9 @@ export function InventoryClient({}: { currentUser: UserSession }) {
     lowStockItems: 0,
     totalQuantityOnHand: 0,
   });
+  const [productsLoaded, setProductsLoaded] = useState(false);
+  const [warehousesLoaded, setWarehousesLoaded] = useState(false);
+  const [customersLoaded, setCustomersLoaded] = useState(false);
 
   const [balancePage, setBalancePage] = useState(1);
   const [balanceTotal, setBalanceTotal] = useState(0);
@@ -59,28 +62,70 @@ export function InventoryClient({}: { currentUser: UserSession }) {
   // Detail drawer
   const [activeDetail, setActiveDetail] = useState<{ type: 'po' | 'receipt' | 'sales'; id: string; data?: any } | null>(null);
 
-  const fetchData = async () => {
+  const fetchWarehouseOptions = async () => {
+    if (warehousesLoaded) return;
+
     setLoading(true);
     try {
-      const p2 = fetch('/api/inventory/products?limit=100&status=active&sort=name&order=asc').then(r => r.json());
-      const p4 = fetch('/api/inventory/warehouses?limit=100&status=active&sort=name&order=asc').then(r => r.json());
-      const p8 = fetch('/api/customers?limit=100').then(r => r.json());
-
-      const [r2, r4, r8] = await Promise.all([p2, p4, p8]);
-
-      if (r2.success) setProducts(r2.data);
-      if (r4.success) setWarehouses(r4.data);
-      if (r8.success) setCustomers(r8.data);
+      const res = await fetch('/api/inventory/warehouses?limit=100&status=active&sort=name&order=asc');
+      const json = await res.json();
+      if (json.success) {
+        setWarehouses(json.data);
+        setWarehousesLoaded(true);
+      }
     } catch (err) {
-      console.error('Error fetching inventory data:', err);
+      console.error('Error fetching warehouse options:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const fetchSalesReferenceData = async () => {
+    const requests: Promise<void>[] = [];
+
+    if (!productsLoaded) {
+      requests.push(
+        fetch('/api/inventory/products?limit=100&status=active&sort=name&order=asc')
+          .then(r => r.json())
+          .then(json => {
+            if (json.success) {
+              setProducts(json.data);
+              setProductsLoaded(true);
+            }
+          })
+      );
+    }
+
+    if (!customersLoaded) {
+      requests.push(
+        fetch('/api/customers?limit=100')
+          .then(r => r.json())
+          .then(json => {
+            if (json.success) {
+              setCustomers(json.data);
+              setCustomersLoaded(true);
+            }
+          })
+      );
+    }
+
+    if (!warehousesLoaded) {
+      requests.push(
+        fetch('/api/inventory/warehouses?limit=100&status=active&sort=name&order=asc')
+          .then(r => r.json())
+          .then(json => {
+            if (json.success) {
+              setWarehouses(json.data);
+              setWarehousesLoaded(true);
+            }
+          })
+      );
+    }
+
+    if (requests.length > 0) {
+      await Promise.all(requests);
+    }
+  };
 
   const fetchOverview = async () => {
     const res = await fetch('/api/inventory/summary');
@@ -89,6 +134,11 @@ export function InventoryClient({}: { currentUser: UserSession }) {
       setOverview(json.data);
     }
   };
+
+  useEffect(() => {
+    fetchWarehouseOptions();
+    fetchOverview();
+  }, []);
 
   const fetchBalances = async () => {
     const params = new URLSearchParams({
@@ -147,17 +197,23 @@ export function InventoryClient({}: { currentUser: UserSession }) {
   };
 
   useEffect(() => {
-    fetchOverview();
-    fetchBalances();
-  }, [balancePage, balanceSearch, balanceWarehouseId, balanceStockState, balanceSort, balanceOrder]);
+    if (activeTab === 'balances') {
+      fetchBalances();
+    }
+  }, [activeTab, balancePage, balanceSearch, balanceWarehouseId, balanceStockState, balanceSort, balanceOrder]);
 
   useEffect(() => {
-    fetchMovements();
-  }, [movementPage, movementSearch, movementWarehouseId, movementType, movementSort, movementOrder]);
+    if (activeTab === 'movements') {
+      fetchMovements();
+    }
+  }, [activeTab, movementPage, movementSearch, movementWarehouseId, movementType, movementSort, movementOrder]);
 
   useEffect(() => {
-    fetchSalesOrders();
-  }, [salesPage, salesSearch, salesStatus, salesSort, salesOrder]);
+    if (activeTab === 'sales') {
+      fetchSalesReferenceData();
+      fetchSalesOrders();
+    }
+  }, [activeTab, salesPage, salesSearch, salesStatus, salesSort, salesOrder]);
 
   // Fetch detailed drawer information
   const fetchDetails = async (type: 'po' | 'receipt' | 'sales', id: string) => {

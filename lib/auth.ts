@@ -14,6 +14,32 @@ export interface UserSession {
 
 const SESSION_COOKIE = 'crm_user_session';
 const LEGACY_USER_COOKIE = 'crm_user_id';
+const SESSION_CACHE_TTL_MS = 2_000;
+
+type SessionCacheEntry<T> = {
+  expiresAt: number;
+  value: T;
+};
+
+const sessionUserCache = new Map<string, SessionCacheEntry<UserSession | null>>();
+const sessionUserIdCache = new Map<string, SessionCacheEntry<string | null>>();
+
+function getCachedSessionValue<T>(cache: Map<string, SessionCacheEntry<T>>, key: string): T | undefined {
+  const cached = cache.get(key);
+  if (!cached) return undefined;
+  if (cached.expiresAt <= Date.now()) {
+    cache.delete(key);
+    return undefined;
+  }
+  return cached.value;
+}
+
+function setCachedSessionValue<T>(cache: Map<string, SessionCacheEntry<T>>, key: string, value: T) {
+  cache.set(key, {
+    value,
+    expiresAt: Date.now() + SESSION_CACHE_TTL_MS,
+  });
+}
 
 function getSessionSecret(): string {
   return process.env.AUTH_SECRET ||
@@ -50,8 +76,11 @@ function verifySessionValue(value: string | undefined): string | null {
 export async function getCurrentUserId(): Promise<string | null> {
   try {
     const cookieStore = await cookies();
-    const userId = verifySessionValue(cookieStore.get(SESSION_COOKIE)?.value);
+    const sessionValue = cookieStore.get(SESSION_COOKIE)?.value;
+    const userId = verifySessionValue(sessionValue);
     if (!userId) return null;
+    const cachedUserId = getCachedSessionValue(sessionUserIdCache, sessionValue || userId);
+    if (cachedUserId !== undefined) return cachedUserId;
 
     const userQuery = await query<{ id: string }>(`
       SELECT id
@@ -60,7 +89,9 @@ export async function getCurrentUserId(): Promise<string | null> {
       LIMIT 1
     `, [userId]);
 
-    return userQuery.rows[0]?.id ?? null;
+    const currentUserId = userQuery.rows[0]?.id ?? null;
+    setCachedSessionValue(sessionUserIdCache, sessionValue || userId, currentUserId);
+    return currentUserId;
   } catch (error) {
     console.error('Error verifying current user id:', error);
     return null;
@@ -73,8 +104,11 @@ export async function getCurrentUserId(): Promise<string | null> {
 export async function getCurrentUser(): Promise<UserSession | null> {
   try {
     const cookieStore = await cookies();
-    const userId = verifySessionValue(cookieStore.get(SESSION_COOKIE)?.value);
+    const sessionValue = cookieStore.get(SESSION_COOKIE)?.value;
+    const userId = verifySessionValue(sessionValue);
     if (!userId) return null;
+    const cachedUser = getCachedSessionValue(sessionUserCache, sessionValue || userId);
+    if (cachedUser !== undefined) return cachedUser;
 
     const userQuery = await query(`
       SELECT 
@@ -96,7 +130,10 @@ export async function getCurrentUser(): Promise<UserSession | null> {
       return null;
     }
 
-    return userQuery.rows[0] as UserSession;
+    const currentUser = userQuery.rows[0] as UserSession;
+    setCachedSessionValue(sessionUserCache, sessionValue || userId, currentUser);
+    setCachedSessionValue(sessionUserIdCache, sessionValue || userId, currentUser.id);
+    return currentUser;
   } catch (error) {
     console.error('Error fetching current user:', error);
     return null;

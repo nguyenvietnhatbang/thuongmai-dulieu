@@ -2,12 +2,27 @@
 const fs = require('fs/promises');
 const path = require('path');
 
-const KNOWN_GAPS = [
-  'Chưa tự động cover sâu các tab phụ của khách hàng như người liên hệ, ghi chú nội bộ và file đính kèm.',
-  'Chưa xác minh luồng thông báo nội bộ cho project notes hoặc notification bell bằng UI.',
-  'Chưa đi qua quy trình đóng dự án/nghiệm thu vì bộ import hiện ưu tiên tạo dữ liệu đầu vào cốt lõi.',
-  'Chưa chạy xuất file công nợ/báo giá PDF như một tiêu chí pass chính; chỉ tập trung vào dữ liệu nghiệp vụ phát sinh.',
-  'Một số ý tưởng trong docs/huongdan.md mới tồn tại ở mức khung hoặc tản mác giữa nhiều màn hình, nên report sẽ đánh dấu là chưa cover đầy đủ thay vì giả lập thủ công ngoài UI.',
+const COVERAGE_GAPS = [
+  {
+    key: 'customer_subtabs',
+    text: 'Chưa tự động cover sâu các tab phụ của khách hàng như người liên hệ, ghi chú nội bộ và file đính kèm.',
+  },
+  {
+    key: 'project_notifications',
+    text: 'Chưa xác minh luồng thông báo nội bộ cho project notes hoặc notification bell bằng UI.',
+  },
+  {
+    key: 'project_closeout',
+    text: 'Chưa đi qua quy trình đóng dự án/nghiệm thu vì bộ import hiện ưu tiên tạo dữ liệu đầu vào cốt lõi.',
+  },
+  {
+    key: 'export_outputs',
+    text: 'Chưa chạy xuất file công nợ/báo giá PDF như một tiêu chí pass chính; chỉ tập trung vào dữ liệu nghiệp vụ phát sinh.',
+  },
+  {
+    key: 'domain_deep_coverage',
+    text: 'Một số ý tưởng trong docs/huongdan.md mới tồn tại ở mức khung hoặc tản mác giữa nhiều màn hình, nên report sẽ đánh dấu là chưa cover đầy đủ thay vì giả lập thủ công ngoài UI.',
+  },
 ];
 
 function groupStepsByStatus(steps, status) {
@@ -56,7 +71,14 @@ function createMarkdownReport(state) {
     ? state.notes.map((item) => `- ${item}`).join('\n')
     : '- Không có ghi chú bổ sung.';
 
-  const missingCoverage = KNOWN_GAPS.map((item) => `- ${item}`).join('\n');
+  const missingCoverageItems = COVERAGE_GAPS.filter((item) => !state.coverage[item.key]);
+  const missingCoverage = missingCoverageItems.length
+    ? missingCoverageItems.map((item) => `- ${item.text}`).join('\n')
+    : '- Không còn thiếu coverage chính so với các mục docs/huongdan.md đang được tự động hóa trong bộ UI import.';
+
+  const extraCoverage = Object.values(state.coverage).length
+    ? Object.values(state.coverage).map((item) => `- ${item}`).join('\n')
+    : '- Chưa ghi nhận coverage bổ sung.';
 
   return `# Báo cáo import dữ liệu mẫu qua UI
 
@@ -80,6 +102,9 @@ ${failedLines}
 
 ## Thiếu so với docs/huongdan.md
 ${missingCoverage}
+
+## Đã cover bổ sung theo docs/huongdan.md
+${extraCoverage}
 
 ## Khuyến nghị
 ${warnings}

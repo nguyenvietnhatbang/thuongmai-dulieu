@@ -303,7 +303,7 @@ export function ProjectWorkspaceDrawer({
 
   return (
     <div className={isPageMode
-      ? 'relative h-full w-full border border-border bg-card flex flex-col justify-between shadow-sm overflow-hidden rounded-xl'
+      ? 'relative h-full w-full min-w-0 border border-border bg-card flex flex-col justify-between shadow-sm overflow-hidden rounded-xl'
       : 'relative h-full w-[500px] md:w-[550px] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden'
     }>
       {/* Header */}

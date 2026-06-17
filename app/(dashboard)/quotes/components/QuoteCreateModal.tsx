@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Customer } from '@/features/customers/services/customer.service';
 
 interface QuoteCreateModalProps {
@@ -123,6 +124,10 @@ export function QuoteCreateModal({
       alert('Vui lòng thêm ít nhất một hạng mục báo giá!');
       return;
     }
+    if (!newQuote.customerId) {
+      alert('Vui lòng chọn khách hàng cho báo giá.');
+      return;
+    }
     setSubmitting(true);
     try {
       const success = await onCreate(newQuote);
@@ -144,7 +149,7 @@ export function QuoteCreateModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Lập báo giá dịch vụ mới" maxWidthClass="max-w-3xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Lập báo giá dịch vụ mới" maxWidthClass="max-w-6xl">
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Header Info */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -185,30 +190,31 @@ export function QuoteCreateModal({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">Chọn Khách hàng *</label>
-            <select
-              required
+            <SearchableSelect
               value={newQuote.customerId}
-              onChange={(e) => setNewQuote({ ...newQuote, customerId: e.target.value })}
-              className="premium-input"
-            >
-              <option value="">-- Chọn khách hàng --</option>
-              {customers.map(c => (
-                <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
-              ))}
-            </select>
+              placeholder="-- Chọn khách hàng --"
+              searchPlaceholder="Tìm tên, mã khách hàng..."
+              options={customers.map(c => ({
+                value: c.id,
+                label: `${c.name} (${c.code})`,
+                description: c.email || c.phone || c.customerType,
+              }))}
+              onChange={(customerId) => setNewQuote({ ...newQuote, customerId })}
+            />
           </div>
           <div>
             <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">Chọn Cơ hội liên quan</label>
-            <select
+            <SearchableSelect
               value={newQuote.opportunityId}
-              onChange={(e) => handleOpportunityChange(e.target.value)}
-              className="premium-input"
-            >
-              <option value="">-- Chọn cơ hội bán hàng --</option>
-              {opportunities.map(o => (
-                <option key={o.id} value={o.id}>{o.title} ({o.code})</option>
-              ))}
-            </select>
+              placeholder="-- Chọn cơ hội bán hàng --"
+              searchPlaceholder="Tìm tiêu đề, mã cơ hội..."
+              options={opportunities.map(o => ({
+                value: o.id,
+                label: `${o.title} (${o.code})`,
+                description: o.customerName || o.stage,
+              }))}
+              onChange={handleOpportunityChange}
+            />
           </div>
         </div>
 
@@ -253,7 +259,7 @@ export function QuoteCreateModal({
                         className="premium-input py-1 text-xs"
                       />
                     </div>
-                    <div className="md:col-span-1.5">
+                    <div className="md:col-span-1">
                       <label className="block text-[9px] text-muted-foreground font-semibold mb-1">ĐVT</label>
                       <select
                         value={item.unitCode}
@@ -266,7 +272,7 @@ export function QuoteCreateModal({
                         <option value="package">Gói</option>
                       </select>
                     </div>
-                    <div className="md:col-span-1.5">
+                    <div className="md:col-span-1">
                       <label className="block text-[9px] text-muted-foreground font-semibold mb-1">Số lượng *</label>
                       <input
                         type="number"
@@ -278,7 +284,7 @@ export function QuoteCreateModal({
                         className="premium-input py-1 text-xs font-mono"
                       />
                     </div>
-                    <div className="md:col-span-2 flex items-center gap-2">
+                    <div className="md:col-span-3 flex items-center gap-2">
                       <div className="flex-1">
                         <label className="block text-[9px] text-muted-foreground font-semibold mb-1">Đơn giá *</label>
                         <input

@@ -24,97 +24,72 @@ export interface ActivityLog {
   actorName: string;
 }
 
+const REMINDER_TRIGGER_THROTTLE_MS = 5 * 60 * 1000;
+let lastReminderTriggerAt = 0;
+
+async function runReminderTriggersIfDue() {
+  const now = Date.now();
+  if (now - lastReminderTriggerAt < REMINDER_TRIGGER_THROTTLE_MS) return;
+
+  lastReminderTriggerAt = now;
+  await runReminderSystemTriggers();
+}
+
 /**
  * Fetch all dashboard metrics in optimized, parallel database queries
  */
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   try {
     // Run background scans and flags in real time
-    await runReminderSystemTriggers();
+    await runReminderTriggersIfDue();
 
-    // 1. Total active customers
-    const customersQuery = query('SELECT COUNT(*)::int as count FROM app.customers WHERE deleted_at IS NULL');
-    
-    // 2. Active opportunities (not won/lost)
-    const opportunitiesQuery = query("SELECT COUNT(*)::int as count FROM app.opportunities WHERE stage NOT IN ('won', 'lost') AND deleted_at IS NULL");
-    
-    // 3. Pending quotes (draft or sent)
-    const quotesQuery = query("SELECT COUNT(*)::int as count FROM app.quotes WHERE status IN ('draft', 'sent') AND deleted_at IS NULL");
-    
-    // 4. Signed contracts (in progress or pending deployment)
-    const contractsQuery = query("SELECT COUNT(*)::int as count FROM app.contracts WHERE status = 'signed' AND deleted_at IS NULL");
-    
-    // 5. Active projects
-    const projectsQuery = query("SELECT COUNT(*)::int as count FROM app.projects WHERE status IN ('new', 'waiting_deployment', 'in_progress') AND deleted_at IS NULL");
-    
-    // 6. Overdue tasks
-    const tasksQuery = query("SELECT COUNT(*)::int as count FROM app.project_tasks WHERE status != 'completed' AND due_date < CURRENT_DATE AND deleted_at IS NULL");
-    
-    // 7. Overdue receivables (all sources)
-    const receivablesQuery = query(`
-      SELECT COALESCE(SUM(amount_due - amount_paid), 0)::numeric as total 
-      FROM app.receivables 
-      WHERE (status = 'overdue' OR (due_date < CURRENT_DATE AND status NOT IN ('paid', 'cancelled')))
-        AND deleted_at IS NULL
-    `);
-
-    // 8. Low stock alert items
-    const stockQuery = query(`
-      SELECT COUNT(*)::int as count 
-      FROM app.inventory_balances 
-      WHERE quantity_on_hand <= min_quantity
-    `);
-
-    // 9. Total purchases count
-    const purchaseQuery = query("SELECT COUNT(*)::int as count FROM app.purchase_orders WHERE deleted_at IS NULL");
-
-    // 10. Total sales count & total sales revenue
-    const salesQuery = query(`
+    const metricsRes = await query(`
       SELECT 
-        COUNT(*)::int as count,
-        COALESCE(SUM(total_amount), 0)::numeric as revenue
-      FROM app.sales_orders 
-      WHERE status != 'cancelled' AND deleted_at IS NULL
+        (SELECT COUNT(*)::int FROM app.customers WHERE deleted_at IS NULL) as "totalCustomers",
+        (SELECT COUNT(*)::int FROM app.opportunities WHERE stage NOT IN ('won', 'lost') AND deleted_at IS NULL) as "activeOpportunities",
+        (SELECT COUNT(*)::int FROM app.quotes WHERE status IN ('draft', 'sent') AND deleted_at IS NULL) as "pendingQuotes",
+        (SELECT COUNT(*)::int FROM app.contracts WHERE status = 'signed' AND deleted_at IS NULL) as "signedContracts",
+        (SELECT COUNT(*)::int FROM app.projects WHERE status IN ('new', 'waiting_deployment', 'in_progress') AND deleted_at IS NULL) as "activeProjects",
+        (SELECT COUNT(*)::int FROM app.project_tasks WHERE status != 'completed' AND due_date < CURRENT_DATE AND deleted_at IS NULL) as "overdueTasks",
+        (
+          SELECT COALESCE(SUM(amount_due - amount_paid), 0)::numeric
+          FROM app.receivables
+          WHERE (status = 'overdue' OR (due_date < CURRENT_DATE AND status NOT IN ('paid', 'cancelled')))
+            AND deleted_at IS NULL
+        ) as "overdueReceivables",
+        (
+          SELECT COUNT(*)::int
+          FROM app.inventory_balances
+          WHERE quantity_on_hand <= min_quantity
+        ) as "lowStockItems",
+        (SELECT COUNT(*)::int FROM app.purchase_orders WHERE deleted_at IS NULL) as "purchaseCount",
+        (
+          SELECT COUNT(*)::int
+          FROM app.sales_orders
+          WHERE status != 'cancelled' AND deleted_at IS NULL
+        ) as "salesCount",
+        (
+          SELECT COALESCE(SUM(total_amount), 0)::numeric
+          FROM app.sales_orders
+          WHERE status != 'cancelled' AND deleted_at IS NULL
+        ) as "totalSalesValue"
     `);
 
-    // Await all queries concurrently
-    const [
-      customersRes,
-      oppsRes,
-      quotesRes,
-      contractsRes,
-      projectsRes,
-      tasksRes,
-      receivablesRes,
-      stockRes,
-      purchaseRes,
-      salesRes
-    ] = await Promise.all([
-      customersQuery,
-      opportunitiesQuery,
-      quotesQuery,
-      contractsQuery,
-      projectsQuery,
-      tasksQuery,
-      receivablesQuery,
-      stockQuery,
-      purchaseQuery,
-      salesQuery
-    ]);
+    const metrics = metricsRes.rows[0];
 
     return {
-      totalCustomers: customersRes.rows[0].count,
-      activeOpportunities: oppsRes.rows[0].count,
-      pendingQuotes: quotesRes.rows[0].count,
-      signedContracts: contractsRes.rows[0].count,
-      activeProjects: projectsRes.rows[0].count,
-      overdueTasks: tasksRes.rows[0].count,
-      overdueReceivables: Number(receivablesRes.rows[0].total),
+      totalCustomers: metrics.totalCustomers,
+      activeOpportunities: metrics.activeOpportunities,
+      pendingQuotes: metrics.pendingQuotes,
+      signedContracts: metrics.signedContracts,
+      activeProjects: metrics.activeProjects,
+      overdueTasks: metrics.overdueTasks,
+      overdueReceivables: Number(metrics.overdueReceivables),
       commerceReceivables: 0, // Injected under sales order sums
-      purchaseCount: purchaseRes.rows[0].count,
-      salesCount: salesRes.rows[0].count,
-      lowStockItems: stockRes.rows[0].count,
-      totalSalesValue: Number(salesRes.rows[0].revenue)
+      purchaseCount: metrics.purchaseCount,
+      salesCount: metrics.salesCount,
+      lowStockItems: metrics.lowStockItems,
+      totalSalesValue: Number(metrics.totalSalesValue)
     };
   } catch (error) {
     console.error('Error fetching dashboard statistics:', error);

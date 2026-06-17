@@ -20,6 +20,7 @@ export function PurchasesClient({}: { currentUser: UserSession }) {
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [stockReceipts, setStockReceipts] = useState<any[]>([]);
+  const [activeSubtab, setActiveSubtab] = useState<'po' | 'receipt'>('po');
 
   const [purchasePage, setPurchasePage] = useState(1);
   const [purchaseTotal, setPurchaseTotal] = useState(0);
@@ -98,12 +99,16 @@ export function PurchasesClient({}: { currentUser: UserSession }) {
   };
 
   useEffect(() => {
-    fetchPurchaseOrders();
-  }, [purchasePage, purchaseSearch, purchaseStatus, purchaseSort, purchaseOrder]);
+    if (activeSubtab === 'po') {
+      fetchPurchaseOrders();
+    }
+  }, [activeSubtab, purchasePage, purchaseSearch, purchaseStatus, purchaseSort, purchaseOrder]);
 
   useEffect(() => {
-    fetchStockReceipts();
-  }, [receiptPage, receiptSearch, receiptStatus, receiptSort, receiptOrder]);
+    if (activeSubtab === 'receipt') {
+      fetchStockReceipts();
+    }
+  }, [activeSubtab, receiptPage, receiptSearch, receiptStatus, receiptSort, receiptOrder]);
 
   // Fetch detailed drawer information
   const fetchDetails = async (type: 'po' | 'receipt' | 'sales', id: string) => {
@@ -238,9 +243,9 @@ export function PurchasesClient({}: { currentUser: UserSession }) {
 
   return (
     <div className="flex h-full w-full items-stretch overflow-hidden gap-6">
-      <div className="flex-1 overflow-y-auto pr-2 pb-8 space-y-6">
+      <div className="min-w-0 flex-1 overflow-y-auto pr-2 pb-8 space-y-6">
         {/* DYNAMIC CONTENT AREA */}
-      <div className="relative">
+        <div className="relative">
         {loading ? (
           <div className="glass-panel py-20 text-center text-muted-foreground flex flex-col items-center gap-2 rounded-xl border border-border">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -288,9 +293,12 @@ export function PurchasesClient({}: { currentUser: UserSession }) {
               onViewDetails={(type, id) => handleViewDetails(type, id)}
               onCreatePo={handleCreatePo}
               onCreateReceipt={handleCreateReceipt}
+              activeSubtab={activeSubtab}
+              onSubtabChange={setActiveSubtab}
             />
           </div>
         )}
+        </div>
       </div>
 
       {/* DETAILED VIEW SLIDE OUT DRAWER */}
@@ -304,6 +312,5 @@ export function PurchasesClient({}: { currentUser: UserSession }) {
         onCancelDocument={handleCancelDocument}
       />
     </div>
-  </div>
   );
 }

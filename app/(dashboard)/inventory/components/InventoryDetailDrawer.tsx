@@ -10,6 +10,7 @@ interface InventoryDetailDrawerProps {
   onConfirmReceipt: (id: string) => void;
   onConfirmSales: (id: string) => void;
   onCancelDocument: (type: 'po' | 'receipt' | 'sales', id: string) => void;
+  drawerType?: 'overlay' | 'push';
 }
 
 export function InventoryDetailDrawer({
@@ -19,7 +20,8 @@ export function InventoryDetailDrawer({
   onConfirmPo,
   onConfirmReceipt,
   onConfirmSales,
-  onCancelDocument
+  onCancelDocument,
+  drawerType = 'push'
 }: InventoryDetailDrawerProps) {
   if (!activeDetail) return null;
 
@@ -231,7 +233,8 @@ export function InventoryDetailDrawer({
     <Drawer
       isOpen={!!activeDetail}
       onClose={onClose}
-      type="push"
+      type={drawerType}
+      maxWidthClass="max-w-2xl"
       title={getTitle()}
       subtitle={
         <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">

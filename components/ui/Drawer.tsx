@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface DrawerProps {
   isOpen: boolean;
@@ -14,6 +15,28 @@ interface DrawerProps {
 }
 
 export function Drawer({ isOpen, onClose, title, subtitle, children, footer, maxWidthClass = 'max-w-xl', type = 'overlay' }: DrawerProps) {
+  const [mounted, setMounted] = useState(false);
+  const [pushExpanded, setPushExpanded] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || type !== 'push') {
+      setPushExpanded(false);
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setPushExpanded(true);
+    }, 30);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [isOpen, type]);
+
   // ESC key listener to close drawer
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -32,8 +55,20 @@ export function Drawer({ isOpen, onClose, title, subtitle, children, footer, max
   if (!isOpen) return null;
 
   if (type === 'push') {
+    const drawerWidth = maxWidthClass.includes('max-w-xl') ? '36rem' : '42rem';
+
     return (
-      <div className="relative h-full w-[450px] md:w-[500px] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden">
+      <div
+        className={`relative h-full ${maxWidthClass} border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg overflow-hidden`}
+        style={{
+          width: pushExpanded ? drawerWidth : '0rem',
+          maxWidth: pushExpanded ? drawerWidth : '0rem',
+          opacity: pushExpanded ? 1 : 0,
+          transform: pushExpanded ? 'translateX(0)' : 'translateX(18px)',
+          transition: 'width 420ms cubic-bezier(0.22, 1, 0.36, 1), max-width 420ms cubic-bezier(0.22, 1, 0.36, 1), opacity 260ms ease-out, transform 420ms cubic-bezier(0.22, 1, 0.36, 1)',
+          willChange: 'width, max-width, transform, opacity',
+        }}
+      >
         <div className="flex-1 flex flex-col min-h-0">
           {/* Header */}
           <div className="p-6 border-b border-border flex items-center justify-between bg-slate-50/50">
@@ -68,15 +103,17 @@ export function Drawer({ isOpen, onClose, title, subtitle, children, footer, max
     );
   }
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 z-30 bg-black/35 backdrop-blur-xs animate-fade-in"
+        className="fixed inset-0 z-50 bg-black/35 backdrop-blur-xs"
         onClick={onClose}
       />
       {/* Drawer panel */}
-      <div className={`fixed inset-y-0 right-0 z-40 w-full ${maxWidthClass} bg-card border-l border-border shadow-2xl flex flex-col justify-between animate-fade-in`}>
+      <div className={`fixed inset-y-0 right-0 z-50 w-full ${maxWidthClass} bg-card border-l border-border shadow-2xl flex flex-col justify-between animate-slide-in-right`}>
         <div className="flex-1 flex flex-col min-h-0">
           {/* Header */}
           <div className="p-6 border-b border-border flex items-center justify-between bg-slate-50/50">
@@ -108,6 +145,7 @@ export function Drawer({ isOpen, onClose, title, subtitle, children, footer, max
           </div>
         )}
       </div>
-    </>
+    </>,
+    document.body
   );
 }

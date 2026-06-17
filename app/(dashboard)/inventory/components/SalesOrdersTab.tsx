@@ -152,7 +152,7 @@ export function SalesOrdersTab({
                 <th className="px-6 py-4"><SortableHeader label="Đã thanh toán" sortKey="paidAmount" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4"><SortableHeader label="Còn nợ" sortKey="debtAmount" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4"><SortableHeader label="Trạng thái" sortKey="status" activeSort={sort} order={order} onSort={onSort} /></th>
-                <th className="px-6 py-4 text-right">Chi tiết</th>
+                <th className="px-6 py-4 text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -183,13 +183,16 @@ export function SalesOrdersTab({
                          so.status === 'confirmed' ? 'Đã xuất kho' : 'Mới tạo (Draft)'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => onViewDetails('sales', so.id)}
-                        className="text-xs font-bold text-primary hover:underline cursor-pointer"
-                      >
-                        Xem
-                      </button>
+                    <td className="px-6 py-4">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onViewDetails('sales', so.id)}
+                          className="px-2 py-1 rounded-md border border-border bg-card text-[11px] font-semibold text-primary hover:bg-muted cursor-pointer"
+                        >
+                          Xem
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

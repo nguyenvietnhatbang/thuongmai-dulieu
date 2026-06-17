@@ -58,6 +58,8 @@ interface ReceiptsTabProps {
   onViewDetails: (type: 'po' | 'receipt', id: string) => void;
   onCreatePo: (data: any) => Promise<boolean>;
   onCreateReceipt: (data: any) => Promise<boolean>;
+  activeSubtab?: 'po' | 'receipt';
+  onSubtabChange?: (subtab: 'po' | 'receipt') => void;
 }
 
 export function ReceiptsTab({
@@ -91,9 +93,12 @@ export function ReceiptsTab({
   formatCurrency,
   onViewDetails,
   onCreatePo,
-  onCreateReceipt
+  onCreateReceipt,
+  activeSubtab,
+  onSubtabChange
 }: ReceiptsTabProps) {
-  const [subtab, setSubtab] = useState<'po' | 'receipt'>('po');
+  const [internalSubtab, setInternalSubtab] = useState<'po' | 'receipt'>('po');
+  const subtab = activeSubtab ?? internalSubtab;
   const [isPoOpen, setIsPoOpen] = useState(false);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
 
@@ -227,7 +232,8 @@ export function ReceiptsTab({
   const limit = 10;
 
   const changeSubtab = (nextSubtab: 'po' | 'receipt') => {
-    setSubtab(nextSubtab);
+    setInternalSubtab(nextSubtab);
+    onSubtabChange?.(nextSubtab);
   };
 
   const handleSort = (nextSort: string) => {
@@ -308,7 +314,7 @@ export function ReceiptsTab({
                   <th className="px-6 py-4"><SortableHeader label="Ngày đặt" sortKey="purchaseDate" activeSort={purchaseSort} order={purchaseOrder} onSort={handleSort} /></th>
                   <th className="px-6 py-4"><SortableHeader label="Tổng giá trị" sortKey="totalAmount" activeSort={purchaseSort} order={purchaseOrder} onSort={handleSort} /></th>
                   <th className="px-6 py-4"><SortableHeader label="Trạng thái" sortKey="status" activeSort={purchaseSort} order={purchaseOrder} onSort={handleSort} /></th>
-                  <th className="px-6 py-4 text-right">Chi tiết</th>
+                  <th className="px-6 py-4 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -333,13 +339,16 @@ export function ReceiptsTab({
                           {po.status === 'received' ? 'Đã nhập hàng' : po.status === 'draft' ? 'Bản nháp' : 'Đã đặt hàng'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => onViewDetails('po', po.id)}
-                          className="text-xs font-bold text-primary hover:underline cursor-pointer"
-                        >
-                          Xem
-                        </button>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => onViewDetails('po', po.id)}
+                            className="px-2 py-1 rounded-md border border-border bg-card text-[11px] font-semibold text-primary hover:bg-muted cursor-pointer"
+                          >
+                            Xem
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -358,7 +367,7 @@ export function ReceiptsTab({
                   <th className="px-6 py-4"><SortableHeader label="Ngày nhập" sortKey="receiptDate" activeSort={receiptSort} order={receiptOrder} onSort={handleSort} /></th>
                   <th className="px-6 py-4"><SortableHeader label="Giá trị lô" sortKey="totalAmount" activeSort={receiptSort} order={receiptOrder} onSort={handleSort} /></th>
                   <th className="px-6 py-4"><SortableHeader label="Trạng thái" sortKey="status" activeSort={receiptSort} order={receiptOrder} onSort={handleSort} /></th>
-                  <th className="px-6 py-4 text-right">Chi tiết</th>
+                  <th className="px-6 py-4 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -384,13 +393,16 @@ export function ReceiptsTab({
                           {sr.status === 'confirmed' ? 'Đã nhập kho' : 'Bản nháp (Chờ xác nhận)'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => onViewDetails('receipt', sr.id)}
-                          className="text-xs font-bold text-primary hover:underline cursor-pointer"
-                        >
-                          Xem
-                        </button>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => onViewDetails('receipt', sr.id)}
+                            className="px-2 py-1 rounded-md border border-border bg-card text-[11px] font-semibold text-primary hover:bg-muted cursor-pointer"
+                          >
+                            Xem
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
