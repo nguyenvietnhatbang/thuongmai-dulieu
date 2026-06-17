@@ -24,8 +24,11 @@ export function UserSwitcher({ currentUser }: UserSwitcherProps) {
   const [users, setUsers] = useState<SwitcherUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const isDev = process.env.NODE_ENV !== 'production';
 
   useEffect(() => {
+    if (!isDev) return;
+
     async function fetchUsers() {
       try {
         const res = await fetch('/api/auth/switch-user');
@@ -38,7 +41,7 @@ export function UserSwitcher({ currentUser }: UserSwitcherProps) {
       }
     }
     fetchUsers();
-  }, []);
+  }, [isDev]);
 
   const handleSwitch = async (userId: string) => {
     setLoading(true);
@@ -64,6 +67,19 @@ export function UserSwitcher({ currentUser }: UserSwitcherProps) {
     }
   };
 
+  const handleLogout = async () => {
+    setLoading(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Logout error:', error);
+      alert('Không thể đăng xuất');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="relative z-50">
       <button
@@ -76,7 +92,7 @@ export function UserSwitcher({ currentUser }: UserSwitcherProps) {
           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
         </span>
         <div className="text-left hidden md:block">
-          <p className="leading-none text-xs text-muted-foreground">Vai trò đang dùng</p>
+          <p className="leading-none text-xs text-muted-foreground">Tài khoản</p>
           <p className="font-semibold text-primary">{currentUser?.fullName || 'Khách (Chưa đăng nhập)'}</p>
         </div>
         <svg
@@ -94,34 +110,54 @@ export function UserSwitcher({ currentUser }: UserSwitcherProps) {
           <div className="fixed inset-0" onClick={() => setDropdownOpen(false)} />
           <div className="absolute right-0 mt-2 w-72 rounded-xl border border-border bg-card p-2 shadow-xl animate-fade-in">
             <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Đổi tài khoản kiểm thử
+              Tài khoản hiện tại
             </p>
-            <div className="h-px bg-border my-1" />
-            <div className="max-h-80 overflow-y-auto space-y-1">
-              {users.map((user) => {
-                const isActive = currentUser?.id === user.id;
-                return (
-                  <button
-                    key={user.id}
-                    onClick={() => handleSwitch(user.id)}
-                    disabled={isActive || loading}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-150 flex flex-col gap-0.5 cursor-pointer ${
-                      isActive
-                        ? 'bg-primary/10 text-primary font-medium border border-primary/20'
-                        : 'hover:bg-muted text-foreground'
-                    }`}
-                  >
-                    <span className="font-semibold">{user.fullName}</span>
-                    <span className="text-xs text-muted-foreground flex items-center justify-between">
-                      <span>{user.email}</span>
-                      <span className="px-1.5 py-0.5 rounded bg-secondary text-primary font-mono scale-90">
-                        {user.roles[0] || 'No Role'}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
+            <div className="px-3 pb-2">
+              <p className="text-sm font-bold text-foreground">{currentUser?.fullName}</p>
+              <p className="text-xs text-muted-foreground font-mono">{currentUser?.email}</p>
             </div>
+            <div className="h-px bg-border my-1" />
+            {isDev && (
+              <>
+                <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Đổi tài khoản kiểm thử
+                </p>
+                <div className="max-h-64 overflow-y-auto space-y-1">
+                  {users.map((user) => {
+                    const isActive = currentUser?.id === user.id;
+                    return (
+                      <button
+                        key={user.id}
+                        onClick={() => handleSwitch(user.id)}
+                        disabled={isActive || loading}
+                        className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-150 flex flex-col gap-0.5 cursor-pointer ${
+                          isActive
+                            ? 'bg-primary/10 text-primary font-medium border border-primary/20'
+                            : 'hover:bg-muted text-foreground'
+                        }`}
+                      >
+                        <span className="font-semibold">{user.fullName}</span>
+                        <span className="text-xs text-muted-foreground flex items-center justify-between">
+                          <span>{user.email}</span>
+                          <span className="px-1.5 py-0.5 rounded bg-secondary text-primary font-mono scale-90">
+                            {user.roles[0] || 'No Role'}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="h-px bg-border my-1" />
+              </>
+            )}
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={loading}
+              className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-70 cursor-pointer"
+            >
+              Đăng xuất
+            </button>
           </div>
         </>
       )}

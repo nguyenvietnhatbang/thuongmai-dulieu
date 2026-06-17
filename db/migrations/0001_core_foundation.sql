@@ -53,6 +53,7 @@ create table if not exists app.users (
   department_id uuid references app.departments(id) on delete set null,
   manager_user_id uuid references app.users(id) on delete set null,
   email text not null unique,
+  password_hash text,
   full_name text not null,
   phone text,
   status text not null default 'active',

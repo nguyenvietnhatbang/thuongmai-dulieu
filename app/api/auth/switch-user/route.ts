@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { query } from '@/lib/db';
+import { createSessionValue, getCurrentUser, getSessionCookieName } from '@/lib/auth';
 
 // Force dynamic execution for API routes
 export const dynamic = 'force-dynamic';
@@ -11,6 +12,15 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+    }
+
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const result = await query(`
       SELECT 
         u.id, 
@@ -46,6 +56,15 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+    }
+
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { userId } = body;
 
@@ -73,10 +92,10 @@ export async function POST(request: Request) {
 
     // Set cookie
     const cookieStore = await cookies();
-    cookieStore.set('crm_user_id', userId, {
+    cookieStore.set(getSessionCookieName(), createSessionValue(userId), {
       path: '/',
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7 // 7 days
     });

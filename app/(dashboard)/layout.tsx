@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { UserSwitcher } from '@/components/ui/UserSwitcher';
 
@@ -25,18 +26,8 @@ export default async function DashboardLayout({
 }) {
   const currentUser = await getCurrentUser();
 
-  // If no user exists (even after fallback check), redirect to an error or fallback state
   if (!currentUser) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background p-6">
-        <div className="max-w-md w-full glass-panel rounded-2xl p-8 text-center space-y-4">
-          <h1 className="text-xl font-bold text-destructive">Lỗi Khởi Tạo Hệ Thống</h1>
-          <p className="text-sm text-muted-foreground">
-            Không tìm thấy người dùng hoạt động nào trong cơ sở dữ liệu. Vui lòng chạy lệnh gieo hạt dữ liệu (seeding) để cấu hình ban đầu.
-          </p>
-        </div>
-      </div>
-    );
+    redirect('/login');
   }
 
   // Helper function to check if user has at least one permission in a list

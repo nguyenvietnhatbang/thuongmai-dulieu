@@ -1,6 +1,7 @@
 const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
+const { randomBytes, scryptSync } = require('crypto');
 
 // Read .env.local file from the workspace root
 const envPath = path.join(__dirname, '../.env.local');
@@ -29,10 +30,18 @@ const pool = new Pool({
   }
 });
 
+function hashPassword(password) {
+  const salt = randomBytes(16).toString('hex');
+  const derivedKey = scryptSync(password, salt, 64);
+  return `scrypt$${salt}$${derivedKey.toString('hex')}`;
+}
+
 async function runSeed() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+
+    await client.query('ALTER TABLE app.users ADD COLUMN IF NOT EXISTS password_hash text;');
 
     console.log('Seeding departments...');
     const deptRes = await client.query(`
@@ -54,6 +63,8 @@ async function runSeed() {
     });
 
     console.log('Seeding users...');
+    const seedPassword = process.env.SEED_USER_PASSWORD || 'ChangeMe123!';
+    const seedPasswordHash = hashPassword(seedPassword);
     const users = [
       { email: 'admin@crm.com', fullName: 'Tran Dai Hai (Admin System)', deptCode: 'IT', roleCode: 'system_management' },
       { email: 'manager@crm.com', fullName: 'Nguyen Van Tien (Business Manager)', deptCode: 'SALES', roleCode: 'business_management' },
@@ -68,11 +79,14 @@ async function runSeed() {
       
       // Insert user
       const userRes = await client.query(`
-        INSERT INTO app.users (email, full_name, department_id, status)
-        VALUES ($1, $2, $3, 'active')
-        ON CONFLICT (email) DO UPDATE SET full_name = EXCLUDED.full_name, department_id = EXCLUDED.department_id
+        INSERT INTO app.users (email, password_hash, full_name, department_id, status)
+        VALUES ($1, $2, $3, $4, 'active')
+        ON CONFLICT (email) DO UPDATE SET
+          password_hash = EXCLUDED.password_hash,
+          full_name = EXCLUDED.full_name,
+          department_id = EXCLUDED.department_id
         RETURNING id;
-      `, [u.email, u.fullName, deptId]);
+      `, [u.email, seedPasswordHash, u.fullName, deptId]);
 
       const userId = userRes.rows[0].id;
 
@@ -94,6 +108,7 @@ async function runSeed() {
 
     await client.query('COMMIT');
     console.log('Database seeding completed successfully!');
+    console.log(`Seed login password for all demo users: ${seedPassword}`);
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Seeding failed:', error);
