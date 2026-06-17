@@ -1,0 +1,222 @@
+'use client';
+
+import { useState } from 'react';
+import { Modal } from '@/components/ui/Modal';
+
+interface SalesOrder {
+  id: string;
+  code: string;
+  customerId: string;
+  customerName: string;
+  saleDate: string;
+  totalAmount: number;
+  paidAmount: number;
+  debtAmount: number;
+  status: 'draft' | 'confirmed' | 'delivered' | 'partially_paid' | 'paid' | 'cancelled';
+}
+
+interface SalesOrdersTabProps {
+  salesOrders: SalesOrder[];
+  customers: any[];
+  products: any[];
+  warehouses: any[];
+  search: string;
+  formatCurrency: (val: number) => string;
+  onViewDetails: (type: 'sales', id: string) => void;
+  onCreateSalesOrder: (data: any) => Promise<boolean>;
+}
+
+export function SalesOrdersTab({
+  salesOrders,
+  customers,
+  products,
+  warehouses,
+  search,
+  formatCurrency,
+  onViewDetails,
+  onCreateSalesOrder
+}: SalesOrdersTabProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  const [newSo, setNewSo] = useState({
+    code: '',
+    customerId: '',
+    saleDate: new Date().toISOString().split('T')[0],
+    paidAmount: 0,
+    notes: '',
+    items: [{ productId: '', warehouseId: '', quantity: 1, unitPrice: 0, unitCode: 'item' }]
+  });
+
+  const handleLineChange = (index: number, field: string, value: any) => {
+    const updated = [...newSo.items];
+    updated[index] = { ...updated[index], [field]: value };
+
+    if (field === 'productId') {
+      const prod = products.find(p => p.id === value);
+      if (prod) {
+        updated[index].unitCode = prod.unitCode;
+      }
+    }
+
+    setNewSo({ ...newSo, items: updated });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newSo.items.some(it => !it.productId || !it.warehouseId || it.quantity <= 0)) {
+      alert('Vui lòng chọn sản phẩm, kho xuất và số lượng lớn hơn 0!');
+      return;
+    }
+    const ok = await onCreateSalesOrder(newSo);
+    if (ok) {
+      setIsOpen(false);
+      setNewSo({
+        code: '',
+        customerId: '',
+        saleDate: new Date().toISOString().split('T')[0],
+        paidAmount: 0,
+        notes: '',
+        items: [{ productId: '', warehouseId: '', quantity: 1, unitPrice: 0, unitCode: 'item' }]
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center bg-slate-50/50 border border-border rounded-xl p-2 text-xs font-bold text-slate-600">
+        <span className="px-3 py-1 bg-card text-primary rounded-lg shadow-xs">Đơn Bán Hàng ({salesOrders.length})</span>
+        <button
+          onClick={() => setIsOpen(true)}
+          className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 text-[11px] font-semibold shadow-sm cursor-pointer"
+        >
+          + Đơn bán hàng (SO)
+        </button>
+      </div>
+
+      <div className="glass-panel border border-border rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="bg-slate-50 border-b border-border text-muted-foreground text-xs uppercase font-semibold">
+                <th className="px-6 py-4">Mã đơn</th>
+                <th className="px-6 py-4">Khách hàng</th>
+                <th className="px-6 py-4">Ngày bán</th>
+                <th className="px-6 py-4">Tổng tiền</th>
+                <th className="px-6 py-4">Đã thanh toán</th>
+                <th className="px-6 py-4">Còn nợ</th>
+                <th className="px-6 py-4">Trạng thái</th>
+                <th className="px-6 py-4 text-right">Chi tiết</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {salesOrders
+                .filter(so => so.code.toLowerCase().includes(search.toLowerCase()) || so.customerName.toLowerCase().includes(search.toLowerCase()))
+                .map((so) => (
+                  <tr key={so.id} className="hover:bg-slate-50/30 transition-colors">
+                    <td className="px-6 py-4 font-mono text-xs font-bold text-primary">{so.code}</td>
+                    <td className="px-6 py-4 font-bold text-foreground">{so.customerName}</td>
+                    <td className="px-6 py-4 text-xs text-muted-foreground">{so.saleDate}</td>
+                    <td className="px-6 py-4 font-semibold text-slate-800">{formatCurrency(so.totalAmount)}</td>
+                    <td className="px-6 py-4 text-xs font-medium text-emerald-600">{formatCurrency(so.paidAmount)}</td>
+                    <td className="px-6 py-4 text-xs font-medium text-rose-600">{formatCurrency(so.debtAmount)}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                        so.status === 'paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-150' :
+                        so.status === 'partially_paid' ? 'bg-blue-50 text-blue-700 border-blue-150' :
+                        so.status === 'confirmed' ? 'bg-indigo-50 text-indigo-700 border-indigo-150' :
+                        'bg-amber-50 text-amber-700 border-amber-150'
+                      }`}>
+                        {so.status === 'paid' ? 'Đã trả đủ' :
+                         so.status === 'partially_paid' ? 'Thu một phần' :
+                         so.status === 'confirmed' ? 'Đã xuất kho' : 'Mới tạo (Draft)'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => onViewDetails('sales', so.id)}
+                        className="text-xs font-bold text-primary hover:underline cursor-pointer"
+                      >
+                        Xem
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* SO CREATION MODAL */}
+      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Lập đơn bán hàng & Trừ kho" maxWidthClass="max-w-2xl">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Mã đơn bán hàng *</label>
+              <input type="text" required placeholder="SO-001..." value={newSo.code} onChange={e => setNewSo({...newSo, code: e.target.value})} className="premium-input" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Khách hàng *</label>
+              <select required value={newSo.customerId} onChange={e => setNewSo({...newSo, customerId: e.target.value})} className="premium-input">
+                <option value="">-- Chọn khách hàng --</option>
+                {customers.map(c => (
+                  <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ngày bán hàng</label>
+              <input type="date" value={newSo.saleDate} onChange={e => setNewSo({...newSo, saleDate: e.target.value})} className="premium-input" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Số tiền đã thu trước *</label>
+              <input type="number" required placeholder="Số tiền đã thanh toán..." min={0} value={newSo.paidAmount} onChange={e => setNewSo({...newSo, paidAmount: Number(e.target.value)})} className="premium-input" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ghi chú</label>
+            <input type="text" placeholder="Diễn giải đơn hàng" value={newSo.notes} onChange={e => setNewSo({...newSo, notes: e.target.value})} className="premium-input" />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between items-center border-b border-border pb-1">
+              <h3 className="text-xs font-bold text-slate-700 uppercase">Danh sách dòng xuất hàng</h3>
+              <button type="button" onClick={() => setNewSo({...newSo, items: [...newSo.items, { productId: '', warehouseId: '', quantity: 1, unitPrice: 0, unitCode: 'item' }]})} className="text-xs font-bold text-primary hover:underline cursor-pointer">
+                + Thêm dòng
+              </button>
+            </div>
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              {newSo.items.map((it, idx) => (
+                <div key={idx} className="flex gap-2 items-center">
+                  <select required value={it.productId} onChange={e => handleLineChange(idx, 'productId', e.target.value)} className="premium-input flex-1">
+                    <option value="">-- Sản phẩm --</option>
+                    {products.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
+                    ))}
+                  </select>
+                  <select required value={it.warehouseId} onChange={e => handleLineChange(idx, 'warehouseId', e.target.value)} className="premium-input flex-1">
+                    <option value="">-- Kho xuất --</option>
+                    {warehouses.map(w => (
+                      <option key={w.id} value={w.id}>{w.name}</option>
+                    ))}
+                  </select>
+                  <input type="number" required placeholder="SL" min={1} value={it.quantity} onChange={e => handleLineChange(idx, 'quantity', Number(e.target.value))} className="premium-input w-16" />
+                  <input type="number" required placeholder="Đơn giá" min={0} value={it.unitPrice} onChange={e => handleLineChange(idx, 'unitPrice', Number(e.target.value))} className="premium-input w-24" />
+                  <button type="button" onClick={() => setNewSo({...newSo, items: newSo.items.filter((_, i) => i !== idx)})} className="text-rose-600 hover:text-rose-800 p-1 cursor-pointer">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setIsOpen(false)} className="px-4 py-2 border border-border text-xs font-semibold rounded-lg bg-card hover:bg-muted cursor-pointer">Hủy</button>
+            <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/95 cursor-pointer">Tạo đơn bán hàng</button>
+          </div>
+        </form>
+      </Modal>
+    </div>
+  );
+}
