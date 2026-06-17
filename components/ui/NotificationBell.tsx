@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Notification } from '@/features/notifications/services/notification.service';
 
-const NOTIFICATION_POLL_INTERVAL_MS = 60000;
-
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -43,31 +41,16 @@ export function NotificationBell() {
   }, []);
 
   useEffect(() => {
-    fetchNotifications();
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchNotifications();
-      }
-    };
-
-    const interval = window.setInterval(fetchNotifications, NOTIFICATION_POLL_INTERVAL_MS);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', fetchNotifications);
-
-    return () => {
-      window.clearInterval(interval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', fetchNotifications);
-      abortControllerRef.current?.abort();
-    };
-  }, [fetchNotifications]);
-
-  useEffect(() => {
     if (dropdownOpen) {
       fetchNotifications();
     }
   }, [dropdownOpen, fetchNotifications]);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   useEffect(() => {
     // Click outside handler to close dropdown
