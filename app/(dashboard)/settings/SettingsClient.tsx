@@ -89,30 +89,34 @@ export function SettingsClient() {
 
   if (loading) {
     return (
-      <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-2 glass-panel rounded-xl">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <p className="text-xs">Đang tải cấu hình công ty...</p>
+      <div className="h-full overflow-y-auto pb-8">
+        <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-2 glass-panel rounded-xl">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <p className="text-xs">Đang tải cấu hình công ty...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl space-y-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-lg font-extrabold text-foreground">Cấu hình công ty</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Quản lý thông tin hiển thị trên hệ thống và các chứng từ PDF.
-          </p>
+    <div className="h-full overflow-y-auto pr-2 pb-8">
+      <div className="max-w-5xl space-y-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-lg font-extrabold text-foreground">Cấu hình công ty</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Quản lý thông tin hiển thị trên hệ thống và các chứng từ PDF.
+            </p>
+          </div>
         </div>
-      </div>
 
-      <CompanySettingsForm
-        form={form}
-        saving={saving}
-        onChange={setForm}
-        onSubmit={handleSaveCompanySettings}
-      />
+        <CompanySettingsForm
+          form={form}
+          saving={saving}
+          onChange={setForm}
+          onSubmit={handleSaveCompanySettings}
+        />
+      </div>
     </div>
   );
 }

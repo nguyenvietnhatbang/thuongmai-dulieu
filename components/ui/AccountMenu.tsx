@@ -29,10 +29,10 @@ export function AccountMenu({ currentUser, variant = 'sidebar' }: AccountMenuPro
 
   if (variant === 'header') {
     return (
-      <div className="flex items-center gap-3 border-l border-border pl-4">
+      <div className="flex h-10 items-center gap-3 border-l border-border pl-4">
         <div className="hidden md:block min-w-0 text-right">
-          <p className="truncate text-xs font-bold text-foreground max-w-40">{currentUser.fullName}</p>
-          <p className="mt-0.5 truncate text-[10px] font-mono text-muted-foreground max-w-40">{currentUser.email}</p>
+          <p className="truncate text-xs font-bold leading-tight text-foreground max-w-44">{currentUser.fullName}</p>
+          <p className="mt-0.5 truncate text-[10px] font-mono leading-tight text-muted-foreground max-w-44">{currentUser.email}</p>
         </div>
         <div className="h-8 w-8 shrink-0 rounded-full bg-slate-100 text-[10px] font-bold text-slate-700 flex items-center justify-center border border-border">
           {initials}

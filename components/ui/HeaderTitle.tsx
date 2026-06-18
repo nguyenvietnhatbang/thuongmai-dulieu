@@ -46,16 +46,9 @@ export function HeaderTitle() {
   const { title, breadcrumb } = getHeaderInfo(pathname);
 
   return (
-    <div className="flex items-center gap-3">
-      <button className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer">
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      </button>
-      <div>
-        <h2 className="text-base font-bold text-foreground leading-tight">{title}</h2>
-        <div className="text-[10px] text-muted-foreground font-medium mt-0.5">{breadcrumb}</div>
-      </div>
+    <div className="min-w-0">
+      <h2 className="text-base font-bold text-foreground leading-tight truncate">{title}</h2>
+      <div className="text-[10px] text-muted-foreground font-medium mt-0.5 truncate">{breadcrumb}</div>
     </div>
   );
 }

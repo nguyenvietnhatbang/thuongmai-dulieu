@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
 import { AccountMenu } from '@/components/ui/AccountMenu';
+import { ClientApiCache } from '@/components/ui/ClientApiCache';
 import { NotificationBell } from '@/components/ui/NotificationBell';
 import { SidebarNav } from '@/components/ui/SidebarNav';
 import { HeaderTitle } from '@/components/ui/HeaderTitle';
@@ -25,6 +26,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex h-screen bg-background font-sans overflow-hidden">
+      <ClientApiCache />
       {/* Sidebar Navigation - Dark Navy Blue Theme */}
       <aside className="h-screen w-64 border-r border-slate-800 bg-[#0b1a30] text-slate-100 flex flex-col shrink-0">
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -57,11 +59,11 @@ export default async function DashboardLayout({
       {/* Main App Workspace Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header toolbar */}
-        <header className="h-16 border-b border-border bg-card flex items-center justify-between px-8 z-10 shrink-0">
+        <header className="h-16 border-b border-border bg-card flex items-center justify-between gap-6 px-8 z-10 shrink-0">
           {/* Dynamic page title and breadcrumbs */}
           <HeaderTitle />
           
-          <div className="flex items-center gap-4">
+          <div className="flex shrink-0 items-center gap-4">
             <div className="text-right hidden sm:block">
               <p className="text-[10px] text-muted-foreground leading-none">Thời gian</p>
               <p className="text-xs font-semibold text-foreground mt-0.5">17/06/2026</p>

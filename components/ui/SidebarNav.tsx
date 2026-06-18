@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 interface NavItem {
   name: string;
@@ -26,6 +27,12 @@ interface SidebarNavProps {
 
 export function SidebarNav({ currentUser }: SidebarNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
 
   const hasAnyPermission = (permissionsToCheck?: string[]) => {
     if (!permissionsToCheck || permissionsToCheck.length === 0) return true;
@@ -224,10 +231,17 @@ export function SidebarNav({ currentUser }: SidebarNavProps) {
   };
 
   const isLinkActive = (href: string) => {
+    if (pendingHref) {
+      return pendingHref === href || (href !== '/' && pendingHref.startsWith(href));
+    }
     if (href === '/') {
       return pathname === '/';
     }
     return pathname.startsWith(href);
+  };
+
+  const prefetchRoute = (href: string) => {
+    if (href !== pathname) router.prefetch(href);
   };
 
   return (
@@ -236,6 +250,10 @@ export function SidebarNav({ currentUser }: SidebarNavProps) {
       <div className="space-y-1">
         <Link
           href="/"
+          prefetch
+          onClick={() => setPendingHref('/')}
+          onMouseEnter={() => prefetchRoute('/')}
+          onFocus={() => prefetchRoute('/')}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 group cursor-pointer ${
             isLinkActive('/')
               ? 'bg-blue-600 text-white font-medium shadow-sm shadow-blue-500/10'
@@ -256,6 +274,10 @@ export function SidebarNav({ currentUser }: SidebarNavProps) {
         </Link>
         <Link
           href="/dashboard-reports"
+          prefetch
+          onClick={() => setPendingHref('/dashboard-reports')}
+          onMouseEnter={() => prefetchRoute('/dashboard-reports')}
+          onFocus={() => prefetchRoute('/dashboard-reports')}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 group cursor-pointer ${
             isLinkActive('/dashboard-reports')
               ? 'bg-blue-600 text-white font-medium shadow-sm shadow-blue-500/10'
@@ -303,6 +325,10 @@ export function SidebarNav({ currentUser }: SidebarNavProps) {
                   <Link
                     key={itemIdx}
                     href={item.href}
+                    prefetch
+                    onClick={() => setPendingHref(item.href)}
+                    onMouseEnter={() => prefetchRoute(item.href)}
+                    onFocus={() => prefetchRoute(item.href)}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 group cursor-pointer ${
                       active
                         ? 'bg-blue-600 text-white font-medium shadow-sm shadow-blue-500/10'
