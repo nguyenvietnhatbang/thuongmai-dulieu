@@ -184,9 +184,21 @@ export function InventoryDetailDrawer({
       (activeDetail.type === 'po' && ['draft', 'ordered'].includes(data.status)) ||
       (activeDetail.type === 'receipt' && data.status === 'draft') ||
       (activeDetail.type === 'sales' && data.status === 'draft');
+    const printHref =
+      activeDetail.type === 'po'
+        ? `/inventory/purchases/${activeDetail.id}/print`
+        : activeDetail.type === 'receipt'
+          ? `/inventory/receipts/${activeDetail.id}/print`
+          : `/inventory/sales/${activeDetail.id}/print`;
 
     return (
       <>
+        <button
+          onClick={() => window.open(printHref, '_blank')}
+          className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg cursor-pointer transition-all shadow-md shadow-slate-500/10"
+        >
+          In PDF
+        </button>
         {activeDetail.type === 'po' && data.status === 'draft' && (
           <button
             onClick={() => onConfirmPo(activeDetail.id)}

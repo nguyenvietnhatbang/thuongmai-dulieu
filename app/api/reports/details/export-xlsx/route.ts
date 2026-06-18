@@ -85,7 +85,7 @@ export async function GET(request: Request) {
       const res = await query(sql, params);
 
       const ws = workbook.addWorksheet('Chi tiết bán hàng');
-      addTitle(ws, 'BÁO CÁO CHI TIẾT BÁN HÀNG', 7, rangeText);
+      addTitle(ws, 'BÁO CÁO CHI TIẾT BÁN HÀNG', 8, rangeText);
 
       const statusMap: Record<string, string> = {
         draft: 'Bản nháp', confirmed: 'Đã xác nhận', delivered: 'Đã giao hàng',
@@ -193,7 +193,7 @@ export async function GET(request: Request) {
 
       const res = await query(sql, params);
       const ws = workbook.addWorksheet('Tồn kho');
-      addTitle(ws, 'BÁO CÁO TỒN KHO HIỆN TẠI', 7, `Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`);
+      addTitle(ws, 'BÁO CÁO TỒN KHO HIỆN TẠI', 9, `Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`);
 
       const hdr = ws.addRow(['STT', 'Mã sản phẩm', 'Tên sản phẩm', 'Mã kho', 'Tên kho', 'Tồn thực tế', 'Định mức tối thiểu', 'ĐVT', 'Tình trạng']);
       styleHeader(hdr);
