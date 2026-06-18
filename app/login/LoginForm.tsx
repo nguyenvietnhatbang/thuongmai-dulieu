@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState('admin@crm.com');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,7 +57,7 @@ export function LoginForm() {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           className="premium-input"
-          placeholder="admin@crm.com"
+          placeholder="email@congty.vn"
         />
       </div>
 

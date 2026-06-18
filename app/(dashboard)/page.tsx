@@ -1,335 +1,226 @@
 import Link from 'next/link';
-import { getDashboardMetrics, getRecentActivities } from '@/features/dashboard/services/dashboard.service';
 import { getCurrentUser } from '@/lib/auth';
+import { getDashboardMetrics } from '@/features/dashboard/services/dashboard.service';
 
-// Force dynamic execution for database fetch
 export const dynamic = 'force-dynamic';
 
+interface FeatureCard {
+  title: string;
+  description: string;
+  href: string;
+  badge: string;
+  icon: React.ReactNode;
+}
+
+const iconClass = 'h-5 w-5';
+
+const serviceFlow: FeatureCard[] = [
+  {
+    title: 'Khách hàng',
+    description: 'Hồ sơ, liên hệ và lịch sử chăm sóc.',
+    href: '/customers',
+    badge: 'Danh bạ khách',
+    icon: (
+      <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m4-6a4 4 0 11-8 0 4 4 0 018 0zm8 1a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Cơ hội',
+    description: 'Pipeline tư vấn và khả năng chốt.',
+    href: '/opportunities',
+    badge: 'Pipeline',
+    icon: (
+      <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Báo giá',
+    description: 'Tạo, duyệt và in báo giá.',
+    href: '/quotes',
+    badge: 'PDF',
+    icon: (
+      <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6M7 3h6l4 4v14H7V3z" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Hợp đồng',
+    description: 'Ký kết, thanh toán và dự án.',
+    href: '/contracts',
+    badge: 'Tạo dự án',
+    icon: (
+      <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M5 11h14M6 21h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Dự án',
+    description: 'Tiến độ, việc, lịch và ghi chú.',
+    href: '/projects',
+    badge: 'Triển khai',
+    icon: (
+      <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5h6m-8 4h10M7 13h4m-4 4h6M5 3h14v18H5V3z" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Chăm sóc',
+    description: 'Nhắc hẹn và kết quả chăm sóc.',
+    href: '/customer-care',
+    badge: 'CSKH',
+    icon: (
+      <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.3 6.3a4.5 4.5 0 016.4 0L12 7.6l1.3-1.3a4.5 4.5 0 116.4 6.4L12 20.4l-7.7-7.7a4.5 4.5 0 010-6.4z" />
+      </svg>
+    ),
+  },
+];
+
+const commerceFlow: FeatureCard[] = [
+  {
+    title: 'Mua hàng',
+    description: 'PO, nhập kho và chứng từ.',
+    href: '/purchases',
+    badge: 'Nhập hàng',
+    icon: (
+      <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 7h12l1 14H5L6 7zm3 0a3 3 0 116 0" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Tồn kho',
+    description: 'Tồn thực tế và cảnh báo thấp.',
+    href: '/inventory',
+    badge: 'Kho',
+    icon: (
+      <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4 8 4 8-4zM4 7v10l8 4 8-4V7" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Bán hàng',
+    description: 'Đơn bán, xuất kho và thu tiền.',
+    href: '/inventory',
+    badge: 'Xuất kho',
+    icon: (
+      <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M6 7l1 12h10l1-12M9 11h6" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Công nợ',
+    description: 'Theo dõi phải thu và quá hạn.',
+    href: '/receivables',
+    badge: 'Excel',
+    icon: (
+      <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-2 0-3 .8-3 2s1 2 3 2 3 .8 3 2-1 2-3 2m0-8V6m0 12v-2" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Báo cáo',
+    description: 'Mua, bán, tồn kho và chi tiết.',
+    href: '/reports',
+    badge: 'Bảng biểu',
+    icon: (
+      <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 17v-5m4 5V7m4 10v-8M5 21h14" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Danh mục',
+    description: 'Sản phẩm, kho và nhà cung cấp.',
+    href: '/masters',
+    badge: 'Cấu hình',
+    icon: (
+      <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    ),
+  },
+];
+
+function FeatureGrid({ title, items }: { title: string; items: FeatureCard[] }) {
+  return (
+    <section className="space-y-3">
+      <h2 className="text-sm font-extrabold text-foreground">{title}</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+        {items.map((item) => (
+          <Link
+            key={item.title}
+            href={item.href}
+            className="group min-h-[150px] rounded-lg border border-slate-200 bg-card p-4 shadow-sm hover:border-blue-200 hover:bg-blue-50/30 hover:shadow-md transition-all"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-blue-200 bg-white text-blue-600 shadow-sm">
+                {item.icon}
+              </span>
+              <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-bold text-blue-600">
+                {item.badge}
+              </span>
+            </div>
+            <h3 className="mt-6 text-base font-extrabold text-slate-950">{item.title}</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-500">{item.description}</p>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default async function DashboardPage() {
-  const [metrics, activities, user] = await Promise.all([
+  const [currentUser, metrics] = await Promise.all([
+    getCurrentUser(),
     getDashboardMetrics(),
-    getRecentActivities(6),
-    getCurrentUser()
   ]);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-  };
+  const serviceCards = serviceFlow.map((item) => {
+    if (item.title === 'Khách hàng') return { ...item, badge: `${metrics.totalCustomers} khách` };
+    if (item.title === 'Cơ hội') return { ...item, badge: `${metrics.activeOpportunities} mở` };
+    if (item.title === 'Báo giá') return { ...item, badge: `${metrics.pendingQuotes} chờ` };
+    if (item.title === 'Hợp đồng') return { ...item, badge: `${metrics.signedContracts} đã ký` };
+    if (item.title === 'Dự án') return { ...item, badge: `${metrics.activeProjects} chạy` };
+    return item;
+  });
 
-  // Check if there are any critical operational alerts
-  const hasAlerts = metrics.lowStockItems > 0 || metrics.overdueTasks > 0 || metrics.overdueReceivables > 0;
+  const commerceCards = commerceFlow.map((item) => {
+    if (item.title === 'Mua hàng') return { ...item, badge: `${metrics.purchaseCount} phiếu` };
+    if (item.title === 'Bán hàng') return { ...item, badge: `${metrics.salesCount} đơn` };
+    if (item.title === 'Tồn kho') return { ...item, badge: `${metrics.lowStockItems} cảnh báo` };
+    return item;
+  });
 
   return (
-    <div className="flex h-full w-full items-stretch overflow-hidden gap-6">
-      <div className="flex-1 overflow-y-auto pr-2 pb-8 space-y-8 animate-fade-in">
-        {/* Welcome & Overview Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="h-full overflow-y-auto pr-2 pb-8 space-y-6">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Xin chào, {user?.fullName.split('(')[0].trim() || 'Người dùng'}
+          <h1 className="text-xl font-extrabold tracking-tight text-foreground">
+            {currentUser?.fullName.split('(')[0].trim() || 'Dashboard'}
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Dưới đây là tổng quan tình hình hoạt động kinh doanh dịch vụ và thương mại hôm nay.
-          </p>
+          <p className="text-sm text-muted-foreground mt-1">Chọn nhanh module làm việc theo từng luồng vận hành.</p>
         </div>
-        
-        {/* Quick action buttons based on user role */}
-        <div className="flex items-center gap-3">
-          <Link
-            href="/customers"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-semibold shadow-md shadow-primary/20 transition-all duration-200 cursor-pointer"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-            </svg>
-            <span>Thêm khách hàng</span>
-          </Link>
-          <Link
-            href="/inventory"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card hover:bg-muted text-sm font-semibold transition-all duration-200 cursor-pointer"
-          >
-            <span>Quản lý kho</span>
-          </Link>
-        </div>
+        <Link
+          href="/dashboard-reports"
+          className="inline-flex h-10 items-center justify-center rounded-lg border border-blue-200 bg-white px-4 text-sm font-bold text-blue-600 hover:bg-blue-50"
+        >
+          Dashboard báo cáo
+        </Link>
       </div>
 
-      {/* Critical Warnings / Alert Panel */}
-      {hasAlerts && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {metrics.overdueTasks > 0 && (
-            <div className="glass-panel border-rose-200 bg-rose-50/30 rounded-xl p-4 flex gap-3.5 items-start">
-              <div className="p-2 bg-rose-100 rounded-lg text-rose-600 shrink-0">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-bold text-sm text-rose-900">Công việc quá hạn!</h3>
-                <p className="text-xs text-rose-700/80 mt-0.5">
-                  Có <span className="font-bold">{metrics.overdueTasks}</span> công việc dự án đã vượt quá hạn chốt hoàn thành.
-                </p>
-                <Link href="/projects" className="text-xs font-bold text-rose-600 hover:underline mt-2 inline-block">
-                  Xử lý ngay &rarr;
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {metrics.lowStockItems > 0 && (
-            <div className="glass-panel border-amber-200 bg-amber-50/30 rounded-xl p-4 flex gap-3.5 items-start">
-              <div className="p-2 bg-amber-100 rounded-lg text-amber-600 shrink-0">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-bold text-sm text-amber-900">Cảnh báo tồn kho thấp</h3>
-                <p className="text-xs text-amber-700/80 mt-0.5">
-                  Phát hiện <span className="font-bold">{metrics.lowStockItems}</span> mặt hàng có số lượng dưới mức tồn tối thiểu.
-                </p>
-                <Link href="/inventory" className="text-xs font-bold text-amber-600 hover:underline mt-2 inline-block">
-                  Lập phiếu mua &rarr;
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {metrics.overdueReceivables > 0 && (
-            <div className="glass-panel border-red-200 bg-red-50/30 rounded-xl p-4 flex gap-3.5 items-start">
-              <div className="p-2 bg-red-100 rounded-lg text-red-600 shrink-0">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-bold text-sm text-red-900">Quá hạn công nợ</h3>
-                <p className="text-xs text-red-700/80 mt-0.5">
-                  Tổng nợ quá hạn phải thu là <span className="font-bold">{formatCurrency(metrics.overdueReceivables)}</span>.
-                </p>
-                <Link href="/receivables" className="text-xs font-bold text-red-600 hover:underline mt-2 inline-block">
-                  Xem bảng công nợ &rarr;
-                </Link>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Primary KPI Grid (CRM & Commerce) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* KPI: Customers */}
-        <div className="glass-card rounded-2xl p-6 bg-card">
-          <div className="flex justify-between items-start">
-            <p className="text-sm font-medium text-muted-foreground">Khách hàng hoạt động</p>
-            <div className="p-2 bg-primary/10 rounded-xl text-primary">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-foreground mt-4">{metrics.totalCustomers}</p>
-          <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-            <span className="text-emerald-500 font-semibold flex items-center">
-              +100%
-            </span>
-            <span>từ khi khởi tạo</span>
-          </div>
-        </div>
-
-        {/* KPI: Sales Revenue */}
-        <div className="glass-card rounded-2xl p-6 bg-card">
-          <div className="flex justify-between items-start">
-            <p className="text-sm font-medium text-muted-foreground">Doanh số thương mại</p>
-            <div className="p-2 bg-emerald-100 rounded-xl text-emerald-600">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-foreground mt-4 truncate" title={formatCurrency(metrics.totalSalesValue)}>
-            {formatCurrency(metrics.totalSalesValue)}
-          </p>
-          <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-            <span className="text-emerald-500 font-semibold">{metrics.salesCount}</span>
-            <span>đơn bán hàng đã lập</span>
-          </div>
-        </div>
-
-        {/* KPI: Projects */}
-        <div className="glass-card rounded-2xl p-6 bg-card">
-          <div className="flex justify-between items-start">
-            <p className="text-sm font-medium text-muted-foreground">Dự án đang chạy</p>
-            <div className="p-2 bg-violet-100 rounded-xl text-violet-600">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-foreground mt-4">{metrics.activeProjects}</p>
-          <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-            <span className="font-semibold text-primary">{metrics.signedContracts}</span>
-            <span>hợp đồng vừa ký ký kết</span>
-          </div>
-        </div>
-
-        {/* KPI: Pipeline */}
-        <div className="glass-card rounded-2xl p-6 bg-card">
-          <div className="flex justify-between items-start">
-            <p className="text-sm font-medium text-muted-foreground">Cơ hội & Báo giá</p>
-            <div className="p-2 bg-blue-100 rounded-xl text-blue-600">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-foreground mt-4">
-            {metrics.activeOpportunities} <span className="text-sm font-normal text-muted-foreground">/ {metrics.pendingQuotes}</span>
-          </p>
-          <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-            <span>đang được tiếp thị & tư vấn</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Grid: Content split between Shortcuts, activities, and flow info */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Left 2 Cols: Business flow & Shortcuts */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Quick Shortcuts */}
-          <div className="glass-panel rounded-2xl p-6 bg-card">
-            <h2 className="font-bold text-base text-foreground mb-4">Lối tắt thao tác nhanh</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <Link
-                href="/customers"
-                className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:bg-primary/5 hover:border-primary/20 text-center transition-all duration-200 cursor-pointer"
-              >
-                <div className="p-2.5 bg-primary/10 text-primary rounded-lg mb-2">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                </div>
-                <span className="text-xs font-semibold text-foreground">Khách hàng</span>
-              </Link>
-
-              <Link
-                href="/quotes"
-                className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:bg-primary/5 hover:border-primary/20 text-center transition-all duration-200 cursor-pointer"
-              >
-                <div className="p-2.5 bg-blue-100 text-blue-600 rounded-lg mb-2">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <span className="text-xs font-semibold text-foreground">Báo giá</span>
-              </Link>
-
-              <Link
-                href="/projects"
-                className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:bg-primary/5 hover:border-primary/20 text-center transition-all duration-200 cursor-pointer"
-              >
-                <div className="p-2.5 bg-violet-100 text-violet-600 rounded-lg mb-2">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                  </svg>
-                </div>
-                <span className="text-xs font-semibold text-foreground">Dự án & Việc</span>
-              </Link>
-
-              <Link
-                href="/inventory"
-                className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:bg-primary/5 hover:border-primary/20 text-center transition-all duration-200 cursor-pointer"
-              >
-                <div className="p-2.5 bg-amber-100 text-amber-600 rounded-lg mb-2">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
-                </div>
-                <span className="text-xs font-semibold text-foreground">Kho hàng</span>
-              </Link>
-            </div>
-          </div>
-
-          {/* Business Flow Overview Map */}
-          <div className="glass-panel rounded-2xl p-6 bg-card">
-            <h2 className="font-bold text-base text-foreground mb-4">Mô hình hoạt động kép</h2>
-            
-            <div className="space-y-4 text-sm">
-              <div className="border border-border p-4 rounded-xl bg-slate-50/50">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="h-5 w-5 bg-primary/10 rounded flex items-center justify-center text-primary font-bold text-xs">1</span>
-                  <span className="font-bold text-foreground">Luồng Dịch vụ tư vấn & Dự án</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Quy trình khép kín từ chăm sóc khách hàng &rarr; quản lý cơ hội tiềm năng &rarr; báo giá sản phẩm &rarr; ký kết hợp đồng &rarr; tự động khởi tạo dự án &rarr; phân công công việc chi tiết &rarr; nghiệm thu đóng dự án &rarr; phát sinh công nợ phải thu & đợt thanh toán.
-                </p>
-              </div>
-
-              <div className="border border-border p-4 rounded-xl bg-slate-50/50">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="h-5 w-5 bg-emerald-100 rounded flex items-center justify-center text-emerald-600 font-bold text-xs">2</span>
-                  <span className="font-bold text-foreground">Luồng Thương mại & Tồn kho</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Quản lý mua bán hàng hóa từ nhà cung cấp &rarr; lập phiếu đặt mua hàng &rarr; tiếp nhận nhập kho &rarr; theo dõi số lượng tồn trên từng kho vật lý &rarr; lập đơn bán hàng thương mại cho khách hàng &rarr; cập nhật biến động kho &rarr; xuất bảng kê khai công nợ.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Col: Timeline & Audit Trail */}
-        <div className="glass-panel rounded-2xl p-6 bg-card flex flex-col justify-between">
-          <div>
-            <h2 className="font-bold text-base text-foreground mb-4">Hoạt động gần đây</h2>
-            
-            {activities.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <svg className="w-10 h-10 mx-auto text-muted-foreground/30 mb-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-xs">Chưa có nhật ký ghi chép hoạt động nào.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {activities.map((act) => (
-                  <div key={act.id} className="flex gap-3 text-xs leading-normal">
-                    <div className="relative shrink-0 flex flex-col items-center">
-                      <div className="h-2 w-2 rounded-full bg-primary ring-4 ring-primary/20"></div>
-                      <div className="w-px bg-border flex-1 mt-1"></div>
-                    </div>
-                    <div>
-                      <p className="text-foreground">
-                        <span className="font-bold">{act.actorName}</span>{' '}
-                        <span>{act.action}</span>{' '}
-                        <span className="text-[10px] font-mono px-1 rounded bg-secondary text-muted-foreground">
-                          {act.entityType}
-                        </span>
-                      </p>
-                      <span className="text-[10px] text-muted-foreground">
-                        {act.createdAt.toLocaleTimeString('vi-VN')} - {act.createdAt.toLocaleDateString('vi-VN')}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          
-          <div className="h-px bg-border my-4" />
-          
-          <Link
-            href="/admin"
-            className="text-xs font-bold text-primary hover:underline flex items-center gap-1 justify-center cursor-pointer"
-          >
-            <span>Quản trị nhật ký hệ thống</span>
-            <span>&rarr;</span>
-          </Link>
-        </div>
-
-      </div>
+      <FeatureGrid title="Luồng dịch vụ tư vấn / dự án" items={serviceCards} />
+      <FeatureGrid title="Luồng thương mại / kho" items={commerceCards} />
     </div>
-  </div>
   );
 }

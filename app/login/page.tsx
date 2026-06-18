@@ -24,10 +24,6 @@ export default async function LoginPage() {
         </div>
 
         <LoginForm />
-
-        <div className="mt-5 rounded-lg border border-border bg-slate-50 px-3 py-2 text-xs text-muted-foreground">
-          Tài khoản seed mẫu dùng email trong `db/seed.js`. Mật khẩu mặc định khi seed là `ChangeMe123!`, hoặc giá trị `SEED_USER_PASSWORD` nếu bạn đặt trong môi trường.
-        </div>
       </div>
     </main>
   );

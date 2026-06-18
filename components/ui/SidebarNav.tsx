@@ -243,6 +243,26 @@ export function SidebarNav({ currentUser }: SidebarNavProps) {
           </svg>
           <span>Dashboard</span>
         </Link>
+        <Link
+          href="/dashboard-reports"
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 group cursor-pointer ${
+            isLinkActive('/dashboard-reports')
+              ? 'bg-blue-600 text-white font-medium shadow-sm shadow-blue-500/10'
+              : 'text-slate-300 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <svg
+            className={`w-5 h-5 transition-colors ${
+              isLinkActive('/dashboard-reports') ? 'text-white' : 'text-slate-400 group-hover:text-white'
+            }`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-6m4 6V7m4 10v-4M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          </svg>
+          <span>Dashboard báo cáo</span>
+        </Link>
       </div>
 
       {/* Dynamic Sections */}

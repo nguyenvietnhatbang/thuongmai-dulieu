@@ -9,7 +9,9 @@ export function HeaderTitle() {
   const getHeaderInfo = (path: string) => {
     switch (path) {
       case '/':
-        return { title: 'Tổng quan', breadcrumb: 'Hệ thống / Tổng quan' };
+        return { title: 'Dashboard chức năng', breadcrumb: 'Hệ thống / Chức năng' };
+      case '/dashboard-reports':
+        return { title: 'Dashboard báo cáo', breadcrumb: 'Hệ thống / Biểu đồ báo cáo' };
       case '/customers':
         return { title: 'Khách hàng', breadcrumb: 'Trang chủ > Khách hàng' };
       case '/opportunities':
