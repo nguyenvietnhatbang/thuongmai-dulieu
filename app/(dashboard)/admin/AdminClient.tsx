@@ -401,6 +401,7 @@ export function AdminClient({}: { currentUser: UserSession }) {
 
       {isRoleFormOpen && (
         <RoleFormModal
+          isOpen={isRoleFormOpen}
           isEditing={Boolean(editingRoleId)}
           saving={saving}
           form={roleForm}
@@ -412,6 +413,7 @@ export function AdminClient({}: { currentUser: UserSession }) {
 
       {isDepartmentFormOpen && (
         <DepartmentFormModal
+          isOpen={isDepartmentFormOpen}
           isEditing={Boolean(editingDepartmentId)}
           saving={saving}
           form={departmentForm}
@@ -423,6 +425,7 @@ export function AdminClient({}: { currentUser: UserSession }) {
 
       {isUserFormOpen && (
         <UserFormModal
+          isOpen={isUserFormOpen}
           isEditing={Boolean(editingUserId)}
           saving={saving}
           form={userForm}

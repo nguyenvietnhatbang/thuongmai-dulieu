@@ -18,6 +18,7 @@ export interface Receivable {
   collectorUserId: string | null;
   collectorName: string | null;
   notes: string | null;
+  lastRemindedAt: string | null;
 }
 
 /**

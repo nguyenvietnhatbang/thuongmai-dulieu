@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Opportunity } from '@/features/opportunities/services/opportunity.service';
 import { Customer } from '@/features/customers/services/customer.service';
 import { ListToolbar } from '@/components/ui/ListControls';
-import { OpportunityCreateFormState, OpportunityCreateModal } from './components/OpportunityCreateModal';
+import { OpportunityFormModal, OpportunityFormState } from './components/OpportunityFormModal';
+import { OpportunityDetailDrawer } from './components/OpportunityDetailDrawer';
 import { OpportunityPipelineBoard } from './components/OpportunityPipelineBoard';
 import { OpportunitiesTable } from './components/OpportunitiesTable';
 import { getOpportunityStage, OPPORTUNITY_STAGES } from './components/opportunity-stages';
@@ -40,11 +41,11 @@ export function OpportunitiesClient({ currentUser }: { currentUser: UserSession 
 
   // Modals & Drawer state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [activeOpp, setActiveOpp] = useState<Opportunity | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
 
   // Forms
-  const [newOpp, setNewOpp] = useState<OpportunityCreateFormState>({
+  const [newOpp, setNewOpp] = useState<OpportunityFormState>({
     code: '',
     customerId: '',
     title: '',
@@ -55,7 +56,33 @@ export function OpportunitiesClient({ currentUser }: { currentUser: UserSession 
     stage: 'new',
     notes: ''
   });
-  const [editOpp, setEditOpp] = useState<Partial<Opportunity>>({});
+
+  const [editOpp, setEditOpp] = useState<OpportunityFormState>({
+    code: '',
+    customerId: '',
+    title: '',
+    needDescription: '',
+    expectedValue: '',
+    expectedCloseDate: '',
+    ownerUserId: '',
+    stage: 'new',
+    notes: ''
+  });
+
+  const openEditModal = (opp: Opportunity) => {
+    setEditOpp({
+      code: opp.code,
+      customerId: opp.customerId,
+      title: opp.title,
+      needDescription: opp.needDescription || '',
+      expectedValue: opp.expectedValue.toString(),
+      expectedCloseDate: opp.expectedCloseDate ? opp.expectedCloseDate.substring(0, 10) : '',
+      ownerUserId: opp.ownerUserId || '',
+      stage: opp.stage,
+      notes: opp.notes || '',
+    });
+    setIsEditOpen(true);
+  };
 
   const canCreate = currentUser.roles.includes('system_management') || currentUser.permissions.includes('opportunities.create.all');
 
@@ -174,11 +201,19 @@ export function OpportunitiesClient({ currentUser }: { currentUser: UserSession 
       const res = await fetch(`/api/opportunities/${activeOpp.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editOpp)
+        body: JSON.stringify({
+          title: editOpp.title,
+          expectedValue: Number(editOpp.expectedValue),
+          stage: editOpp.stage,
+          expectedCloseDate: editOpp.expectedCloseDate || null,
+          ownerUserId: editOpp.ownerUserId || null,
+          needDescription: editOpp.needDescription,
+          notes: editOpp.notes,
+        })
       });
       const json = await res.json();
       if (json.success) {
-        setIsEditing(false);
+        setIsEditOpen(false);
         setActiveOpp(json.data);
         fetchOpportunities();
       } else {
@@ -293,7 +328,7 @@ export function OpportunitiesClient({ currentUser }: { currentUser: UserSession 
           <OpportunityPipelineBoard
             opportunities={opportunities}
             formatCurrency={formatCurrency}
-            onOpenOpportunity={(opportunity) => { setActiveOpp(opportunity); setEditOpp(opportunity); setIsEditing(false); }}
+            onOpenOpportunity={(opportunity) => { setActiveOpp(opportunity); }}
             onStageChange={handleQuickUpdateStage}
           />
         ) : (
@@ -307,224 +342,45 @@ export function OpportunitiesClient({ currentUser }: { currentUser: UserSession 
             formatCurrency={formatCurrency}
             onSort={handleSort}
             onPageChange={setPage}
-            onOpenOpportunity={(opportunity) => { setActiveOpp(opportunity); setEditOpp(opportunity); setIsEditing(false); }}
+            onOpenOpportunity={(opportunity) => { setActiveOpp(opportunity); }}
+            onEditOpportunity={openEditModal}
+            onDeleteOpportunity={handleDeleteOpportunity}
           />
         )}
 
-        {isCreateOpen && (
-          <OpportunityCreateModal
-            form={newOpp}
-            customers={customers}
-            users={users}
-            setForm={setNewOpp}
-            onClose={() => setIsCreateOpen(false)}
-            onSubmit={handleCreateOpportunity}
-          />
-        )}
       </div>
 
-      {/* Opportunity Detail Drawer - Push Style */}
-      {activeOpp && (
-        <div className="relative h-full w-[450px] md:w-[500px] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden">
-          {/* Header */}
-          <div className="p-6 border-b border-border flex items-center justify-between bg-slate-50/50">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
-                  {activeOpp.code}
-                </span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getOpportunityStage(activeOpp.stage)?.color || ''}`}>
-                  {getOpportunityStage(activeOpp.stage)?.name || activeOpp.stage}
-                </span>
-              </div>
-              <h2 className="text-base font-bold text-foreground mt-2">{activeOpp.title}</h2>
-            </div>
+      <OpportunityDetailDrawer
+        isOpen={!!activeOpp}
+        opportunity={activeOpp}
+        onClose={() => setActiveOpp(null)}
+        onEdit={() => activeOpp && openEditModal(activeOpp)}
+        onDelete={() => activeOpp && handleDeleteOpportunity(activeOpp.id)}
+        formatCurrency={formatCurrency}
+        onCreateQuote={() => activeOpp && router.push(`/quotes?opportunityId=${activeOpp.id}`)}
+      />
 
-            <button
-              onClick={() => setActiveOpp(null)}
-              className="p-1 rounded-lg text-slate-400 hover:bg-muted hover:text-foreground cursor-pointer"
-            >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+      <OpportunityFormModal
+        isOpen={isCreateOpen}
+        isEditing={false}
+        form={newOpp}
+        customers={customers}
+        users={users}
+        setForm={setNewOpp}
+        onClose={() => setIsCreateOpen(false)}
+        onSubmit={handleCreateOpportunity}
+      />
 
-          {/* Body */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            {isEditing ? (
-              <form onSubmit={handleUpdateOpportunity} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Tiêu đề cơ hội</label>
-                  <input
-                    type="text"
-                    required
-                    value={editOpp.title || ''}
-                    onChange={(e) => setEditOpp({ ...editOpp, title: e.target.value })}
-                    className="premium-input"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Giá trị dự tính (VND)</label>
-                    <input
-                      type="number"
-                      required
-                      value={editOpp.expectedValue || ''}
-                      onChange={(e) => setEditOpp({ ...editOpp, expectedValue: Number(e.target.value) })}
-                      className="premium-input"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Giai đoạn</label>
-                    <select
-                      value={editOpp.stage || 'new'}
-                      onChange={(e) => setEditOpp({ ...editOpp, stage: e.target.value as any })}
-                      className="premium-input"
-                    >
-                      {OPPORTUNITY_STAGES.map(s => (
-                        <option key={s.code} value={s.code}>{s.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ngày chốt dự kiến</label>
-                    <input
-                      type="date"
-                      value={editOpp.expectedCloseDate ? editOpp.expectedCloseDate.substring(0, 10) : ''}
-                      onChange={(e) => setEditOpp({ ...editOpp, expectedCloseDate: e.target.value })}
-                      className="premium-input"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Người phụ trách</label>
-                    <select
-                      value={editOpp.ownerUserId || ''}
-                      onChange={(e) => setEditOpp({ ...editOpp, ownerUserId: e.target.value })}
-                      className="premium-input"
-                    >
-                      <option value="">-- Chọn nhân sự --</option>
-                      {users.map(u => (
-                        <option key={u.id} value={u.id}>{u.fullName}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Mô tả nhu cầu</label>
-                  <textarea
-                    value={editOpp.needDescription || ''}
-                    onChange={(e) => setEditOpp({ ...editOpp, needDescription: e.target.value })}
-                    className="premium-input h-20"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ghi chú nội bộ</label>
-                  <textarea
-                    value={editOpp.notes || ''}
-                    onChange={(e) => setEditOpp({ ...editOpp, notes: e.target.value })}
-                    className="premium-input h-16"
-                  />
-                </div>
-
-                <div className="flex gap-2 justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditing(false)}
-                    className="px-3 py-1.5 border border-border text-xs font-semibold rounded bg-card hover:bg-muted cursor-pointer"
-                  >
-                    Hủy sửa
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded hover:bg-primary/90 shadow cursor-pointer"
-                  >
-                    Lưu thay đổi
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="space-y-6 text-sm">
-                <div className="grid grid-cols-2 gap-y-4 gap-x-2">
-                  <div>
-                    <p className="text-[10px] text-muted-foreground font-bold uppercase">Khách hàng liên kết</p>
-                    <p className="font-bold text-foreground mt-0.5">{activeOpp.customerName}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground font-bold uppercase">Doanh thu dự kiến</p>
-                    <p className="font-bold text-primary mt-0.5">{formatCurrency(activeOpp.expectedValue)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground font-bold uppercase">Hạn chốt dự tính</p>
-                    <p className="font-semibold text-foreground mt-0.5">
-                      {activeOpp.expectedCloseDate ? new Date(activeOpp.expectedCloseDate).toLocaleDateString('vi-VN') : 'Chưa lên ngày'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground font-bold uppercase">Người chịu trách nhiệm</p>
-                    <p className="font-semibold text-foreground mt-0.5">{activeOpp.ownerName || 'Chưa gán'}</p>
-                  </div>
-                </div>
-
-                <div className="h-px bg-border" />
-
-                <div>
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase mb-1">Mô tả nhu cầu khách hàng</p>
-                  <p className="border border-border p-3 rounded-lg bg-slate-50/50 leading-relaxed whitespace-pre-line text-xs">
-                    {activeOpp.needDescription || 'Không có mô tả nhu cầu chi tiết.'}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase mb-1">Ghi chú tiến độ đàm phán</p>
-                  <p className="border border-border p-3 rounded-lg bg-slate-50/50 leading-relaxed whitespace-pre-line text-xs">
-                    {activeOpp.notes || 'Chưa có ghi chú bổ sung.'}
-                  </p>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="flex-1 py-2 bg-secondary text-primary hover:bg-primary/5 border border-primary/20 text-xs font-semibold rounded-lg transition-all cursor-pointer"
-                  >
-                    Chỉnh sửa cơ hội
-                  </button>
-                  <button
-                    onClick={() => handleDeleteOpportunity(activeOpp.id)}
-                    className="py-2 px-3 border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold rounded-lg transition-all cursor-pointer"
-                  >
-                    Xóa bỏ
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="p-6 border-t border-border bg-slate-50/50 flex gap-3">
-            <button
-              onClick={() => {
-                router.push(`/quotes?opportunityId=${activeOpp.id}`);
-              }}
-              className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg text-center cursor-pointer shadow-md shadow-emerald-500/15"
-            >
-              Tạo báo giá
-            </button>
-            <button
-              onClick={() => setActiveOpp(null)}
-              className="flex-1 py-2 border border-border text-sm font-semibold rounded-lg bg-card hover:bg-muted text-center cursor-pointer"
-            >
-              Đóng bảng
-            </button>
-          </div>
-        </div>
-      )}
+      <OpportunityFormModal
+        isOpen={isEditOpen}
+        isEditing={true}
+        form={editOpp}
+        customers={customers}
+        users={users}
+        setForm={setEditOpp}
+        onClose={() => setIsEditOpen(false)}
+        onSubmit={handleUpdateOpportunity}
+      />
     </div>
   );
 }

@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { ListToolbar, PaginationControls, SortableHeader } from '@/components/ui/ListControls';
+import { CollectDebtModal } from './components/CollectDebtModal';
+import { ExportHistoryModal } from './components/ExportHistoryModal';
+import { ReceivableDetailDrawer } from './components/ReceivableDetailDrawer';
+import { Receivable } from '@/features/receivables/services/receivable.service';
 
 interface UserSession {
   id: string;
@@ -22,8 +26,11 @@ export function ReceivablesClient({ currentUser }: { currentUser: UserSession })
   const [order, setOrder] = useState<'asc' | 'desc'>('asc');
   const limit = 20;
 
+  // Details drawer
+  const [activeReceivable, setActiveReceivable] = useState<Receivable | null>(null);
+
   // Collect modal
-  const [activeCollect, setActiveCollect] = useState<any | null>(null);
+  const [activeCollect, setActiveCollect] = useState<Receivable | null>(null);
   const [collectAmount, setCollectAmount] = useState<number>(0);
   const [collectNotes, setCollectNotes] = useState('');
 
@@ -351,7 +358,11 @@ export function ReceivablesClient({ currentUser }: { currentUser: UserSession })
               </thead>
               <tbody className="divide-y divide-border">
                 {receivables.map((r) => (
-                  <tr key={r.id} className="hover:bg-slate-50/20 transition-colors">
+                  <tr
+                    key={r.id}
+                    onClick={() => setActiveReceivable(r)}
+                    className="hover:bg-slate-50/20 transition-colors cursor-pointer"
+                  >
                     <td className="px-6 py-4 font-mono text-xs font-bold text-primary">{r.code}</td>
                     <td className="px-6 py-4 font-bold text-foreground">{r.customerName}</td>
                     <td className="px-6 py-4">
@@ -380,7 +391,17 @@ export function ReceivablesClient({ currentUser }: { currentUser: UserSession })
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end items-center gap-2">
+                      <div className="flex justify-end items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => setActiveReceivable(r)}
+                          className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                          title="Xem chi tiết"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </button>
                         {r.status !== 'paid' ? (
                           <>
                             {canCollect && (
@@ -389,7 +410,7 @@ export function ReceivablesClient({ currentUser }: { currentUser: UserSession })
                                   setActiveCollect(r);
                                   setCollectAmount(r.remainingAmount);
                                 }}
-                                className="px-3 py-1.5 rounded-lg bg-secondary text-primary font-bold text-xs hover:bg-primary/10 transition-all cursor-pointer"
+                                className="px-2 py-1 rounded bg-secondary text-primary font-bold text-xs hover:bg-primary/10 transition-all cursor-pointer whitespace-nowrap"
                               >
                                 Thu tiền
                               </button>
@@ -397,7 +418,7 @@ export function ReceivablesClient({ currentUser }: { currentUser: UserSession })
                             {['due_soon', 'due_today', 'overdue'].includes(r.status) && (
                               <button
                                 onClick={() => handleRemindCollector(r.id)}
-                                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-all cursor-pointer"
+                                className="px-2 py-1 rounded bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-all cursor-pointer whitespace-nowrap"
                                 title="Gửi thông báo nhắc nhợ đến nhân viên thu nợ"
                               >
                                 Nhắc nợ
@@ -418,134 +439,41 @@ export function ReceivablesClient({ currentUser }: { currentUser: UserSession })
         <PaginationControls page={page} limit={limit} total={total} onPageChange={setPage} />
       </div>
 
-      {/* RECORD DEBT COLLECTION MODAL */}
-      {activeCollect && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
-          <div className="bg-card w-full max-w-md rounded-2xl border border-border p-6 shadow-2xl space-y-4 animate-fade-in">
-            <div className="flex justify-between items-center">
-              <h2 className="text-base font-bold text-foreground">Ghi nhận Thu hồi Công nợ</h2>
-              <button onClick={() => setActiveCollect(null)} className="text-slate-400 hover:text-foreground cursor-pointer">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
+      <ReceivableDetailDrawer
+        isOpen={!!activeReceivable}
+        receivable={activeReceivable}
+        onClose={() => setActiveReceivable(null)}
+        onCollect={() => {
+          if (activeReceivable) {
+            setActiveCollect(activeReceivable);
+            setCollectAmount(activeReceivable.remainingAmount);
+          }
+        }}
+        onRemind={() => activeReceivable && handleRemindCollector(activeReceivable.id)}
+        canCollect={canCollect}
+        formatCurrency={formatCurrency}
+        getStatusBadge={getStatusBadge}
+        getStatusText={getStatusText}
+      />
 
-            <div className="p-3 bg-slate-50 border border-border rounded-lg text-xs space-y-1">
-              <p className="text-slate-500 font-bold uppercase">Khoản công nợ</p>
-              <p className="font-bold text-foreground">{activeCollect.code} - {activeCollect.customerName}</p>
-              <p className="text-slate-500 mt-1 font-bold uppercase">Tổng nợ hiện tại</p>
-              <p className="text-sm font-extrabold text-rose-600">{formatCurrency(activeCollect.remainingAmount)}</p>
-            </div>
+      <CollectDebtModal
+        isOpen={!!activeCollect}
+        receivable={activeCollect}
+        collectAmount={collectAmount}
+        collectNotes={collectNotes}
+        setCollectAmount={setCollectAmount}
+        setCollectNotes={setCollectNotes}
+        onClose={() => setActiveCollect(null)}
+        onSubmit={handleCollectSubmit}
+        formatCurrency={formatCurrency}
+      />
 
-            <form onSubmit={handleCollectSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Số tiền thực tế thu được *</label>
-                <input
-                  type="number"
-                  required
-                  min={1}
-                  max={activeCollect.remainingAmount}
-                  value={collectAmount}
-                  onChange={(e) => setCollectAmount(Number(e.target.value))}
-                  className="premium-input"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ghi chú phiếu thu (diễn giải)</label>
-                <textarea
-                  placeholder="Khách hàng chuyển khoản qua tài khoản ngân hàng, tiền mặt..."
-                  value={collectNotes}
-                  onChange={(e) => setCollectNotes(e.target.value)}
-                  className="premium-input h-20"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveCollect(null)}
-                  className="px-4 py-2 border border-border text-xs font-semibold rounded-lg bg-card hover:bg-muted cursor-pointer"
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/95 shadow-md shadow-primary/10 cursor-pointer"
-                >
-                  Lưu phiếu thu
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* EXPORT HISTORY LOGS MODAL */}
-      {showExportHistory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
-          <div className="bg-card w-full max-w-2xl rounded-2xl border border-border p-6 shadow-2xl space-y-4 animate-fade-in flex flex-col max-h-[85vh]">
-            <div className="flex justify-between items-center shrink-0">
-              <h2 className="text-base font-bold text-foreground">Lịch sử xuất file công nợ</h2>
-              <button onClick={() => setShowExportHistory(false)} className="text-slate-400 hover:text-foreground cursor-pointer">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto min-h-[300px]">
-              {exportLogsLoading ? (
-                <p className="text-xs text-muted-foreground text-center py-20 animate-pulse">Đang tải lịch sử xuất file...</p>
-              ) : exportLogs.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-20">Chưa có lượt xuất file công nợ nào.</p>
-              ) : (
-                <div className="overflow-x-auto border border-border rounded-xl">
-                  <table className="min-w-full divide-y divide-border text-xs text-left">
-                    <thead className="bg-slate-50/50 text-muted-foreground font-bold">
-                      <tr>
-                        <th className="p-3">Mã lượt</th>
-                        <th className="p-3">Tên file</th>
-                        <th className="p-3">Định dạng</th>
-                        <th className="p-3">Người xuất</th>
-                        <th className="p-3">Thời gian</th>
-                        <th className="p-3">Trạng thái</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border bg-card">
-                      {exportLogs.map(log => (
-                        <tr key={log.id} className="hover:bg-slate-50/30">
-                          <td className="p-3 font-mono font-bold text-primary">{log.code}</td>
-                          <td className="p-3 font-medium text-foreground truncate max-w-[150px]" title={log.fileName}>
-                            {log.fileName || 'Chưa đặt tên'}
-                          </td>
-                          <td className="p-3 uppercase font-bold text-slate-600">{log.exportFormat}</td>
-                          <td className="p-3 font-semibold text-slate-800">{log.createdBy || 'Hệ thống'}</td>
-                          <td className="p-3 text-muted-foreground">{new Date(log.exportedAt).toLocaleString('vi-VN')}</td>
-                          <td className="p-3">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                              log.status === 'exported' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
-                            }`}>
-                              {log.status === 'exported' ? 'Đã xuất' : 'Đã hủy'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end pt-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowExportHistory(false)}
-                className="px-4 py-2 border border-border text-xs font-semibold rounded-lg bg-card hover:bg-muted cursor-pointer"
-              >
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ExportHistoryModal
+        isOpen={showExportHistory}
+        onClose={() => setShowExportHistory(false)}
+        exportLogs={exportLogs}
+        exportLogsLoading={exportLogsLoading}
+      />
     </div>
   </div>
   );

@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { ListToolbar, PaginationControls, SortableHeader, PageTabs } from '@/components/ui/ListControls';
 import { Modal } from '@/components/ui/Modal';
+import { ProductDetailDrawer } from './ProductDetailDrawer';
+import { SupplierDetailDrawer } from './SupplierDetailDrawer';
+import { WarehouseDetailDrawer } from './WarehouseDetailDrawer';
 
 interface Product {
   id: string;
@@ -136,6 +139,11 @@ export function MastersTab({
   const [isProductOpen, setIsProductOpen] = useState(false);
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
   const [isWarehouseOpen, setIsWarehouseOpen] = useState(false);
+
+  // Drawer states
+  const [activeProduct, setActiveProduct] = useState<Product | null>(null);
+  const [activeSupplier, setActiveSupplier] = useState<Supplier | null>(null);
+  const [activeWarehouse, setActiveWarehouse] = useState<Warehouse | null>(null);
 
   // Form states
   const [newProduct, setNewProduct] = useState<ProductFormState>({ code: '', name: '', unitCode: 'item', minStockQuantity: 0, status: 'active' });
@@ -359,10 +367,39 @@ export function MastersTab({
                           {p.status === 'active' ? 'Đang kinh doanh' : 'Ngừng hoạt động'}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex justify-end gap-2">
-                          <button type="button" onClick={() => startEditProduct(p)} className="px-2 py-1 rounded-md border border-border bg-card text-[11px] font-semibold hover:bg-muted cursor-pointer">Sửa</button>
-                          <button type="button" onClick={() => onDeleteProduct(p.id)} className="px-2 py-1 rounded-md border border-red-200 bg-red-50 text-red-700 text-[11px] font-semibold hover:bg-red-100 cursor-pointer">Xóa</button>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setActiveProduct(p)}
+                            className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Xem chi tiết"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => startEditProduct(p)}
+                            className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Sửa sản phẩm"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDeleteProduct(p.id)}
+                            className="p-1 rounded text-slate-500 hover:text-rose-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Xóa sản phẩm"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -401,10 +438,39 @@ export function MastersTab({
                       <td className="px-6 py-4 text-xs font-medium text-slate-700">{s.phone || '-'}</td>
                       <td className="px-6 py-4 text-xs text-muted-foreground">{s.email || '-'}</td>
                       <td className="px-6 py-4 text-xs text-muted-foreground">{s.address || '-'}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex justify-end gap-2">
-                          <button type="button" onClick={() => startEditSupplier(s)} className="px-2 py-1 rounded-md border border-border bg-card text-[11px] font-semibold hover:bg-muted cursor-pointer">Sửa</button>
-                          <button type="button" onClick={() => onDeleteSupplier(s.id)} className="px-2 py-1 rounded-md border border-red-200 bg-red-50 text-red-700 text-[11px] font-semibold hover:bg-red-100 cursor-pointer">Xóa</button>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setActiveSupplier(s)}
+                            className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Xem chi tiết"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => startEditSupplier(s)}
+                            className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Sửa nhà cung cấp"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDeleteSupplier(s.id)}
+                            className="p-1 rounded text-slate-500 hover:text-rose-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Xóa nhà cung cấp"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -447,21 +513,38 @@ export function MastersTab({
                           {w.status === 'active' ? 'Hoạt động' : 'Ngừng hoạt động'}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex justify-end gap-2">
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setActiveWarehouse(w)}
+                            className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Xem chi tiết"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </button>
                           <button
                             type="button"
                             onClick={() => startEditWarehouse(w)}
-                            className="px-2 py-1 rounded-md border border-border bg-card text-[11px] font-semibold hover:bg-muted cursor-pointer"
+                            className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Sửa kho"
                           >
-                            Sửa
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
                           </button>
                           <button
                             type="button"
                             onClick={() => onDeleteWarehouse(w.id)}
-                            className="px-2 py-1 rounded-md border border-red-200 bg-red-50 text-red-700 text-[11px] font-semibold hover:bg-red-100 cursor-pointer"
+                            className="p-1 rounded text-slate-500 hover:text-rose-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Xóa kho"
                           >
-                            Xóa
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
                           </button>
                         </div>
                       </td>
@@ -589,6 +672,61 @@ export function MastersTab({
           </div>
         </form>
       </Modal>
+
+      {/* DETAIL DRAWERS */}
+      <ProductDetailDrawer
+        isOpen={!!activeProduct}
+        product={activeProduct}
+        onClose={() => setActiveProduct(null)}
+        onEdit={() => {
+          if (activeProduct) {
+            startEditProduct(activeProduct);
+            setActiveProduct(null);
+          }
+        }}
+        onDelete={async () => {
+          if (activeProduct) {
+            const ok = await onDeleteProduct(activeProduct.id);
+            if (ok) setActiveProduct(null);
+          }
+        }}
+      />
+
+      <SupplierDetailDrawer
+        isOpen={!!activeSupplier}
+        supplier={activeSupplier}
+        onClose={() => setActiveSupplier(null)}
+        onEdit={() => {
+          if (activeSupplier) {
+            startEditSupplier(activeSupplier);
+            setActiveSupplier(null);
+          }
+        }}
+        onDelete={async () => {
+          if (activeSupplier) {
+            const ok = await onDeleteSupplier(activeSupplier.id);
+            if (ok) setActiveSupplier(null);
+          }
+        }}
+      />
+
+      <WarehouseDetailDrawer
+        isOpen={!!activeWarehouse}
+        warehouse={activeWarehouse}
+        onClose={() => setActiveWarehouse(null)}
+        onEdit={() => {
+          if (activeWarehouse) {
+            startEditWarehouse(activeWarehouse);
+            setActiveWarehouse(null);
+          }
+        }}
+        onDelete={async () => {
+          if (activeWarehouse) {
+            const ok = await onDeleteWarehouse(activeWarehouse.id);
+            if (ok) setActiveWarehouse(null);
+          }
+        }}
+      />
     </div>
   );
 }

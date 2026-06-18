@@ -709,3 +709,97 @@ export async function updateProjectNote(
     return res.rows[0] as InternalNote;
   });
 }
+
+export interface ScheduleDetail extends Schedule {
+  projectName: string | null;
+  projectCode: string | null;
+  customerName: string;
+  customerCode: string;
+}
+
+/**
+ * Fetch all schedules globally
+ */
+export async function getSchedules(params: {
+  search?: string;
+  scheduleType?: string;
+  status?: string;
+  limit?: number;
+  offset?: number;
+  page?: number;
+  sort?: string;
+  order?: SortDirection;
+}): Promise<PaginatedResult<ScheduleDetail>> {
+  try {
+    const {
+      search,
+      scheduleType,
+      status,
+      limit = 20,
+      offset = 0,
+      page = Math.floor(offset / limit) + 1,
+      sort = 'startsAt',
+      order = 'asc',
+    } = params;
+
+    const whereClauses: string[] = ['s.deleted_at IS NULL'];
+    const values: unknown[] = [];
+
+    const sortColumns = {
+      startsAt: 's.starts_at',
+      endsAt: 's.ends_at',
+      title: 's.title',
+      scheduleType: 's.schedule_type',
+      status: 's.status',
+      customerName: 'c.name',
+      projectName: 'p.name',
+      ownerName: 'u.full_name',
+    };
+
+    if (search) {
+      values.push(`%${search}%`);
+      whereClauses.push(`(s.title ILIKE $${values.length} OR c.name ILIKE $${values.length} OR p.name ILIKE $${values.length})`);
+    }
+
+    if (scheduleType) {
+      values.push(scheduleType);
+      whereClauses.push(`s.schedule_type = $${values.length}`);
+    }
+
+    if (status) {
+      values.push(status);
+      whereClauses.push(`s.status = $${values.length}`);
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const countRes = await query<{ count: number }>(`
+      SELECT COUNT(*)::int as count
+      FROM app.schedules s
+      INNER JOIN app.customers c ON s.customer_id = c.id
+      LEFT JOIN app.projects p ON s.project_id = p.id
+      LEFT JOIN app.users u ON s.owner_user_id = u.id
+      ${whereSql}
+    `, values);
+
+    const queryValues = [...values, limit, offset];
+    const res = await query(`
+      SELECT 
+        s.id, s.project_id as "projectId", p.name as "projectName", p.code as "projectCode",
+        s.customer_id as "customerId", c.name as "customerName", c.code as "customerCode",
+        s.schedule_type as "scheduleType", s.title, s.starts_at::text as "startsAt", s.ends_at::text as "endsAt",
+        s.owner_user_id as "ownerUserId", u.full_name as "ownerName", s.status, s.notes
+      FROM app.schedules s
+      INNER JOIN app.customers c ON s.customer_id = c.id
+      LEFT JOIN app.projects p ON s.project_id = p.id
+      LEFT JOIN app.users u ON s.owner_user_id = u.id
+      ${whereSql}
+      ORDER BY ${getSortSql(sort, order, sortColumns)}
+      LIMIT $${queryValues.length - 1} OFFSET $${queryValues.length}
+    `, queryValues);
+
+    return buildPagination(res.rows as ScheduleDetail[], countRes.rows[0].count, { page, limit, offset });
+  } catch (error) {
+    console.error('Error fetching schedules:', error);
+    throw error;
+  }
+}

@@ -5,6 +5,7 @@ import { ListToolbar } from '@/components/ui/ListControls';
 import { CustomerCareReminder, RemindersTable } from './components/RemindersTable';
 import { ReminderCreateModal } from './components/ReminderCreateModal';
 import { ReminderCompleteModal } from './components/ReminderCompleteModal';
+import { ReminderDetailDrawer } from './components/ReminderDetailDrawer';
 
 interface UserSession {
   id: string;
@@ -33,6 +34,7 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingReminder, setEditingReminder] = useState<CustomerCareReminder | null>(null);
   const [activeReminder, setActiveReminder] = useState<CustomerCareReminder | null>(null);
+  const [activeDetailReminder, setActiveDetailReminder] = useState<CustomerCareReminder | null>(null);
 
   // Fetch all necessary data
   const fetchData = async () => {
@@ -259,6 +261,7 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
         order={order}
         onSort={handleSort}
         onPageChange={setPage}
+        onView={(r) => setActiveDetailReminder(r)}
         onComplete={(r) => setActiveReminder(r)}
         onEdit={startEditReminder}
         onDelete={handleDeleteReminder}
@@ -283,6 +286,30 @@ export function CustomerCareClient({ currentUser }: { currentUser: UserSession }
         activeReminder={activeReminder}
         onClose={() => setActiveReminder(null)}
         onSubmit={handleCompleteReminderSubmit}
+      />
+
+      <ReminderDetailDrawer
+        isOpen={!!activeDetailReminder}
+        reminder={activeDetailReminder}
+        onClose={() => setActiveDetailReminder(null)}
+        onEdit={() => {
+          if (activeDetailReminder) {
+            startEditReminder(activeDetailReminder);
+            setActiveDetailReminder(null);
+          }
+        }}
+        onDelete={async () => {
+          if (activeDetailReminder) {
+            await handleDeleteReminder(activeDetailReminder);
+            setActiveDetailReminder(null);
+          }
+        }}
+        onComplete={() => {
+          if (activeDetailReminder) {
+            setActiveReminder(activeDetailReminder);
+            setActiveDetailReminder(null);
+          }
+        }}
       />
     </div>
   </div>
