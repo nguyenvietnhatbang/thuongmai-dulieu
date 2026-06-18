@@ -55,7 +55,15 @@ export function Drawer({ isOpen, onClose, title, subtitle, children, footer, max
   if (!isOpen) return null;
 
   if (type === 'push') {
-    const drawerWidth = maxWidthClass.includes('max-w-xl') ? '36rem' : '42rem';
+    const drawerWidth = maxWidthClass.includes('max-w-4xl')
+      ? 'min(72rem, 55vw)'
+      : maxWidthClass.includes('max-w-3xl')
+        ? 'min(64rem, 50vw)'
+        : maxWidthClass.includes('max-w-2xl')
+          ? 'min(48rem, 45vw)'
+          : maxWidthClass.includes('max-w-xl')
+            ? '36rem'
+            : '42rem';
 
     return (
       <div

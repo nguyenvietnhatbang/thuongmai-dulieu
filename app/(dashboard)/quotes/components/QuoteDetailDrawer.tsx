@@ -110,7 +110,7 @@ export function QuoteDetailDrawer({
   return (
     <div className={isPageMode
       ? 'relative h-full w-full border border-border bg-card flex flex-col justify-between shadow-sm overflow-hidden rounded-xl'
-      : 'relative h-full w-[500px] md:w-[550px] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden'
+      : 'relative h-full w-[min(64rem,60vw)] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden'
     }>
       {/* Header */}
       <div className="p-6 border-b border-border flex items-center justify-between bg-slate-50/50">
@@ -176,9 +176,9 @@ export function QuoteDetailDrawer({
                 </button>
               </div>
 
-              <div className="border border-border rounded-xl p-3 bg-slate-50 space-y-3">
+              <div className="border border-border rounded-xl p-3 bg-slate-50 space-y-3 overflow-x-auto">
                 {editItems.map((item, idx) => (
-                  <div key={idx} className="grid grid-cols-12 gap-3 items-end border-b border-border/50 pb-3 last:border-0 last:pb-0">
+                  <div key={idx} className="grid min-w-[780px] grid-cols-12 gap-3 items-end border-b border-border/50 pb-3 last:border-0 last:pb-0">
                     <div className="col-span-5">
                       <label className="block text-[8px] font-bold text-slate-600 uppercase mb-0.5">Tên hạng mục *</label>
                       <input
@@ -306,8 +306,8 @@ export function QuoteDetailDrawer({
             {/* Line Items Table */}
             <div>
               <h3 className="text-xs font-bold text-slate-700 uppercase mb-2">Bảng kê chi tiết hạng mục</h3>
-              <div className="border border-border rounded-xl overflow-hidden text-xs">
-                <table className="w-full text-left">
+              <div className="border border-border rounded-xl overflow-x-auto text-xs">
+                <table className="w-full min-w-[760px] text-left">
                   <thead>
                     <tr className="bg-slate-50 border-b border-border font-bold text-slate-600">
                       <th className="px-4 py-3">Hạng mục</th>

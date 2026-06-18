@@ -212,9 +212,9 @@ export function SalesOrdersTab({
       </div>
 
       {/* SO CREATION MODAL */}
-      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Lập đơn bán hàng & Trừ kho" maxWidthClass="max-w-2xl">
+      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Lập đơn bán hàng & Trừ kho" maxWidthClass="max-w-[min(96rem,calc(100vw-2rem))]">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Mã đơn bán hàng *</label>
               <input type="text" required placeholder="SO-001..." value={newSo.code} onChange={e => setNewSo({...newSo, code: e.target.value})} className="premium-input" />
@@ -234,7 +234,7 @@ export function SalesOrdersTab({
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ngày bán hàng</label>
               <input type="date" value={newSo.saleDate} onChange={e => setNewSo({...newSo, saleDate: e.target.value})} className="premium-input" />
@@ -256,9 +256,9 @@ export function SalesOrdersTab({
                 + Thêm dòng
               </button>
             </div>
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <div className="space-y-2 overflow-x-auto pb-1">
               {newSo.items.map((it, idx) => (
-                <div key={idx} className="flex gap-2 items-center">
+                <div key={idx} className="grid min-w-[980px] grid-cols-[minmax(18rem,1fr)_minmax(14rem,0.8fr)_7rem_10rem_2.5rem] gap-2 items-center">
                   <SearchableSelect
                     value={it.productId}
                     placeholder="-- Sản phẩm --"
@@ -269,7 +269,6 @@ export function SalesOrdersTab({
                       description: p.unitCode,
                     }))}
                     onChange={(productId) => handleLineChange(idx, 'productId', productId)}
-                    className="flex-1"
                   />
                   <SearchableSelect
                     value={it.warehouseId}
@@ -281,10 +280,9 @@ export function SalesOrdersTab({
                       description: w.code,
                     }))}
                     onChange={(warehouseId) => handleLineChange(idx, 'warehouseId', warehouseId)}
-                    className="flex-1"
                   />
-                  <input type="number" required placeholder="SL" min={1} value={it.quantity} onChange={e => handleLineChange(idx, 'quantity', Number(e.target.value))} className="premium-input w-16" />
-                  <input type="number" required placeholder="Đơn giá" min={0} value={it.unitPrice} onChange={e => handleLineChange(idx, 'unitPrice', Number(e.target.value))} className="premium-input w-24" />
+                  <input type="number" required placeholder="SL" min={1} value={it.quantity} onChange={e => handleLineChange(idx, 'quantity', Number(e.target.value))} className="premium-input" />
+                  <input type="number" required placeholder="Đơn giá" min={0} value={it.unitPrice} onChange={e => handleLineChange(idx, 'unitPrice', Number(e.target.value))} className="premium-input" />
                   <button type="button" onClick={() => setNewSo({...newSo, items: newSo.items.filter((_, i) => i !== idx)})} className="text-rose-600 hover:text-rose-800 p-1 cursor-pointer">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                   </button>

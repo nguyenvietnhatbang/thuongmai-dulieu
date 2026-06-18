@@ -272,7 +272,7 @@ export function CustomerDetailDrawer({
   return (
     <div className={isPageMode
       ? 'relative h-full w-full min-w-0 border border-border bg-card flex flex-col justify-between shadow-sm overflow-hidden rounded-xl'
-      : 'relative h-full w-[450px] md:w-[500px] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden'
+      : 'relative h-full w-[min(64rem,60vw)] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden'
     }>
       {/* Drawer Header */}
       <div className="p-6 border-b border-border flex items-center justify-between bg-slate-50/50">

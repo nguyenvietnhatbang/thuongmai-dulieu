@@ -436,9 +436,9 @@ export function ReceiptsTab({
       </div>
 
       {/* PO CREATION MODAL */}
-      <Modal isOpen={isPoOpen} onClose={() => setIsPoOpen(false)} title="Lập đơn đặt mua hàng (Purchase Order)" maxWidthClass="max-w-2xl">
+      <Modal isOpen={isPoOpen} onClose={() => setIsPoOpen(false)} title="Lập đơn đặt mua hàng (Purchase Order)" maxWidthClass="max-w-[min(96rem,calc(100vw-2rem))]">
         <form onSubmit={handlePoSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Mã PO *</label>
               <input type="text" required placeholder="PO-001..." value={newPo.code} onChange={e => setNewPo({...newPo, code: e.target.value})} className="premium-input" />
@@ -458,7 +458,7 @@ export function ReceiptsTab({
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ngày đặt hàng</label>
               <input type="date" value={newPo.purchaseDate} onChange={e => setNewPo({...newPo, purchaseDate: e.target.value})} className="premium-input" />
@@ -476,9 +476,9 @@ export function ReceiptsTab({
                 + Thêm dòng
               </button>
             </div>
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <div className="space-y-2 overflow-x-auto pb-1">
               {newPo.items.map((it, idx) => (
-                <div key={idx} className="flex gap-2 items-center">
+                <div key={idx} className="grid min-w-[760px] grid-cols-[minmax(18rem,1fr)_7rem_10rem_2.5rem] gap-2 items-center">
                   <SearchableSelect
                     value={it.productId}
                     placeholder="-- Sản phẩm --"
@@ -489,10 +489,9 @@ export function ReceiptsTab({
                       description: p.unitCode,
                     }))}
                     onChange={(productId) => handlePoLineChange(idx, 'productId', productId)}
-                    className="flex-1"
                   />
-                  <input type="number" required placeholder="SL" min={1} value={it.quantity} onChange={e => handlePoLineChange(idx, 'quantity', Number(e.target.value))} className="premium-input w-20" />
-                  <input type="number" required placeholder="Đơn giá" min={0} value={it.unitPrice} onChange={e => handlePoLineChange(idx, 'unitPrice', Number(e.target.value))} className="premium-input w-28" />
+                  <input type="number" required placeholder="SL" min={1} value={it.quantity} onChange={e => handlePoLineChange(idx, 'quantity', Number(e.target.value))} className="premium-input" />
+                  <input type="number" required placeholder="Đơn giá" min={0} value={it.unitPrice} onChange={e => handlePoLineChange(idx, 'unitPrice', Number(e.target.value))} className="premium-input" />
                   <button type="button" onClick={() => setNewPo({...newPo, items: newPo.items.filter((_, i) => i !== idx)})} className="text-rose-600 hover:text-rose-800 p-1 cursor-pointer">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                   </button>
@@ -509,9 +508,9 @@ export function ReceiptsTab({
       </Modal>
 
       {/* GOODS RECEIPT CREATION MODAL */}
-      <Modal isOpen={isReceiptOpen} onClose={() => setIsReceiptOpen(false)} title="Lập phiếu nhập kho hàng (Goods Inward)" maxWidthClass="max-w-2xl">
+      <Modal isOpen={isReceiptOpen} onClose={() => setIsReceiptOpen(false)} title="Lập phiếu nhập kho hàng (Goods Inward)" maxWidthClass="max-w-[min(96rem,calc(100vw-2rem))]">
         <form onSubmit={handleReceiptSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Mã phiếu nhập *</label>
               <input type="text" required placeholder="PNK-001..." value={newReceipt.code} onChange={e => setNewReceipt({...newReceipt, code: e.target.value})} className="premium-input" />
@@ -531,7 +530,7 @@ export function ReceiptsTab({
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Theo đơn đặt mua (PO)</label>
               <SearchableSelect
@@ -565,9 +564,9 @@ export function ReceiptsTab({
                 </button>
               )}
             </div>
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <div className="space-y-2 overflow-x-auto pb-1">
               {newReceipt.items.map((it, idx) => (
-                <div key={idx} className="flex gap-2 items-center">
+                <div key={idx} className="grid min-w-[760px] grid-cols-[minmax(18rem,1fr)_7rem_10rem_2.5rem] gap-2 items-center">
                   <SearchableSelect
                     value={it.productId}
                     placeholder="-- Sản phẩm --"
@@ -579,10 +578,9 @@ export function ReceiptsTab({
                     }))}
                     onChange={(productId) => handleReceiptLineChange(idx, 'productId', productId)}
                     disabled={!!newReceipt.purchaseOrderId}
-                    className="flex-1"
                   />
-                  <input type="number" required placeholder="SL" min={1} value={it.quantity} onChange={e => handleReceiptLineChange(idx, 'quantity', Number(e.target.value))} disabled={!!newReceipt.purchaseOrderId} className="premium-input w-20 disabled:opacity-75" />
-                  <input type="number" required placeholder="Đơn giá" min={0} value={it.unitPrice} onChange={e => handleReceiptLineChange(idx, 'unitPrice', Number(e.target.value))} disabled={!!newReceipt.purchaseOrderId} className="premium-input w-28 disabled:opacity-75" />
+                  <input type="number" required placeholder="SL" min={1} value={it.quantity} onChange={e => handleReceiptLineChange(idx, 'quantity', Number(e.target.value))} disabled={!!newReceipt.purchaseOrderId} className="premium-input disabled:opacity-75" />
+                  <input type="number" required placeholder="Đơn giá" min={0} value={it.unitPrice} onChange={e => handleReceiptLineChange(idx, 'unitPrice', Number(e.target.value))} disabled={!!newReceipt.purchaseOrderId} className="premium-input disabled:opacity-75" />
                   {!newReceipt.purchaseOrderId && (
                     <button type="button" onClick={() => setNewReceipt({...newReceipt, items: newReceipt.items.filter((_, i) => i !== idx)})} className="text-rose-600 hover:text-rose-800 p-1 cursor-pointer">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>

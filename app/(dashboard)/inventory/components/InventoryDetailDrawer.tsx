@@ -148,8 +148,8 @@ export function InventoryDetailDrawer({
         {/* Items list */}
         <div className="space-y-2">
           <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Danh sách dòng hàng</h3>
-          <div className="border border-border rounded-lg overflow-hidden text-xs">
-            <table className="w-full text-left">
+          <div className="border border-border rounded-lg overflow-x-auto text-xs">
+            <table className="w-full min-w-[720px] text-left">
               <thead className="bg-slate-50 border-b border-border text-muted-foreground font-semibold">
                 <tr>
                   <th className="px-4 py-2">Sản phẩm</th>
@@ -246,7 +246,7 @@ export function InventoryDetailDrawer({
       isOpen={!!activeDetail}
       onClose={onClose}
       type={drawerType}
-      maxWidthClass="max-w-2xl"
+      maxWidthClass="max-w-4xl"
       title={getTitle()}
       subtitle={
         <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
