@@ -149,7 +149,7 @@ export function QuoteCreateModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Lập báo giá dịch vụ mới" maxWidthClass="max-w-6xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Lập báo giá dịch vụ mới" maxWidthClass="max-w-[min(96rem,calc(100vw-2rem))]">
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Header Info */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -231,14 +231,14 @@ export function QuoteCreateModal({
             </button>
           </div>
 
-          <div className="border border-border rounded-xl p-3 bg-slate-50/50 space-y-3">
+          <div className="border border-border rounded-xl p-3 bg-slate-50/50 space-y-3 overflow-x-auto">
             {newQuote.items.length === 0 ? (
               <p className="text-center py-6 text-xs text-muted-foreground">Chưa có hạng mục nào được thêm.</p>
             ) : (
               <div className="space-y-3">
                 {newQuote.items.map((item, idx) => (
-                  <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end border-b border-border/50 pb-3 last:border-0 last:pb-0">
-                    <div className="md:col-span-4">
+                  <div key={idx} className="grid min-w-[920px] grid-cols-12 gap-3 items-end border-b border-border/50 pb-3 last:border-0 last:pb-0">
+                    <div className="col-span-4">
                       <label className="block text-[9px] text-muted-foreground font-semibold mb-1">Tên hạng mục *</label>
                       <input
                         type="text"
@@ -249,7 +249,7 @@ export function QuoteCreateModal({
                         className="premium-input py-1 text-xs"
                       />
                     </div>
-                    <div className="md:col-span-3">
+                    <div className="col-span-3">
                       <label className="block text-[9px] text-muted-foreground font-semibold mb-1">Mô tả chi tiết</label>
                       <input
                         type="text"
@@ -259,7 +259,7 @@ export function QuoteCreateModal({
                         className="premium-input py-1 text-xs"
                       />
                     </div>
-                    <div className="md:col-span-1">
+                    <div className="col-span-1">
                       <label className="block text-[9px] text-muted-foreground font-semibold mb-1">ĐVT</label>
                       <select
                         value={item.unitCode}
@@ -272,7 +272,7 @@ export function QuoteCreateModal({
                         <option value="package">Gói</option>
                       </select>
                     </div>
-                    <div className="md:col-span-1">
+                    <div className="col-span-1">
                       <label className="block text-[9px] text-muted-foreground font-semibold mb-1">Số lượng *</label>
                       <input
                         type="number"
@@ -284,7 +284,7 @@ export function QuoteCreateModal({
                         className="premium-input py-1 text-xs font-mono"
                       />
                     </div>
-                    <div className="md:col-span-3 flex items-center gap-2">
+                    <div className="col-span-3 flex items-center gap-2">
                       <div className="flex-1">
                         <label className="block text-[9px] text-muted-foreground font-semibold mb-1">Đơn giá *</label>
                         <input

@@ -69,9 +69,9 @@ export function CustomerCreateModal({ isOpen, onClose, users, onCreate }: Custom
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Thêm khách hàng mới" maxWidthClass="max-w-xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Thêm khách hàng mới" maxWidthClass="max-w-4xl">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Mã khách hàng *</label>
             <input
@@ -96,7 +96,7 @@ export function CustomerCreateModal({ isOpen, onClose, users, onCreate }: Custom
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Loại khách hàng *</label>
             <select
@@ -124,7 +124,7 @@ export function CustomerCreateModal({ isOpen, onClose, users, onCreate }: Custom
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Số điện thoại chính</label>
             <input
@@ -147,7 +147,7 @@ export function CustomerCreateModal({ isOpen, onClose, users, onCreate }: Custom
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Mã số thuế</label>
             <input

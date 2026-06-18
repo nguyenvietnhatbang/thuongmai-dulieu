@@ -48,10 +48,10 @@ export function OpportunityFormModal({
       isOpen={isOpen}
       onClose={onClose}
       title={isEditing ? 'Cập nhật cơ hội bán hàng' : 'Tạo cơ hội bán hàng mới'}
-      maxWidthClass="max-w-xl"
+      maxWidthClass="max-w-4xl"
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Mã cơ hội *</label>
             <input
@@ -93,7 +93,7 @@ export function OpportunityFormModal({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Giá trị dự kiến (VND) *</label>
             <input
@@ -116,7 +116,7 @@ export function OpportunityFormModal({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nhân viên phụ trách</label>
             <SearchableSelect

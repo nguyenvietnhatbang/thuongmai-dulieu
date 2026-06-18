@@ -57,10 +57,10 @@ export function ContractCreateModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Tạo hợp đồng"
-      maxWidthClass="max-w-2xl"
+      maxWidthClass="max-w-4xl"
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           <div>
             <label className="block text-xs font-bold text-slate-600 mb-1">Mã hợp đồng</label>
             <input
@@ -138,7 +138,7 @@ export function ContractCreateModal({
 
         <div className="rounded-xl border border-border bg-slate-50/50 p-3">
           <p className="text-xs font-bold uppercase text-slate-700 mb-3">Đợt thanh toán đầu tiên</p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
             <div className="sm:col-span-1">
               <label className="block text-xs font-bold text-slate-600 mb-1">Tên đợt</label>
               <input

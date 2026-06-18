@@ -303,11 +303,11 @@ export function ProjectWorkspaceDrawer({
 
   return (
     <div className={isPageMode
-      ? 'relative h-full w-full min-w-0 border border-border bg-card flex flex-col justify-between shadow-sm overflow-hidden rounded-xl'
+      ? 'relative h-full w-full min-w-0 flex flex-col justify-between overflow-hidden'
       : 'relative h-full w-[500px] md:w-[550px] border-l border-border bg-card flex flex-col justify-between shrink-0 shadow-lg animate-slide-in-right overflow-hidden'
     }>
       {/* Header */}
-      <div className="p-6 border-b border-border flex items-center justify-between bg-slate-50/50">
+      <div className={`${isPageMode ? 'pb-5' : 'p-6 border-b border-border bg-slate-50/50'} flex items-center justify-between`}>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
@@ -332,7 +332,7 @@ export function ProjectWorkspaceDrawer({
       </div>
 
       {isPageMode && (
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 p-6 border-b border-border bg-card">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 pb-5">
           <div className="rounded-lg border border-border bg-slate-50/60 p-3">
             <p className="text-[10px] font-bold uppercase text-muted-foreground">Hợp đồng</p>
             <p className="mt-1 text-sm font-semibold text-foreground font-mono">{activeProj.contractNumber || 'Chưa liên kết'}</p>
@@ -362,7 +362,7 @@ export function ProjectWorkspaceDrawer({
       )}
 
       {/* Tab Headers */}
-      <div className="flex border-b border-border text-xs font-semibold overflow-x-auto scrollbar-thin">
+      <div className={`${isPageMode ? 'rounded-xl border border-border bg-card' : 'border-b border-border'} flex text-xs font-semibold overflow-x-auto scrollbar-thin`}>
         <button
           onClick={() => setWorkspaceTab('tasks')}
           className={`flex-1 text-center py-3 px-3 border-b-2 transition-all cursor-pointer whitespace-nowrap ${
@@ -410,7 +410,7 @@ export function ProjectWorkspaceDrawer({
       </div>
 
       {/* Tab Body */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className={`${isPageMode ? 'py-5' : 'p-6'} flex-1 overflow-y-auto space-y-6`}>
         {workspaceLoading ? (
           <p className="text-center py-12 text-xs text-muted-foreground">Đang tải dữ liệu không gian làm việc...</p>
         ) : workspaceTab === 'tasks' ? (
@@ -1042,7 +1042,7 @@ export function ProjectWorkspaceDrawer({
       </div>
 
       {/* Footer close */}
-      <div className="p-6 border-t border-border bg-slate-50/50 flex">
+      <div className={`${isPageMode ? 'pt-5' : 'p-6 border-t border-border bg-slate-50/50'} flex`}>
         <button
           onClick={onClose}
           className="flex-1 py-2 border border-border text-sm font-semibold rounded-lg bg-card hover:bg-muted text-center cursor-pointer"
