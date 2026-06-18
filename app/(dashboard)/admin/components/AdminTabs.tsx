@@ -13,7 +13,6 @@ export const defaultAdminTabs: Array<{ id: AdminTab; label: string }> = [
   { id: 'users', label: 'Người dùng' },
   { id: 'roles', label: 'Vai trò' },
   { id: 'rbac', label: 'Phân quyền' },
-  { id: 'company', label: 'Công ty' },
 ];
 
 export function AdminTabs({ activeTab, tabs = defaultAdminTabs, onChange }: AdminTabsProps) {

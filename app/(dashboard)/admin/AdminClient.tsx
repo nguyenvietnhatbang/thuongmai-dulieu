@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { AdminTabs } from './components/AdminTabs';
-import { CompanySettingsTab } from './components/CompanySettingsTab';
 import { DepartmentFormModal } from './components/DepartmentFormModal';
 import { PermissionsTab } from './components/PermissionsTab';
 import { RoleFormModal } from './components/RoleFormModal';
@@ -12,8 +11,6 @@ import { UsersTab } from './components/UsersTab';
 import {
   AdminTab,
   AdminUserRecord,
-  CompanySettingsFormState,
-  CompanySettingsRecord,
   DepartmentFormState,
   DepartmentRecord,
   PermissionRecord,
@@ -33,19 +30,6 @@ interface UserSession {
 
 const defaultRoleForm: RoleFormState = { code: '', name: '', description: '', isActive: true };
 const defaultDepartmentForm: DepartmentFormState = { code: '', name: '', status: 'active' };
-const defaultCompanyForm: CompanySettingsFormState = {
-  companyName: '',
-  navName: '',
-  shortName: '',
-  navSubtitle: '',
-  taxCode: '',
-  address: '',
-  hotline: '',
-  email: '',
-  website: '',
-  representativeName: '',
-  representativeTitle: '',
-};
 const defaultUserForm: UserFormState = {
   email: '',
   fullName: '',
@@ -58,16 +42,14 @@ const defaultUserForm: UserFormState = {
 export function AdminClient({ currentUser }: { currentUser: UserSession }) {
   const canManageUsers = currentUser.roles.includes('system_management') || currentUser.permissions.includes('users.update.all');
   const canManageRoles = currentUser.roles.includes('system_management') || currentUser.permissions.includes('roles.configure.all');
-  const canManageSettings = currentUser.roles.includes('system_management') || currentUser.permissions.includes('settings.configure.all');
   const availableTabs: Array<{ id: AdminTab; label: string }> = [
     ...(canManageUsers ? [{ id: 'users' as const, label: 'Người dùng' }] : []),
     ...(canManageRoles ? [
       { id: 'roles' as const, label: 'Vai trò' },
       { id: 'rbac' as const, label: 'Phân quyền' },
     ] : []),
-    ...(canManageSettings ? [{ id: 'company' as const, label: 'Công ty' }] : []),
   ];
-  const [activeTab, setActiveTab] = useState<AdminTab>(() => availableTabs[0]?.id || 'company');
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => availableTabs[0]?.id || 'users');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -76,7 +58,6 @@ export function AdminClient({ currentUser }: { currentUser: UserSession }) {
   const [permissions, setPermissions] = useState<PermissionRecord[]>([]);
   const [rolePermissions, setRolePermissions] = useState<RolePermissionRecord[]>([]);
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
-  const [companyForm, setCompanyForm] = useState<CompanySettingsFormState>(defaultCompanyForm);
 
   const [activeRoleId, setActiveRoleId] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
@@ -94,12 +75,8 @@ export function AdminClient({ currentUser }: { currentUser: UserSession }) {
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      const [adminRes, companyRes] = await Promise.all([
-        canManageUsers || canManageRoles ? fetch('/api/admin') : Promise.resolve(null),
-        fetch('/api/settings/company'),
-      ]);
-      const json = adminRes ? await adminRes.json() : null;
-      const companyJson = await companyRes.json();
+      const res = await fetch('/api/admin');
+      const json = await res.json();
       if (json?.success) {
         setRoles(json.data.roles);
         setDepartments(json.data.departments || []);
@@ -107,22 +84,6 @@ export function AdminClient({ currentUser }: { currentUser: UserSession }) {
         setRolePermissions(json.data.rolePermissions);
         setUsers(json.data.users);
         setActiveRoleId(prev => prev || json.data.roles[0]?.id || '');
-      }
-      if (companyJson.success) {
-        const settings = companyJson.data as CompanySettingsRecord;
-        setCompanyForm({
-          companyName: settings.companyName || '',
-          navName: settings.navName || '',
-          shortName: settings.shortName || '',
-          navSubtitle: settings.navSubtitle || '',
-          taxCode: settings.taxCode || '',
-          address: settings.address || '',
-          hotline: settings.hotline || '',
-          email: settings.email || '',
-          website: settings.website || '',
-          representativeName: settings.representativeName || '',
-          representativeTitle: settings.representativeTitle || '',
-        });
       }
     } catch (err) {
       console.error(err);
@@ -395,44 +356,6 @@ export function AdminClient({ currentUser }: { currentUser: UserSession }) {
     }
   };
 
-  const handleSaveCompanySettings = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setSaving(true);
-    try {
-      const res = await fetch('/api/settings/company', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(companyForm),
-      });
-      const json = await res.json();
-
-      if (!json.success) {
-        alert(json.error || 'Lưu thông tin công ty thất bại');
-        return;
-      }
-
-      const settings = json.data as CompanySettingsRecord;
-      setCompanyForm({
-        companyName: settings.companyName || '',
-        navName: settings.navName || '',
-        shortName: settings.shortName || '',
-        navSubtitle: settings.navSubtitle || '',
-        taxCode: settings.taxCode || '',
-        address: settings.address || '',
-        hotline: settings.hotline || '',
-        email: settings.email || '',
-        website: settings.website || '',
-        representativeName: settings.representativeName || '',
-        representativeTitle: settings.representativeTitle || '',
-      });
-    } catch (err) {
-      console.error(err);
-      alert('Đã xảy ra lỗi khi lưu thông tin công ty');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <div className="flex h-full w-full items-stretch overflow-hidden gap-6">
       <div className="flex-1 overflow-y-auto pr-2 pb-8 space-y-6">
@@ -483,14 +406,6 @@ export function AdminClient({ currentUser }: { currentUser: UserSession }) {
             />
           )}
 
-          {activeTab === 'company' && canManageSettings && (
-            <CompanySettingsTab
-              form={companyForm}
-              saving={saving}
-              onChange={setCompanyForm}
-              onSubmit={handleSaveCompanySettings}
-            />
-          )}
         </>
       )}
 

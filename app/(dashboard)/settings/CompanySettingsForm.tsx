@@ -1,8 +1,20 @@
 'use client';
 
-import { CompanySettingsFormState } from './types';
+export interface CompanySettingsFormState {
+  companyName: string;
+  navName: string;
+  shortName: string;
+  navSubtitle: string;
+  taxCode: string;
+  address: string;
+  hotline: string;
+  email: string;
+  website: string;
+  representativeName: string;
+  representativeTitle: string;
+}
 
-interface CompanySettingsTabProps {
+interface CompanySettingsFormProps {
   form: CompanySettingsFormState;
   saving: boolean;
   onChange: (form: CompanySettingsFormState) => void;
@@ -30,7 +42,7 @@ const fields: Array<{
   { name: 'representativeTitle', label: 'Chức danh người đại diện' },
 ];
 
-export function CompanySettingsTab({ form, saving, onChange, onSubmit }: CompanySettingsTabProps) {
+export function CompanySettingsForm({ form, saving, onChange, onSubmit }: CompanySettingsFormProps) {
   const setField = (name: keyof CompanySettingsFormState, value: string) => {
     onChange({ ...form, [name]: value });
   };

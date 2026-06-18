@@ -52,13 +52,6 @@ export default async function DashboardLayout({
           />
         </div>
 
-        {/* User account panel */}
-        <div className="shrink-0 border-t border-slate-800/80 bg-slate-950/20 p-3 pb-5">
-          <AccountMenu currentUser={{
-            fullName: currentUser.fullName,
-            email: currentUser.email,
-          }} />
-        </div>
       </aside>
 
       {/* Main App Workspace Area */}
@@ -78,6 +71,14 @@ export default async function DashboardLayout({
 
             {/* Notification Bell */}
             <NotificationBell />
+
+            <AccountMenu
+              variant="header"
+              currentUser={{
+                fullName: currentUser.fullName,
+                email: currentUser.email,
+              }}
+            />
           </div>
         </header>
 

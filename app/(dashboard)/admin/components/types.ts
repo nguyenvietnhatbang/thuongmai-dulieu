@@ -59,22 +59,5 @@ export interface DepartmentFormState {
   status: 'active' | 'inactive';
 }
 
-export interface CompanySettingsRecord {
-  id: string | null;
-  companyName: string;
-  navName: string;
-  shortName: string;
-  navSubtitle: string;
-  taxCode: string;
-  address: string;
-  hotline: string;
-  email: string;
-  website: string;
-  representativeName: string;
-  representativeTitle: string;
-}
-
-export type CompanySettingsFormState = Omit<CompanySettingsRecord, 'id'>;
-
-export type AdminTab = 'users' | 'roles' | 'rbac' | 'company';
+export type AdminTab = 'users' | 'roles' | 'rbac';
 export type SortDirection = 'asc' | 'desc';

@@ -1,10 +1,10 @@
-import { getCurrentUser, hasPermission } from '@/lib/auth';
-import { AdminClient } from './AdminClient';
 import Link from 'next/link';
+import { getCurrentUser, hasPermission } from '@/lib/auth';
+import { SettingsClient } from './SettingsClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminPage() {
+export default async function SettingsPage() {
   const currentUser = await getCurrentUser();
 
   if (!currentUser) {
@@ -15,10 +15,8 @@ export default async function AdminPage() {
     );
   }
 
-  // Check admin/configure permissions
   const canConfigure = currentUser.roles.includes('system_management') ||
-    await hasPermission('roles.configure.all') ||
-    await hasPermission('users.update.all');
+    await hasPermission('settings.configure.all');
 
   if (!canConfigure) {
     return (
@@ -30,7 +28,7 @@ export default async function AdminPage() {
         </div>
         <h1 className="text-lg font-bold text-foreground">Không có quyền cấu hình</h1>
         <p className="text-sm text-muted-foreground">
-          Tài khoản của bạn (<span className="font-mono text-xs">{currentUser.email}</span>) không thuộc vai trò quản trị hệ thống.
+          Tài khoản của bạn (<span className="font-mono text-xs">{currentUser.email}</span>) chưa có quyền thay đổi cấu hình hệ thống.
         </p>
         <Link
           href="/"
@@ -42,5 +40,5 @@ export default async function AdminPage() {
     );
   }
 
-  return <AdminClient currentUser={currentUser} />;
+  return <SettingsClient />;
 }

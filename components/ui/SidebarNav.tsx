@@ -142,7 +142,7 @@ export function SidebarNav({ currentUser }: SidebarNavProps) {
           )
         },
         {
-          name: "Mua hàng & Nhập kho",
+          name: "Mua & Nhập kho",
           href: "/purchases",
           permission: "inventory.view.all",
           icon: (
@@ -190,12 +190,22 @@ export function SidebarNav({ currentUser }: SidebarNavProps) {
       ],
       items: [
         {
-          name: "Cấu hình hệ thống",
+          name: "Quản trị phân quyền",
           href: "/admin",
-          requiredAnyPermission: ['users.update.all', 'roles.configure.all', 'settings.configure.all'],
+          requiredAnyPermission: ['users.update.all', 'roles.configure.all'],
           icon: (
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+          )
+        },
+        {
+          name: "Cấu hình công ty",
+          href: "/settings",
+          permission: "settings.configure.all",
+          icon: (
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21h18M5 21V7l8-4 6 3v15M9 9h1m-1 4h1m4-4h1m-1 4h1M9 21v-4h6v4" />
             </svg>
           )
         }
@@ -221,7 +231,7 @@ export function SidebarNav({ currentUser }: SidebarNavProps) {
   };
 
   return (
-    <nav className="p-4 space-y-5 overflow-y-auto max-h-[calc(100vh-140px)]">
+    <nav className="p-4 space-y-5 overflow-y-auto max-h-[calc(100vh-80px)]">
       {/* Dashboard link (always visible) */}
       <div className="space-y-1">
         <Link
