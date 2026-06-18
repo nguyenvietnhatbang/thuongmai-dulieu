@@ -5,16 +5,18 @@ import { AdminTab } from './types';
 
 interface AdminTabsProps {
   activeTab: AdminTab;
+  tabs?: Array<{ id: AdminTab; label: string }>;
   onChange: (tab: AdminTab) => void;
 }
 
-const tabs: Array<{ id: AdminTab; label: string }> = [
+export const defaultAdminTabs: Array<{ id: AdminTab; label: string }> = [
   { id: 'users', label: 'Người dùng' },
   { id: 'roles', label: 'Vai trò' },
   { id: 'rbac', label: 'Phân quyền' },
+  { id: 'company', label: 'Công ty' },
 ];
 
-export function AdminTabs({ activeTab, onChange }: AdminTabsProps) {
+export function AdminTabs({ activeTab, tabs = defaultAdminTabs, onChange }: AdminTabsProps) {
   return (
     <PageTabs
       tabs={tabs}

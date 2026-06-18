@@ -17,7 +17,9 @@ export default async function AdminPage() {
 
   // Check admin/configure permissions
   const canConfigure = currentUser.roles.includes('system_management') ||
-    await hasPermission('roles.configure.all');
+    await hasPermission('roles.configure.all') ||
+    await hasPermission('users.update.all') ||
+    await hasPermission('settings.configure.all');
 
   if (!canConfigure) {
     return (

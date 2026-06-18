@@ -4,6 +4,7 @@ import { AccountMenu } from '@/components/ui/AccountMenu';
 import { NotificationBell } from '@/components/ui/NotificationBell';
 import { SidebarNav } from '@/components/ui/SidebarNav';
 import { HeaderTitle } from '@/components/ui/HeaderTitle';
+import { getCompanySettings } from '@/features/settings/services/company-settings.service';
 
 // Force dynamic execution
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,10 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const currentUser = await getCurrentUser();
+  const [currentUser, companySettings] = await Promise.all([
+    getCurrentUser(),
+    getCompanySettings(),
+  ]);
 
   if (!currentUser) {
     redirect('/login');
@@ -27,11 +31,15 @@ export default async function DashboardLayout({
           {/* Logo Brand Header */}
           <div className="h-16 flex items-center gap-2.5 px-6 border-b border-slate-800/80">
             <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white font-bold shadow-md shadow-blue-500/25">
-              <span>AG</span>
+              <span>{companySettings.shortName}</span>
             </div>
-            <div>
-              <h1 className="font-bold text-sm tracking-tight text-slate-100 leading-none">Antigravity CRM</h1>
-              <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Commerce Edition</span>
+            <div className="min-w-0">
+              <h1 className="font-bold text-sm tracking-tight text-slate-100 leading-none truncate">{companySettings.navName}</h1>
+              {companySettings.navSubtitle && (
+                <span className="block text-[10px] text-slate-400 font-medium uppercase tracking-wider truncate">
+                  {companySettings.navSubtitle}
+                </span>
+              )}
             </div>
           </div>
 

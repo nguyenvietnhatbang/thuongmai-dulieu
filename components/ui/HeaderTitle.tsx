@@ -35,7 +35,7 @@ export function HeaderTitle() {
       case '/reports':
         return { title: 'Báo cáo', breadcrumb: 'Trang chủ > Báo cáo thương mại' };
       case '/admin':
-        return { title: 'Quản trị hệ thống', breadcrumb: 'Trang chủ > Quản trị phân quyền' };
+        return { title: 'Cấu hình hệ thống', breadcrumb: 'Trang chủ > Cấu hình & Hệ thống' };
       default:
         return { title: 'Tổng quan', breadcrumb: 'Hệ thống / Tổng quan' };
     }

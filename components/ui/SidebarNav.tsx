@@ -8,6 +8,7 @@ interface NavItem {
   href: string;
   icon: React.ReactNode;
   permission?: string;
+  requiredAnyPermission?: string[];
 }
 
 interface NavSection {
@@ -189,9 +190,9 @@ export function SidebarNav({ currentUser }: SidebarNavProps) {
       ],
       items: [
         {
-          name: "Quản trị phân quyền",
+          name: "Cấu hình hệ thống",
           href: "/admin",
-          permission: "roles.configure.all",
+          requiredAnyPermission: ['users.update.all', 'roles.configure.all', 'settings.configure.all'],
           icon: (
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
@@ -269,11 +270,12 @@ export function SidebarNav({ currentUser }: SidebarNavProps) {
       {sections.map((sec, idx) => {
         if (!hasAnyPermission(sec.requiredAnyPermission)) return null;
 
-        const visibleItems = sec.items.filter(item =>
-          !item.permission ||
-          currentUser.roles.includes('system_management') ||
-          currentUser.permissions.includes(item.permission)
-        );
+        const visibleItems = sec.items.filter(item => {
+          if (currentUser.roles.includes('system_management')) return true;
+          if (item.requiredAnyPermission) return hasAnyPermission(item.requiredAnyPermission);
+          if (item.permission) return currentUser.permissions.includes(item.permission);
+          return true;
+        });
 
         if (visibleItems.length === 0) return null;
 

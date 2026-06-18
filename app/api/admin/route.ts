@@ -10,7 +10,9 @@ export async function GET() {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-    const allowed = user.roles.includes('system_management') || await hasPermission('roles.configure.all');
+    const allowed = user.roles.includes('system_management') ||
+      await hasPermission('roles.configure.all') ||
+      await hasPermission('users.update.all');
     if (!allowed) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
 
     // Fetch all roles
@@ -63,11 +65,30 @@ export async function POST(request: Request) {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-    const allowed = user.roles.includes('system_management') || await hasPermission('roles.configure.all');
-    if (!allowed) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
-
     const body = await request.json();
     const { action, roleId, permissions, userId, roleIds } = body;
+    const canManageRoles = user.roles.includes('system_management') || await hasPermission('roles.configure.all');
+    const canManageUsers = user.roles.includes('system_management') || await hasPermission('users.update.all');
+    const roleActions = new Set([
+      'createRole',
+      'updateRole',
+      'deleteRole',
+      'updateRolePermissions',
+      'createDepartment',
+      'updateDepartment',
+      'deleteDepartment',
+    ]);
+    const userActions = new Set(['createUser', 'updateUser', 'deleteUser', 'updateUserRoles']);
+
+    if (roleActions.has(action) && !canManageRoles) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+    if (userActions.has(action) && !canManageUsers) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+    if (!roleActions.has(action) && !userActions.has(action)) {
+      return NextResponse.json({ success: false, error: 'Unknown action' }, { status: 400 });
+    }
 
     if (action === 'createRole') {
       const code = typeof body.code === 'string' ? body.code.trim().toLowerCase() : '';

@@ -105,6 +105,26 @@ create table if not exists app.permissions (
   constraint permissions_scope_check check (scope in ('own', 'team', 'department', 'all'))
 );
 
+create table if not exists app.company_settings (
+  id uuid primary key default gen_random_uuid(),
+  singleton_key text not null default 'default' unique,
+  company_name text not null,
+  nav_name text not null,
+  short_name text not null,
+  nav_subtitle text,
+  tax_code text,
+  address text,
+  hotline text,
+  email text,
+  website text,
+  representative_name text,
+  representative_title text,
+  updated_by uuid references app.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint company_settings_singleton_key_check check (singleton_key = 'default')
+);
+
 create table if not exists app.role_permissions (
   role_id uuid not null references app.roles(id) on delete cascade,
   permission_code text not null references app.permissions(code) on delete cascade,
@@ -756,6 +776,11 @@ create trigger roles_set_updated_at
 before update on app.roles
 for each row execute function app.set_updated_at();
 
+drop trigger if exists company_settings_set_updated_at on app.company_settings;
+create trigger company_settings_set_updated_at
+before update on app.company_settings
+for each row execute function app.set_updated_at();
+
 drop trigger if exists customers_set_updated_at on app.customers;
 create trigger customers_set_updated_at
 before update on app.customers
@@ -889,6 +914,32 @@ values
   ('unit', 'Don vi tinh', 'Danh muc don vi tinh.', true),
   ('department', 'Phong ban', 'Danh muc phong ban van hanh.', true)
 on conflict (code) do nothing;
+
+insert into app.company_settings (
+  singleton_key,
+  company_name,
+  nav_name,
+  short_name,
+  nav_subtitle,
+  address,
+  hotline,
+  email,
+  website,
+  representative_title
+)
+values (
+  'default',
+  'CÔNG TY PHÁT TRIỂN THƯƠNG MẠI FREELAND',
+  'Freeland CRM',
+  'FL',
+  'Commerce Edition',
+  'Toà nhà Lotte, 54 Liễu Giai, Ba Đình, Hà Nội',
+  '1900-XXXX',
+  'crm@freeland.vn',
+  'freeland.vn',
+  'Đại diện pháp luật'
+)
+on conflict (singleton_key) do nothing;
 
 insert into app.catalog_items (category_id, code, name, sort_order, is_system)
 select category.id, item.code, item.name, item.sort_order, true

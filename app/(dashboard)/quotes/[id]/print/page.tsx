@@ -1,5 +1,6 @@
 import { query } from '@/lib/db';
 import { notFound } from 'next/navigation';
+import { buildCompanyContactLine, getCompanySettings } from '@/features/settings/services/company-settings.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,8 @@ interface PrintPageProps {
 
 export default async function QuotePrintPage({ params }: PrintPageProps) {
   const { id } = await params;
+  const companySettings = await getCompanySettings();
+  const companyContactLine = buildCompanyContactLine(companySettings);
 
   // 1. Fetch quote details
   const quoteRes = await query(
@@ -99,9 +102,9 @@ export default async function QuotePrintPage({ params }: PrintPageProps) {
         {/* Company Header */}
         <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4">
           <div className="space-y-1">
-            <h1 className="text-sm font-extrabold tracking-wider text-slate-800">CÔNG TY PHÁT TRIỂN THƯƠNG MẠI FREELAND</h1>
-            <p className="text-xs text-slate-500">Địa chỉ: Toà nhà Lotte, 54 Liễu Giai, Ba Đình, Hà Nội</p>
-            <p className="text-xs text-slate-500">Hotline: 1900-XXXX | Email: crm@freeland.vn</p>
+            <h1 className="text-sm font-extrabold tracking-wider text-slate-800">{companySettings.companyName}</h1>
+            {companySettings.address && <p className="text-xs text-slate-500">Địa chỉ: {companySettings.address}</p>}
+            {companyContactLine && <p className="text-xs text-slate-500">{companyContactLine}</p>}
           </div>
           <div className="text-right">
             <h2 className="text-base font-black text-slate-800">BÁO GIÁ DỊCH VỤ</h2>
@@ -193,7 +196,7 @@ export default async function QuotePrintPage({ params }: PrintPageProps) {
             <div className="h-24" />
           </div>
           <div>
-            <p className="font-bold text-slate-700">Đại diện Công ty Freeland</p>
+            <p className="font-bold text-slate-700">Đại diện {companySettings.navName}</p>
             <p className="text-[10px] text-slate-400 mt-1">(Ký, ghi rõ họ tên và đóng dấu)</p>
             <div className="h-24" />
           </div>

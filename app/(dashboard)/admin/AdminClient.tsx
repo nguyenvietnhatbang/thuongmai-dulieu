@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AdminTabs } from './components/AdminTabs';
+import { CompanySettingsTab } from './components/CompanySettingsTab';
 import { DepartmentFormModal } from './components/DepartmentFormModal';
 import { PermissionsTab } from './components/PermissionsTab';
 import { RoleFormModal } from './components/RoleFormModal';
@@ -11,6 +12,8 @@ import { UsersTab } from './components/UsersTab';
 import {
   AdminTab,
   AdminUserRecord,
+  CompanySettingsFormState,
+  CompanySettingsRecord,
   DepartmentFormState,
   DepartmentRecord,
   PermissionRecord,
@@ -30,6 +33,19 @@ interface UserSession {
 
 const defaultRoleForm: RoleFormState = { code: '', name: '', description: '', isActive: true };
 const defaultDepartmentForm: DepartmentFormState = { code: '', name: '', status: 'active' };
+const defaultCompanyForm: CompanySettingsFormState = {
+  companyName: '',
+  navName: '',
+  shortName: '',
+  navSubtitle: '',
+  taxCode: '',
+  address: '',
+  hotline: '',
+  email: '',
+  website: '',
+  representativeName: '',
+  representativeTitle: '',
+};
 const defaultUserForm: UserFormState = {
   email: '',
   fullName: '',
@@ -39,8 +55,19 @@ const defaultUserForm: UserFormState = {
   roleIds: [],
 };
 
-export function AdminClient({}: { currentUser: UserSession }) {
-  const [activeTab, setActiveTab] = useState<AdminTab>('users');
+export function AdminClient({ currentUser }: { currentUser: UserSession }) {
+  const canManageUsers = currentUser.roles.includes('system_management') || currentUser.permissions.includes('users.update.all');
+  const canManageRoles = currentUser.roles.includes('system_management') || currentUser.permissions.includes('roles.configure.all');
+  const canManageSettings = currentUser.roles.includes('system_management') || currentUser.permissions.includes('settings.configure.all');
+  const availableTabs: Array<{ id: AdminTab; label: string }> = [
+    ...(canManageUsers ? [{ id: 'users' as const, label: 'Người dùng' }] : []),
+    ...(canManageRoles ? [
+      { id: 'roles' as const, label: 'Vai trò' },
+      { id: 'rbac' as const, label: 'Phân quyền' },
+    ] : []),
+    ...(canManageSettings ? [{ id: 'company' as const, label: 'Công ty' }] : []),
+  ];
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => availableTabs[0]?.id || 'company');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -49,6 +76,7 @@ export function AdminClient({}: { currentUser: UserSession }) {
   const [permissions, setPermissions] = useState<PermissionRecord[]>([]);
   const [rolePermissions, setRolePermissions] = useState<RolePermissionRecord[]>([]);
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
+  const [companyForm, setCompanyForm] = useState<CompanySettingsFormState>(defaultCompanyForm);
 
   const [activeRoleId, setActiveRoleId] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
@@ -66,15 +94,35 @@ export function AdminClient({}: { currentUser: UserSession }) {
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin');
-      const json = await res.json();
-      if (json.success) {
+      const [adminRes, companyRes] = await Promise.all([
+        canManageUsers || canManageRoles ? fetch('/api/admin') : Promise.resolve(null),
+        fetch('/api/settings/company'),
+      ]);
+      const json = adminRes ? await adminRes.json() : null;
+      const companyJson = await companyRes.json();
+      if (json?.success) {
         setRoles(json.data.roles);
         setDepartments(json.data.departments || []);
         setPermissions(json.data.permissions);
         setRolePermissions(json.data.rolePermissions);
         setUsers(json.data.users);
         setActiveRoleId(prev => prev || json.data.roles[0]?.id || '');
+      }
+      if (companyJson.success) {
+        const settings = companyJson.data as CompanySettingsRecord;
+        setCompanyForm({
+          companyName: settings.companyName || '',
+          navName: settings.navName || '',
+          shortName: settings.shortName || '',
+          navSubtitle: settings.navSubtitle || '',
+          taxCode: settings.taxCode || '',
+          address: settings.address || '',
+          hotline: settings.hotline || '',
+          email: settings.email || '',
+          website: settings.website || '',
+          representativeName: settings.representativeName || '',
+          representativeTitle: settings.representativeTitle || '',
+        });
       }
     } catch (err) {
       console.error(err);
@@ -347,19 +395,57 @@ export function AdminClient({}: { currentUser: UserSession }) {
     }
   };
 
+  const handleSaveCompanySettings = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      const res = await fetch('/api/settings/company', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(companyForm),
+      });
+      const json = await res.json();
+
+      if (!json.success) {
+        alert(json.error || 'Lưu thông tin công ty thất bại');
+        return;
+      }
+
+      const settings = json.data as CompanySettingsRecord;
+      setCompanyForm({
+        companyName: settings.companyName || '',
+        navName: settings.navName || '',
+        shortName: settings.shortName || '',
+        navSubtitle: settings.navSubtitle || '',
+        taxCode: settings.taxCode || '',
+        address: settings.address || '',
+        hotline: settings.hotline || '',
+        email: settings.email || '',
+        website: settings.website || '',
+        representativeName: settings.representativeName || '',
+        representativeTitle: settings.representativeTitle || '',
+      });
+    } catch (err) {
+      console.error(err);
+      alert('Đã xảy ra lỗi khi lưu thông tin công ty');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="flex h-full w-full items-stretch overflow-hidden gap-6">
       <div className="flex-1 overflow-y-auto pr-2 pb-8 space-y-6">
-        <AdminTabs activeTab={activeTab} onChange={setActiveTab} />
+        <AdminTabs activeTab={activeTab} tabs={availableTabs} onChange={setActiveTab} />
 
         {loading ? (
           <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-2 glass-panel rounded-xl">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            <p className="text-xs">Đang tải thông tin phân quyền...</p>
+            <p className="text-xs">Đang tải cấu hình hệ thống...</p>
           </div>
         ) : (
           <>
-            {activeTab === 'users' && (
+            {activeTab === 'users' && canManageUsers && (
             <UsersTab
               users={users}
               roles={roles}
@@ -371,7 +457,7 @@ export function AdminClient({}: { currentUser: UserSession }) {
             />
           )}
 
-          {activeTab === 'roles' && (
+          {activeTab === 'roles' && canManageRoles && (
             <RolesDepartmentsTab
               roles={roles}
               departments={departments}
@@ -385,7 +471,7 @@ export function AdminClient({}: { currentUser: UserSession }) {
             />
           )}
 
-          {activeTab === 'rbac' && (
+          {activeTab === 'rbac' && canManageRoles && (
             <PermissionsTab
               roles={roles}
               permissions={permissions}
@@ -394,6 +480,15 @@ export function AdminClient({}: { currentUser: UserSession }) {
               onRoleChange={setActiveRoleId}
               onPermissionToggle={handlePermissionToggle}
               onSave={handleSaveRolePermissions}
+            />
+          )}
+
+          {activeTab === 'company' && canManageSettings && (
+            <CompanySettingsTab
+              form={companyForm}
+              saving={saving}
+              onChange={setCompanyForm}
+              onSubmit={handleSaveCompanySettings}
             />
           )}
         </>

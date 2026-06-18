@@ -1,5 +1,6 @@
 import { query } from '@/lib/db';
 import { notFound } from 'next/navigation';
+import { buildCompanyContactLine, getCompanySettings } from '@/features/settings/services/company-settings.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,8 @@ interface PrintPageProps {
 
 export default async function StockReceiptPrintPage({ params }: PrintPageProps) {
   const { id } = await params;
+  const companySettings = await getCompanySettings();
+  const companyContactLine = buildCompanyContactLine(companySettings);
 
   // 1. Fetch receipt details
   const receiptRes = await query(
@@ -99,9 +102,9 @@ export default async function StockReceiptPrintPage({ params }: PrintPageProps) 
         {/* Company Header */}
         <div className="flex justify-between items-start border-b-2 border-slate-800 pb-4">
           <div className="space-y-1">
-            <h1 className="text-sm font-extrabold tracking-wider text-slate-800">CÔNG TY PHÁT TRIỂN THƯƠNG MẠI FREELAND</h1>
-            <p className="text-xs text-slate-500">Địa chỉ: Toà nhà Lotte, 54 Liễu Giai, Ba Đình, Hà Nội</p>
-            <p className="text-xs text-slate-500">Hotline: 1900-XXXX | Email: crm@freeland.vn</p>
+            <h1 className="text-sm font-extrabold tracking-wider text-slate-800">{companySettings.companyName}</h1>
+            {companySettings.address && <p className="text-xs text-slate-500">Địa chỉ: {companySettings.address}</p>}
+            {companyContactLine && <p className="text-xs text-slate-500">{companyContactLine}</p>}
           </div>
           <div className="text-right">
             <h2 className="text-xl font-black tracking-widest" style={{ color: '#059669' }}>PHIẾU NHẬP KHO</h2>
