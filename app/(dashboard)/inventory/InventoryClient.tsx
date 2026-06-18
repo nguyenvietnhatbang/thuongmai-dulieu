@@ -304,6 +304,18 @@ export function InventoryClient({}: { currentUser: UserSession }) {
     }
   };
 
+  const handleExportMovements = () => {
+    const params = new URLSearchParams({
+      sort: movementSort,
+      order: movementOrder,
+    });
+    if (movementSearch) params.set('search', movementSearch);
+    if (movementWarehouseId) params.set('warehouseId', movementWarehouseId);
+    if (movementType) params.set('movementType', movementType);
+
+    window.open(`/api/inventory/movements/export-xlsx?${params.toString()}`);
+  };
+
   // UI Helpers
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
@@ -449,6 +461,7 @@ export function InventoryClient({}: { currentUser: UserSession }) {
                     setMovementPage(1);
                   }}
                   formatCurrency={formatCurrency}
+                  onExport={handleExportMovements}
                 />
               )}
             </div>

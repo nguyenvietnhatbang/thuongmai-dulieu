@@ -45,6 +45,7 @@ export async function getCustomers(params: {
   currentUserId?: string;
   sort?: 'createdAt' | 'code' | 'name' | 'customerType' | 'ownerName' | 'status';
   order?: SortDirection;
+  maxLimit?: number;
 }): Promise<{ customers: Customer[]; total: number }> {
   try {
     const {
@@ -58,6 +59,7 @@ export async function getCustomers(params: {
       currentUserId,
       sort = 'createdAt',
       order = 'desc',
+      maxLimit = 100,
     } = params;
     
     const whereClauses: string[] = ['c.deleted_at IS NULL'];
@@ -112,7 +114,7 @@ export async function getCustomers(params: {
     const total = countRes.rows[0].count;
 
     // Get paginated results
-    const limitVal = Math.min(limit, 100); // Enforce max page size
+    const limitVal = Math.min(limit, maxLimit); // Enforce safe page size
     values.push(limitVal, offset);
     
     const customersRes = await query(`

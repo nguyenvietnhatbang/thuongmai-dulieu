@@ -41,6 +41,7 @@ export function QuotesClient({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const canCreate = currentUser.roles.includes('system_management') || currentUser.permissions.includes('quotes.create.all');
+  const canExport = currentUser.roles.includes('system_management') || currentUser.permissions.includes('reports.export.team');
 
   const fetchQuotes = async () => {
     setLoading(true);
@@ -145,6 +146,17 @@ export function QuotesClient({
     }
   };
 
+  const handleExportQuotes = () => {
+    const params = new URLSearchParams({
+      sort,
+      order,
+    });
+    if (search) params.set('search', search);
+    if (statusFilter) params.set('status', statusFilter);
+
+    window.open(`/api/quotes/export-xlsx?${params.toString()}`);
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   };
@@ -175,7 +187,20 @@ export function QuotesClient({
             },
           ]}
           rightSlot={
-            canCreate && (
+            <div className="flex items-center gap-2">
+              {canExport && (
+                <button
+                  type="button"
+                  onClick={handleExportQuotes}
+                  className="px-3 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-semibold shadow-md shadow-emerald-500/15 transition-all duration-150 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>Xuất Excel</span>
+                </button>
+              )}
+              {canCreate && (
               <button
                 onClick={() => setIsCreateOpen(true)}
                 className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/95 text-sm font-semibold shadow-md shadow-primary/15 transition-all duration-150 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
@@ -185,7 +210,8 @@ export function QuotesClient({
                 </svg>
                 <span>Tạo báo giá</span>
               </button>
-            )
+              )}
+            </div>
           }
         />
 
