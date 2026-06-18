@@ -14,6 +14,9 @@ interface SearchableSelectProps {
   placeholder: string;
   searchPlaceholder?: string;
   emptyText?: string;
+  disabled?: boolean;
+  className?: string;
+  menuClassName?: string;
   onChange: (value: string) => void;
 }
 
@@ -23,6 +26,9 @@ export function SearchableSelect({
   placeholder,
   searchPlaceholder = 'Tìm kiếm...',
   emptyText = 'Không có dữ liệu phù hợp',
+  disabled = false,
+  className = '',
+  menuClassName = '',
   onChange,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
@@ -55,14 +61,16 @@ export function SearchableSelect({
   }, [open]);
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className={`relative min-w-0 ${className}`}>
       <button
         type="button"
+        disabled={disabled}
         onClick={() => {
+          if (disabled) return;
           setOpen((current) => !current);
           setSearch('');
         }}
-        className="premium-input flex h-11 w-full items-center justify-between gap-2 text-left"
+        className="premium-input flex h-10 w-full min-w-0 items-center justify-between gap-2 text-left disabled:opacity-60"
       >
         <span className={`min-w-0 truncate ${selectedOption ? 'text-foreground' : 'text-muted-foreground'}`}>
           {selectedOption?.label || placeholder}
@@ -73,7 +81,9 @@ export function SearchableSelect({
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full z-[70] mt-1 rounded-lg border border-border bg-card shadow-xl">
+        <div
+          className={`absolute left-0 right-0 top-full z-[70] mt-1 min-w-full max-w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-border bg-card shadow-xl ${menuClassName}`}
+        >
           <div className="border-b border-border p-2">
             <input
               type="text"
@@ -85,16 +95,16 @@ export function SearchableSelect({
             />
           </div>
 
-          <div className="max-h-64 overflow-y-auto p-1">
+          <div className="max-h-[min(16rem,45vh)] overflow-y-auto overflow-x-hidden p-1">
             <button
               type="button"
               onClick={() => {
                 onChange('');
                 setOpen(false);
               }}
-              className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted"
+              className="flex w-full min-w-0 items-center rounded-md px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted"
             >
-              {placeholder}
+              <span className="truncate">{placeholder}</span>
             </button>
 
             {filteredOptions.length === 0 ? (
@@ -108,7 +118,7 @@ export function SearchableSelect({
                     onChange(option.value);
                     setOpen(false);
                   }}
-                  className={`flex w-full flex-col rounded-md px-3 py-2 text-left hover:bg-muted ${
+                  className={`flex w-full min-w-0 flex-col rounded-md px-3 py-2 text-left hover:bg-muted ${
                     option.value === value ? 'bg-primary/5 text-primary' : 'text-foreground'
                   }`}
                 >

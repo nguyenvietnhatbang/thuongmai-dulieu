@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { PageTabs } from '@/components/ui/ListControls';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 interface UserSession {
   id: string;
@@ -193,24 +194,42 @@ export function ReportsClient({ currentUser }: { currentUser: UserSession }) {
           className="premium-input h-10 !w-40 shrink-0"
           aria-label="Đến ngày"
         />
-        <select value={customerId} onChange={(event) => setCustomerId(event.target.value)} className="premium-input h-10 !w-48 shrink-0">
-          <option value="">Tất cả khách hàng</option>
-          {customers.map((customer) => (
-            <option key={customer.id} value={customer.id}>{customer.name}</option>
-          ))}
-        </select>
-        <select value={supplierId} onChange={(event) => setSupplierId(event.target.value)} className="premium-input h-10 !w-48 shrink-0">
-          <option value="">Tất cả NCC</option>
-          {suppliers.map((supplier) => (
-            <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-          ))}
-        </select>
-        <select value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)} className="premium-input h-10 !w-44 shrink-0">
-          <option value="">Tất cả kho</option>
-          {warehouses.map((warehouse) => (
-            <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
-          ))}
-        </select>
+        <SearchableSelect
+          value={customerId}
+          placeholder="Tất cả khách hàng"
+          searchPlaceholder="Tìm khách hàng..."
+          options={customers.map((customer) => ({
+            value: customer.id,
+            label: customer.name,
+            description: customer.code,
+          }))}
+          onChange={setCustomerId}
+          className="w-48 shrink-0"
+        />
+        <SearchableSelect
+          value={supplierId}
+          placeholder="Tất cả NCC"
+          searchPlaceholder="Tìm nhà cung cấp..."
+          options={suppliers.map((supplier) => ({
+            value: supplier.id,
+            label: supplier.name,
+            description: supplier.code,
+          }))}
+          onChange={setSupplierId}
+          className="w-48 shrink-0"
+        />
+        <SearchableSelect
+          value={warehouseId}
+          placeholder="Tất cả kho"
+          searchPlaceholder="Tìm kho..."
+          options={warehouses.map((warehouse) => ({
+            value: warehouse.id,
+            label: warehouse.name,
+            description: warehouse.code,
+          }))}
+          onChange={setWarehouseId}
+          className="w-44 shrink-0"
+        />
         <button
           type="button"
           onClick={resetFilters}

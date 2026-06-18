@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { CustomerCareReminder } from './RemindersTable';
 
 interface ReminderCreateModalProps {
@@ -70,6 +71,10 @@ export function ReminderCreateModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.customerId || !form.ownerUserId) {
+      alert('Vui lòng chọn khách hàng và người phụ trách.');
+      return;
+    }
     setSubmitting(true);
     try {
       const success = await onSubmit({
@@ -101,48 +106,48 @@ export function ReminderCreateModal({
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Khách hàng *</label>
-          <select
-            required
+          <SearchableSelect
             value={form.customerId}
-            onChange={(e) => setForm({ ...form, customerId: e.target.value, contractId: '', projectId: '' })}
-            className="premium-input"
-          >
-            <option value="">-- Chọn khách hàng --</option>
-            {customers.map(c => (
-              <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
-            ))}
-          </select>
+            placeholder="-- Chọn khách hàng --"
+            searchPlaceholder="Tìm tên, mã khách hàng..."
+            options={customers.map(c => ({
+              value: c.id,
+              label: `${c.name} (${c.code})`,
+              description: c.email || c.phone || c.customerType,
+            }))}
+            onChange={(customerId) => setForm({ ...form, customerId, contractId: '', projectId: '' })}
+          />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Hợp đồng liên quan</label>
-            <select
+            <SearchableSelect
               value={form.contractId}
-              onChange={(e) => setForm({ ...form, contractId: e.target.value })}
-              className="premium-input"
               disabled={!form.customerId}
-            >
-              <option value="">-- Không liên kết --</option>
-              {filteredContracts.map(c => (
-                <option key={c.id} value={c.id}>{c.contractNumber}</option>
-              ))}
-            </select>
+              placeholder="-- Không liên kết --"
+              searchPlaceholder="Tìm hợp đồng..."
+              options={filteredContracts.map(c => ({
+                value: c.id,
+                label: c.contractNumber,
+              }))}
+              onChange={(contractId) => setForm({ ...form, contractId })}
+            />
           </div>
 
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Dự án liên quan</label>
-            <select
+            <SearchableSelect
               value={form.projectId}
-              onChange={(e) => setForm({ ...form, projectId: e.target.value })}
-              className="premium-input"
               disabled={!form.customerId}
-            >
-              <option value="">-- Không liên kết --</option>
-              {filteredProjects.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+              placeholder="-- Không liên kết --"
+              searchPlaceholder="Tìm dự án..."
+              options={filteredProjects.map(p => ({
+                value: p.id,
+                label: p.name,
+              }))}
+              onChange={(projectId) => setForm({ ...form, projectId })}
+            />
           </div>
         </div>
 
@@ -160,16 +165,17 @@ export function ReminderCreateModal({
 
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Người phụ trách *</label>
-            <select
-              required
+            <SearchableSelect
               value={form.ownerUserId}
-              onChange={(e) => setForm({ ...form, ownerUserId: e.target.value })}
-              className="premium-input"
-            >
-              {users.map(u => (
-                <option key={u.id} value={u.id}>{u.fullName} ({u.email})</option>
-              ))}
-            </select>
+              placeholder="-- Chọn người phụ trách --"
+              searchPlaceholder="Tìm nhân sự..."
+              options={users.map(u => ({
+                value: u.id,
+                label: u.fullName,
+                description: u.email,
+              }))}
+              onChange={(ownerUserId) => setForm({ ...form, ownerUserId })}
+            />
           </div>
         </div>
 

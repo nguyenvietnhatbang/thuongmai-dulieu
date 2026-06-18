@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ListToolbar, PaginationControls, SortableHeader, PageTabs } from '@/components/ui/ListControls';
 import { Modal } from '@/components/ui/Modal';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 interface PurchaseOrder {
   id: string;
@@ -152,6 +153,10 @@ export function ReceiptsTab({
 
   const handlePoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newPo.supplierId) {
+      alert('Vui lòng chọn nhà cung cấp!');
+      return;
+    }
     if (newPo.items.some(it => !it.productId || it.quantity <= 0)) {
       alert('Vui lòng chọn sản phẩm và nhập số lượng lớn hơn 0!');
       return;
@@ -171,6 +176,10 @@ export function ReceiptsTab({
 
   const handleReceiptSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newReceipt.warehouseId) {
+      alert('Vui lòng chọn kho nhập!');
+      return;
+    }
     
     // If selecting a PO, copy items from PO
     const receiptData = { ...newReceipt };
@@ -430,12 +439,17 @@ export function ReceiptsTab({
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nhà cung cấp *</label>
-              <select required value={newPo.supplierId} onChange={e => setNewPo({...newPo, supplierId: e.target.value})} className="premium-input">
-                <option value="">-- Chọn NCC --</option>
-                {suppliers.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={newPo.supplierId}
+                placeholder="-- Chọn NCC --"
+                searchPlaceholder="Tìm nhà cung cấp..."
+                options={suppliers.map(s => ({
+                  value: s.id,
+                  label: s.name,
+                  description: s.code,
+                }))}
+                onChange={(supplierId) => setNewPo({...newPo, supplierId})}
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -459,12 +473,18 @@ export function ReceiptsTab({
             <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
               {newPo.items.map((it, idx) => (
                 <div key={idx} className="flex gap-2 items-center">
-                  <select required value={it.productId} onChange={e => handlePoLineChange(idx, 'productId', e.target.value)} className="premium-input flex-1">
-                    <option value="">-- Sản phẩm --</option>
-                    {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    value={it.productId}
+                    placeholder="-- Sản phẩm --"
+                    searchPlaceholder="Tìm sản phẩm..."
+                    options={products.map(p => ({
+                      value: p.id,
+                      label: `${p.name} (${p.code})`,
+                      description: p.unitCode,
+                    }))}
+                    onChange={(productId) => handlePoLineChange(idx, 'productId', productId)}
+                    className="flex-1"
+                  />
                   <input type="number" required placeholder="SL" min={1} value={it.quantity} onChange={e => handlePoLineChange(idx, 'quantity', Number(e.target.value))} className="premium-input w-20" />
                   <input type="number" required placeholder="Đơn giá" min={0} value={it.unitPrice} onChange={e => handlePoLineChange(idx, 'unitPrice', Number(e.target.value))} className="premium-input w-28" />
                   <button type="button" onClick={() => setNewPo({...newPo, items: newPo.items.filter((_, i) => i !== idx)})} className="text-rose-600 hover:text-rose-800 p-1 cursor-pointer">
@@ -492,23 +512,33 @@ export function ReceiptsTab({
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Kho nhập hàng *</label>
-              <select required value={newReceipt.warehouseId} onChange={e => setNewReceipt({...newReceipt, warehouseId: e.target.value})} className="premium-input">
-                <option value="">-- Chọn Kho --</option>
-                {warehouses.map(w => (
-                  <option key={w.id} value={w.id}>{w.name}</option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={newReceipt.warehouseId}
+                placeholder="-- Chọn Kho --"
+                searchPlaceholder="Tìm kho..."
+                options={warehouses.map(w => ({
+                  value: w.id,
+                  label: w.name,
+                  description: w.code,
+                }))}
+                onChange={(warehouseId) => setNewReceipt({...newReceipt, warehouseId})}
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Theo đơn đặt mua (PO)</label>
-              <select value={newReceipt.purchaseOrderId} onChange={e => handleReceiptPoSelect(e.target.value)} className="premium-input">
-                <option value="">-- Nhập lẻ không theo PO --</option>
-                {purchaseOrders.filter(po => po.status !== 'received').map(po => (
-                  <option key={po.id} value={po.id}>{po.code} ({po.supplierName})</option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={newReceipt.purchaseOrderId}
+                placeholder="-- Nhập lẻ không theo PO --"
+                searchPlaceholder="Tìm PO, nhà cung cấp..."
+                options={purchaseOrders.filter(po => po.status !== 'received').map(po => ({
+                  value: po.id,
+                  label: `${po.code} (${po.supplierName})`,
+                  description: po.purchaseDate,
+                }))}
+                onChange={handleReceiptPoSelect}
+              />
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ngày lập phiếu</label>
@@ -532,12 +562,19 @@ export function ReceiptsTab({
             <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
               {newReceipt.items.map((it, idx) => (
                 <div key={idx} className="flex gap-2 items-center">
-                  <select required value={it.productId} onChange={e => handleReceiptLineChange(idx, 'productId', e.target.value)} disabled={!!newReceipt.purchaseOrderId} className="premium-input flex-1 disabled:opacity-75">
-                    <option value="">-- Sản phẩm --</option>
-                    {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    value={it.productId}
+                    placeholder="-- Sản phẩm --"
+                    searchPlaceholder="Tìm sản phẩm..."
+                    options={products.map(p => ({
+                      value: p.id,
+                      label: `${p.name} (${p.code})`,
+                      description: p.unitCode,
+                    }))}
+                    onChange={(productId) => handleReceiptLineChange(idx, 'productId', productId)}
+                    disabled={!!newReceipt.purchaseOrderId}
+                    className="flex-1"
+                  />
                   <input type="number" required placeholder="SL" min={1} value={it.quantity} onChange={e => handleReceiptLineChange(idx, 'quantity', Number(e.target.value))} disabled={!!newReceipt.purchaseOrderId} className="premium-input w-20 disabled:opacity-75" />
                   <input type="number" required placeholder="Đơn giá" min={0} value={it.unitPrice} onChange={e => handleReceiptLineChange(idx, 'unitPrice', Number(e.target.value))} disabled={!!newReceipt.purchaseOrderId} className="premium-input w-28 disabled:opacity-75" />
                   {!newReceipt.purchaseOrderId && (

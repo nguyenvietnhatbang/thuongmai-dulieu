@@ -1,6 +1,7 @@
 'use client';
 
 import { Dispatch, FormEvent, SetStateAction } from 'react';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Customer } from '@/features/customers/services/customer.service';
 
 export interface OpportunityCreateFormState {
@@ -64,17 +65,17 @@ export function OpportunityCreateModal({
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Chọn Khách hàng *</label>
-              <select
-                required
+              <SearchableSelect
                 value={form.customerId}
-                onChange={(event) => setForm({ ...form, customerId: event.target.value })}
-                className="premium-input"
-              >
-                <option value="">-- Chọn khách hàng --</option>
-                {customers.map((customer) => (
-                  <option key={customer.id} value={customer.id}>{customer.name} ({customer.code})</option>
-                ))}
-              </select>
+                placeholder="-- Chọn khách hàng --"
+                searchPlaceholder="Tìm tên, mã khách hàng..."
+                options={customers.map((customer) => ({
+                  value: customer.id,
+                  label: `${customer.name} (${customer.code})`,
+                  description: customer.email || customer.phone || customer.customerType,
+                }))}
+                onChange={(customerId) => setForm({ ...form, customerId })}
+              />
             </div>
           </div>
 
@@ -116,16 +117,16 @@ export function OpportunityCreateModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nhân viên phụ trách</label>
-              <select
+              <SearchableSelect
                 value={form.ownerUserId}
-                onChange={(event) => setForm({ ...form, ownerUserId: event.target.value })}
-                className="premium-input"
-              >
-                <option value="">-- Chọn nhân sự --</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>{user.fullName}</option>
-                ))}
-              </select>
+                placeholder="-- Chọn nhân sự --"
+                searchPlaceholder="Tìm nhân sự..."
+                options={users.map((user) => ({
+                  value: user.id,
+                  label: user.fullName,
+                }))}
+                onChange={(ownerUserId) => setForm({ ...form, ownerUserId })}
+              />
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Giai đoạn</label>

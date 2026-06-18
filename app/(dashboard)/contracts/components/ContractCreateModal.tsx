@@ -2,6 +2,7 @@
 
 import { Dispatch, FormEvent, SetStateAction } from 'react';
 import { Modal } from '@/components/ui/Modal';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 export interface ContractSelectOption {
   id: string;
@@ -80,32 +81,30 @@ export function ContractCreateModal({
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-600 mb-1">Báo giá đã duyệt</label>
-            <select
+            <SearchableSelect
               value={form.quoteId}
-              onChange={(event) => onQuoteSelect(event.target.value)}
-              className="premium-input text-sm"
-            >
-              <option value="">Không gắn báo giá</option>
-              {approvedQuotes.map((quote) => (
-                <option key={quote.id} value={quote.id}>
-                  {quote.quoteNumber} - {quote.customerName}
-                </option>
-              ))}
-            </select>
+              placeholder="Không gắn báo giá"
+              searchPlaceholder="Tìm số báo giá, khách hàng..."
+              options={approvedQuotes.map((quote) => ({
+                value: quote.id,
+                label: `${quote.quoteNumber} - ${quote.customerName}`,
+                description: quote.totalAmount ? `${quote.totalAmount.toLocaleString('vi-VN')} VND` : undefined,
+              }))}
+              onChange={onQuoteSelect}
+            />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-600 mb-1">Khách hàng</label>
-            <select
-              required
+            <SearchableSelect
               value={form.customerId}
-              onChange={(event) => setForm({ ...form, customerId: event.target.value })}
-              className="premium-input text-sm"
-            >
-              <option value="">Chọn khách hàng</option>
-              {customers.map((customer) => (
-                <option key={customer.id} value={customer.id}>{customer.name}</option>
-              ))}
-            </select>
+              placeholder="Chọn khách hàng"
+              searchPlaceholder="Tìm khách hàng..."
+              options={customers.map((customer) => ({
+                value: customer.id,
+                label: customer.name || '',
+              }))}
+              onChange={(customerId) => setForm({ ...form, customerId })}
+            />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-600 mb-1">Giá trị hợp đồng</label>
@@ -124,15 +123,16 @@ export function ContractCreateModal({
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-600 mb-1">Người phụ trách</label>
-            <select
+            <SearchableSelect
               value={form.ownerUserId}
-              onChange={(event) => setForm({ ...form, ownerUserId: event.target.value })}
-              className="premium-input text-sm"
-            >
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>{user.fullName}</option>
-              ))}
-            </select>
+              placeholder="Chọn người phụ trách"
+              searchPlaceholder="Tìm nhân sự..."
+              options={users.map((user) => ({
+                value: user.id,
+                label: user.fullName || '',
+              }))}
+              onChange={(ownerUserId) => setForm({ ...form, ownerUserId })}
+            />
           </div>
         </div>
 

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ListToolbar, PaginationControls, SortableHeader } from '@/components/ui/ListControls';
 import { Modal } from '@/components/ui/Modal';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 interface SalesOrder {
   id: string;
@@ -84,6 +85,10 @@ export function SalesOrdersTab({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newSo.customerId) {
+      alert('Vui lòng chọn khách hàng!');
+      return;
+    }
     if (newSo.items.some(it => !it.productId || !it.warehouseId || it.quantity <= 0)) {
       alert('Vui lòng chọn sản phẩm, kho xuất và số lượng lớn hơn 0!');
       return;
@@ -213,12 +218,17 @@ export function SalesOrdersTab({
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Khách hàng *</label>
-              <select required value={newSo.customerId} onChange={e => setNewSo({...newSo, customerId: e.target.value})} className="premium-input">
-                <option value="">-- Chọn khách hàng --</option>
-                {customers.map(c => (
-                  <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={newSo.customerId}
+                placeholder="-- Chọn khách hàng --"
+                searchPlaceholder="Tìm tên, mã khách hàng..."
+                options={customers.map(c => ({
+                  value: c.id,
+                  label: `${c.name} (${c.code})`,
+                  description: c.email || c.phone || c.customerType,
+                }))}
+                onChange={(customerId) => setNewSo({...newSo, customerId})}
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -246,18 +256,30 @@ export function SalesOrdersTab({
             <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
               {newSo.items.map((it, idx) => (
                 <div key={idx} className="flex gap-2 items-center">
-                  <select required value={it.productId} onChange={e => handleLineChange(idx, 'productId', e.target.value)} className="premium-input flex-1">
-                    <option value="">-- Sản phẩm --</option>
-                    {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
-                    ))}
-                  </select>
-                  <select required value={it.warehouseId} onChange={e => handleLineChange(idx, 'warehouseId', e.target.value)} className="premium-input flex-1">
-                    <option value="">-- Kho xuất --</option>
-                    {warehouses.map(w => (
-                      <option key={w.id} value={w.id}>{w.name}</option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    value={it.productId}
+                    placeholder="-- Sản phẩm --"
+                    searchPlaceholder="Tìm sản phẩm..."
+                    options={products.map(p => ({
+                      value: p.id,
+                      label: `${p.name} (${p.code})`,
+                      description: p.unitCode,
+                    }))}
+                    onChange={(productId) => handleLineChange(idx, 'productId', productId)}
+                    className="flex-1"
+                  />
+                  <SearchableSelect
+                    value={it.warehouseId}
+                    placeholder="-- Kho xuất --"
+                    searchPlaceholder="Tìm kho..."
+                    options={warehouses.map(w => ({
+                      value: w.id,
+                      label: w.name,
+                      description: w.code,
+                    }))}
+                    onChange={(warehouseId) => handleLineChange(idx, 'warehouseId', warehouseId)}
+                    className="flex-1"
+                  />
                   <input type="number" required placeholder="SL" min={1} value={it.quantity} onChange={e => handleLineChange(idx, 'quantity', Number(e.target.value))} className="premium-input w-16" />
                   <input type="number" required placeholder="Đơn giá" min={0} value={it.unitPrice} onChange={e => handleLineChange(idx, 'unitPrice', Number(e.target.value))} className="premium-input w-24" />
                   <button type="button" onClick={() => setNewSo({...newSo, items: newSo.items.filter((_, i) => i !== idx)})} className="text-rose-600 hover:text-rose-800 p-1 cursor-pointer">

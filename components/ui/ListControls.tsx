@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { SearchableSelect } from './SearchableSelect';
 
 export interface FilterOption {
   value: string;
@@ -18,6 +19,7 @@ interface ListToolbarProps {
     value: string;
     options: FilterOption[];
     placeholder: string;
+    searchPlaceholder?: string;
     onChange: (value: string) => void;
     className?: string;
   }>;
@@ -75,19 +77,15 @@ export function ListToolbar({
 
       <div className="flex flex-nowrap gap-2 items-center justify-end shrink-0">
         {filters.map((filter, index) => (
-          <select
+          <SearchableSelect
             key={`${filter.placeholder}-${index}`}
             value={filter.value}
-            onChange={(event) => filter.onChange(event.target.value)}
-            className={`premium-input h-10 !w-auto min-w-32 max-w-56 shrink-0 truncate pr-8 ${filter.className || ''}`}
-          >
-            <option value="">{filter.placeholder}</option>
-            {filter.options.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            placeholder={filter.placeholder}
+            searchPlaceholder={filter.searchPlaceholder || `Tìm ${filter.placeholder.toLowerCase().replace(/^[-\s]+|[-\s]+$/g, '')}...`}
+            options={filter.options}
+            onChange={filter.onChange}
+            className={`w-44 shrink-0 ${filter.className || ''}`}
+          />
         ))}
         <button
           type="button"
