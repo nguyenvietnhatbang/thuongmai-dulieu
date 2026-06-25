@@ -10,6 +10,8 @@ const customerSorts = {
   code: 'c.code',
   name: 'c.name',
   customerType: 'c.customer_type',
+  industryName: 'industry.name',
+  customerSourceName: 'source.name',
   ownerName: 'u.full_name',
   status: 'c.status',
 };
@@ -79,12 +81,16 @@ export async function GET(request: Request) {
     const search = searchParams.get('search') || undefined;
     const status = searchParams.get('status') || undefined;
     const customerType = searchParams.get('customerType') || undefined;
+    const industryId = searchParams.get('industryId') || undefined;
+    const customerSourceId = searchParams.get('customerSourceId') || undefined;
     const sort = parseSort(searchParams, customerSorts, 'createdAt');
 
     const result = await getCustomers({
       search,
       status,
       customerType,
+      industryId,
+      customerSourceId,
       limit: 10000,
       offset: 0,
       ...sort,
@@ -99,11 +105,11 @@ export async function GET(request: Request) {
     workbook.created = new Date();
     const worksheet = workbook.addWorksheet('Khach hang');
 
-    worksheet.mergeCells('A1:M1');
+    worksheet.mergeCells('A1:O1');
     worksheet.getCell('A1').value = 'DANH SÁCH KHÁCH HÀNG';
     worksheet.getCell('A1').font = { bold: true, size: 14 };
     worksheet.getCell('A1').alignment = { horizontal: 'center' };
-    worksheet.mergeCells('A2:M2');
+    worksheet.mergeCells('A2:O2');
     worksheet.getCell('A2').value = `Ngày xuất: ${new Date().toLocaleString('vi-VN')}`;
     worksheet.getCell('A2').font = { italic: true, size: 10, color: { argb: 'FF64748B' } };
     worksheet.getCell('A2').alignment = { horizontal: 'center' };
@@ -114,6 +120,8 @@ export async function GET(request: Request) {
       'Mã khách hàng',
       'Tên khách hàng',
       'Loại khách',
+      'Ngành nghề',
+      'Nguồn khách',
       'Người phụ trách',
       'Trạng thái',
       'Điện thoại',
@@ -132,6 +140,8 @@ export async function GET(request: Request) {
         customer.code,
         customer.name,
         getCustomerTypeText(customer.customerType),
+        customer.industryName || '',
+        customer.customerSourceName || '',
         customer.ownerName || '',
         getStatusText(customer.status),
         customer.phone || '',
@@ -156,6 +166,8 @@ export async function GET(request: Request) {
       { width: 16 },
       { width: 30 },
       { width: 14 },
+      { width: 18 },
+      { width: 18 },
       { width: 22 },
       { width: 18 },
       { width: 16 },

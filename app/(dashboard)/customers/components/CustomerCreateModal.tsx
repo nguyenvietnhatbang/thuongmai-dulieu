@@ -1,12 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 interface UserDropdown {
   id: string;
   fullName: string;
   email: string;
+}
+
+interface CatalogOption {
+  id: string;
+  name: string;
+  code: string;
 }
 
 interface CustomerCreateModalProps {
@@ -17,6 +24,8 @@ interface CustomerCreateModalProps {
     code: string;
     name: string;
     customerType: 'service' | 'commerce' | 'both';
+    industryId: string;
+    customerSourceId: string;
     ownerUserId: string;
     status: string;
     phone: string;
@@ -32,6 +41,8 @@ export function CustomerCreateModal({ isOpen, onClose, users, onCreate }: Custom
     code: '',
     name: '',
     customerType: 'service' as 'service' | 'commerce' | 'both',
+    industryId: '',
+    customerSourceId: '',
     ownerUserId: '',
     status: 'new',
     phone: '',
@@ -40,7 +51,32 @@ export function CustomerCreateModal({ isOpen, onClose, users, onCreate }: Custom
     address: '',
     notes: '',
   });
+  const [industryOptions, setIndustryOptions] = useState<CatalogOption[]>([]);
+  const [sourceOptions, setSourceOptions] = useState<CatalogOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchCatalogOptions = async () => {
+      try {
+        const [industryRes, sourceRes] = await Promise.all([
+          fetch('/api/catalog?group=industry'),
+          fetch('/api/catalog?group=customer_source'),
+        ]);
+        const [industryJson, sourceJson] = await Promise.all([
+          industryRes.json(),
+          sourceRes.json(),
+        ]);
+        if (industryJson.success) setIndustryOptions(industryJson.data || []);
+        if (sourceJson.success) setSourceOptions(sourceJson.data || []);
+      } catch (error) {
+        console.error('Failed to load customer catalog options:', error);
+      }
+    };
+
+    fetchCatalogOptions();
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +89,8 @@ export function CustomerCreateModal({ isOpen, onClose, users, onCreate }: Custom
           code: '',
           name: '',
           customerType: 'service',
+          industryId: '',
+          customerSourceId: '',
           ownerUserId: '',
           status: 'new',
           phone: '',
@@ -92,6 +130,37 @@ export function CustomerCreateModal({ isOpen, onClose, users, onCreate }: Custom
               value={newCustomer.name}
               onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
               className="premium-input"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ngành nghề</label>
+            <SearchableSelect
+              value={newCustomer.industryId}
+              placeholder="-- Chọn ngành nghề --"
+              searchPlaceholder="Tìm ngành nghề..."
+              options={industryOptions.map((item) => ({
+                value: item.id,
+                label: item.name,
+                description: item.code,
+              }))}
+              onChange={(industryId) => setNewCustomer({ ...newCustomer, industryId })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nguồn khách hàng</label>
+            <SearchableSelect
+              value={newCustomer.customerSourceId}
+              placeholder="-- Chọn nguồn --"
+              searchPlaceholder="Tìm nguồn khách hàng..."
+              options={sourceOptions.map((item) => ({
+                value: item.id,
+                label: item.name,
+                description: item.code,
+              }))}
+              onChange={(customerSourceId) => setNewCustomer({ ...newCustomer, customerSourceId })}
             />
           </div>
         </div>

@@ -53,6 +53,8 @@ export function QuotesTable({
                 <th className="px-6 py-4"><SortableHeader label="Số báo giá" sortKey="quoteNumber" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4"><SortableHeader label="Khách hàng" sortKey="customerName" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4"><SortableHeader label="Ngày báo" sortKey="quoteDate" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4">Hết hạn</th>
+                <th className="px-6 py-4">VAT</th>
                 <th className="px-6 py-4"><SortableHeader label="Tổng tiền (gồm VAT)" sortKey="totalAmount" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4">Phiên bản</th>
                 <th className="px-6 py-4">Người lập</th>
@@ -70,6 +72,8 @@ export function QuotesTable({
                   <td className="px-6 py-4 font-mono text-xs font-semibold text-primary">{quote.quoteNumber}</td>
                   <td className="px-6 py-4 font-bold text-foreground">{quote.customerName}</td>
                   <td className="px-6 py-4 text-xs">{new Date(quote.quoteDate).toLocaleDateString('vi-VN')}</td>
+                  <td className="px-6 py-4 text-xs">{quote.expiryDate ? new Date(quote.expiryDate).toLocaleDateString('vi-VN') : '-'}</td>
+                  <td className="px-6 py-4 text-xs font-semibold">{quote.vatRate}%</td>
                   <td className="px-6 py-4 font-bold text-foreground">{formatCurrency(quote.totalAmount)}</td>
                   <td className="px-6 py-4 text-xs font-mono text-center">v{quote.revisionNumber}</td>
                   <td className="px-6 py-4 text-xs font-medium text-slate-700">{quote.quotedByName || '-'}</td>

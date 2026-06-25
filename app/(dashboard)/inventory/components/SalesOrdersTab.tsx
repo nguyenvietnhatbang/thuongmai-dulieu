@@ -10,7 +10,11 @@ interface SalesOrder {
   code: string;
   customerId: string;
   customerName: string;
+  contactName?: string | null;
   saleDate: string;
+  expectedDeliveryDate?: string | null;
+  warehouseName?: string | null;
+  paymentDueDate?: string | null;
   totalAmount: number;
   paidAmount: number;
   debtAmount: number;
@@ -64,6 +68,9 @@ export function SalesOrdersTab({
     code: '',
     customerId: '',
     saleDate: new Date().toISOString().split('T')[0],
+    expectedDeliveryDate: '',
+    warehouseId: '',
+    paymentDueDate: '',
     paidAmount: 0,
     notes: '',
     items: [{ productId: '', warehouseId: '', quantity: 1, unitPrice: 0, unitCode: 'item' }]
@@ -89,7 +96,7 @@ export function SalesOrdersTab({
       alert('Vui lòng chọn khách hàng!');
       return;
     }
-    if (newSo.items.some(it => !it.productId || !it.warehouseId || it.quantity <= 0)) {
+    if (newSo.items.some(it => !it.productId || (!it.warehouseId && !newSo.warehouseId) || it.quantity <= 0)) {
       alert('Vui lòng chọn sản phẩm, kho xuất và số lượng lớn hơn 0!');
       return;
     }
@@ -100,6 +107,9 @@ export function SalesOrdersTab({
         code: '',
         customerId: '',
         saleDate: new Date().toISOString().split('T')[0],
+        expectedDeliveryDate: '',
+        warehouseId: '',
+        paymentDueDate: '',
         paidAmount: 0,
         notes: '',
         items: [{ productId: '', warehouseId: '', quantity: 1, unitPrice: 0, unitCode: 'item' }]
@@ -153,6 +163,9 @@ export function SalesOrdersTab({
                 <th className="px-6 py-4"><SortableHeader label="Mã đơn" sortKey="code" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4"><SortableHeader label="Khách hàng" sortKey="customerName" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4"><SortableHeader label="Ngày bán" sortKey="saleDate" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Ngày giao" sortKey="expectedDeliveryDate" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4">Kho xuất</th>
+                <th className="px-6 py-4">Hạn thanh toán</th>
                 <th className="px-6 py-4"><SortableHeader label="Tổng tiền" sortKey="totalAmount" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4"><SortableHeader label="Đã thanh toán" sortKey="paidAmount" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4"><SortableHeader label="Còn nợ" sortKey="debtAmount" activeSort={sort} order={order} onSort={onSort} /></th>
@@ -163,7 +176,7 @@ export function SalesOrdersTab({
             <tbody className="divide-y divide-border">
               {salesOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={11} className="px-6 py-10 text-center text-sm text-muted-foreground">
                     Không có đơn bán hàng phù hợp với bộ lọc.
                   </td>
                 </tr>
@@ -173,6 +186,9 @@ export function SalesOrdersTab({
                     <td className="px-6 py-4 font-mono text-xs font-bold text-primary">{so.code}</td>
                     <td className="px-6 py-4 font-bold text-foreground">{so.customerName}</td>
                     <td className="px-6 py-4 text-xs text-muted-foreground">{so.saleDate}</td>
+                    <td className="px-6 py-4 text-xs text-muted-foreground">{so.expectedDeliveryDate || '-'}</td>
+                    <td className="px-6 py-4 text-xs font-medium text-slate-700">{so.warehouseName || '-'}</td>
+                    <td className="px-6 py-4 text-xs text-muted-foreground">{so.paymentDueDate || '-'}</td>
                     <td className="px-6 py-4 font-semibold text-slate-800">{formatCurrency(so.totalAmount)}</td>
                     <td className="px-6 py-4 text-xs font-medium text-emerald-600">{formatCurrency(so.paidAmount)}</td>
                     <td className="px-6 py-4 text-xs font-medium text-rose-600">{formatCurrency(so.debtAmount)}</td>
@@ -238,6 +254,23 @@ export function SalesOrdersTab({
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ngày bán hàng</label>
               <input type="date" value={newSo.saleDate} onChange={e => setNewSo({...newSo, saleDate: e.target.value})} className="premium-input" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ngày giao dự kiến</label>
+              <input type="date" value={newSo.expectedDeliveryDate} onChange={e => setNewSo({...newSo, expectedDeliveryDate: e.target.value})} className="premium-input" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Kho xuất mặc định</label>
+              <select value={newSo.warehouseId} onChange={e => setNewSo({...newSo, warehouseId: e.target.value})} className="premium-input">
+                <option value="">-- Theo từng dòng hàng --</option>
+                {warehouses.map((warehouse) => (
+                  <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Hạn thanh toán</label>
+              <input type="date" value={newSo.paymentDueDate} onChange={e => setNewSo({...newSo, paymentDueDate: e.target.value})} className="premium-input" />
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Số tiền đã thu trước *</label>

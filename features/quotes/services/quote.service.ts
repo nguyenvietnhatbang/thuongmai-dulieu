@@ -22,14 +22,17 @@ export interface Quote {
   opportunityId: string | null;
   opportunityTitle: string | null;
   quoteDate: string;
+  expiryDate: string | null;
   quotedBy: string | null;
   quotedByName: string | null;
   status: 'draft' | 'sent' | 'revision_requested' | 'approved' | 'rejected' | 'converted';
   subtotalAmount: number;
+  vatRate: number;
   taxAmount: number;
   totalAmount: number;
   revisionNumber: number;
   termsNote: string | null;
+  implementationTime: string | null;
   approvedBy: string | null;
   approvedByName: string | null;
   approvedAt: Date | null;
@@ -113,10 +116,12 @@ export async function getQuotes(params: {
       SELECT 
         q.id, q.code, q.quote_number as "quoteNumber", q.customer_id as "customerId",
         c.name as "customerName", q.opportunity_id as "opportunityId", opp.title as "opportunityTitle",
-        q.quote_date::text as "quoteDate", q.quoted_by as "quotedBy", u.full_name as "quotedByName",
-        q.status, q.subtotal_amount::numeric as "subtotalAmount", q.tax_amount::numeric as "taxAmount",
+        q.quote_date::text as "quoteDate", q.expiry_date::text as "expiryDate",
+        q.quoted_by as "quotedBy", u.full_name as "quotedByName",
+        q.status, q.subtotal_amount::numeric as "subtotalAmount", q.vat_rate::numeric as "vatRate", q.tax_amount::numeric as "taxAmount",
         q.total_amount::numeric as "totalAmount", q.revision_number as "revisionNumber",
-        q.terms_note as "termsNote", q.approved_by as "approvedBy", app_u.full_name as "approvedByName",
+        q.terms_note as "termsNote", q.implementation_time as "implementationTime",
+        q.approved_by as "approvedBy", app_u.full_name as "approvedByName",
         q.approved_at as "approvedAt", q.created_at as "createdAt"
       FROM app.quotes q
       INNER JOIN app.customers c ON q.customer_id = c.id
@@ -145,10 +150,12 @@ export async function getQuoteById(id: string, client?: PoolClient): Promise<Quo
     SELECT 
       q.id, q.code, q.quote_number as "quoteNumber", q.customer_id as "customerId",
       c.name as "customerName", q.opportunity_id as "opportunityId", opp.title as "opportunityTitle",
-      q.quote_date::text as "quoteDate", q.quoted_by as "quotedBy", u.full_name as "quotedByName",
-      q.status, q.subtotal_amount::numeric as "subtotalAmount", q.tax_amount::numeric as "taxAmount",
+      q.quote_date::text as "quoteDate", q.expiry_date::text as "expiryDate",
+      q.quoted_by as "quotedBy", u.full_name as "quotedByName",
+      q.status, q.subtotal_amount::numeric as "subtotalAmount", q.vat_rate::numeric as "vatRate", q.tax_amount::numeric as "taxAmount",
       q.total_amount::numeric as "totalAmount", q.revision_number as "revisionNumber",
-      q.terms_note as "termsNote", q.approved_by as "approvedBy", app_u.full_name as "approvedByName",
+      q.terms_note as "termsNote", q.implementation_time as "implementationTime",
+      q.approved_by as "approvedBy", app_u.full_name as "approvedByName",
       q.approved_at as "approvedAt", q.created_at as "createdAt"
     FROM app.quotes q
     INNER JOIN app.customers c ON q.customer_id = c.id
@@ -185,7 +192,10 @@ export async function getQuoteById(id: string, client?: PoolClient): Promise<Quo
  * Create a new quote
  */
 export async function createQuote(
-  data: Omit<Quote, 'id' | 'customerName' | 'opportunityTitle' | 'quotedByName' | 'approvedByName' | 'approvedAt' | 'createdAt' | 'status' | 'subtotalAmount' | 'taxAmount' | 'totalAmount' | 'revisionNumber' | 'approvedBy'> & {
+  data: Omit<Quote, 'id' | 'customerName' | 'opportunityTitle' | 'quotedByName' | 'approvedByName' | 'approvedAt' | 'createdAt' | 'status' | 'subtotalAmount' | 'vatRate' | 'taxAmount' | 'totalAmount' | 'revisionNumber' | 'approvedBy' | 'expiryDate' | 'implementationTime'> & {
+    expiryDate?: string | null;
+    vatRate?: number;
+    implementationTime?: string | null;
     items: Omit<QuoteItem, 'lineTotal'>[];
     userId: string;
   }
@@ -198,16 +208,17 @@ export async function createQuote(
       subtotal += lineTotal;
       return { ...item, lineTotal, sortOrder: item.sortOrder || idx * 10 };
     });
-    const tax = subtotal * 0.1; // Standard 10% VAT
+    const vatRate = Math.max(0, Number((data as any).vatRate ?? 10));
+    const tax = subtotal * (vatRate / 100);
     const total = subtotal + tax;
 
     // 2. Insert quote header
     const quoteRes = await client.query(`
       INSERT INTO app.quotes (
-        code, quote_number, customer_id, opportunity_id, quote_date, quoted_by, status,
-        subtotal_amount, tax_amount, total_amount, revision_number, terms_note
+        code, quote_number, customer_id, opportunity_id, quote_date, expiry_date, quoted_by, status,
+        subtotal_amount, vat_rate, tax_amount, total_amount, revision_number, terms_note, implementation_time
       )
-      VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7, $8, $9, 1, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'draft', $8, $9, $10, $11, 1, $12, $13)
       RETURNING id
     `, [
       data.code,
@@ -215,11 +226,14 @@ export async function createQuote(
       data.customerId,
       data.opportunityId || null,
       data.quoteDate || new Date(),
+      (data as any).expiryDate || null,
       data.quotedBy || data.userId,
       subtotal,
+      vatRate,
       tax,
       total,
-      data.termsNote || null
+      data.termsNote || null,
+      (data as any).implementationTime || null
     ]);
 
     const quoteId = quoteRes.rows[0].id;
@@ -256,6 +270,9 @@ export async function updateQuote(
   id: string,
   data: {
     termsNote?: string | null;
+    expiryDate?: string | null;
+    vatRate?: number;
+    implementationTime?: string | null;
     status?: 'draft' | 'sent' | 'revision_requested' | 'approved' | 'rejected' | 'converted';
     items?: Omit<QuoteItem, 'lineTotal'>[];
     userId: string;
@@ -283,46 +300,68 @@ export async function updateQuote(
 
     // 3. If updating line items, calculate new sums
     let subtotal = Number(oldQuote.subtotal_amount);
+    const vatRate = data.vatRate !== undefined ? Math.max(0, Number(data.vatRate)) : Number(oldQuote.vat_rate || 10);
     let tax = Number(oldQuote.tax_amount);
     let total = Number(oldQuote.total_amount);
 
-    if (data.items) {
+    if (data.items || data.vatRate !== undefined) {
       subtotal = 0;
-      const itemsWithTotals = data.items.map((item, idx) => {
+      const nextItems = data.items || oldItems.map((item: any) => ({
+        itemName: item.item_name,
+        description: item.description,
+        unitCode: item.unit_code,
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unit_price),
+        sortOrder: item.sort_order,
+      }));
+      const itemsWithTotals = nextItems.map((item, idx) => {
         const lineTotal = Number(item.quantity) * Number(item.unitPrice);
         subtotal += lineTotal;
         return { ...item, lineTotal, sortOrder: item.sortOrder || idx * 10 };
       });
-      tax = subtotal * 0.1;
+      tax = subtotal * (vatRate / 100);
       total = subtotal + tax;
 
-      // Drop existing items
-      await client.query('DELETE FROM app.quote_items WHERE quote_id = $1', [id]);
+      if (data.items) {
+        // Drop existing items only when the caller explicitly edits line items.
+        await client.query('DELETE FROM app.quote_items WHERE quote_id = $1', [id]);
 
-      // Re-insert new items
-      for (const item of itemsWithTotals) {
-        await client.query(`
-          INSERT INTO app.quote_items (
-            quote_id, item_name, description, unit_code, quantity, unit_price, line_total, sort_order
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        `, [id, item.itemName, item.description || null, item.unitCode, item.quantity, item.unitPrice, item.lineTotal, item.sortOrder]);
+        // Re-insert new items
+        for (const item of itemsWithTotals) {
+          await client.query(`
+            INSERT INTO app.quote_items (
+              quote_id, item_name, description, unit_code, quantity, unit_price, line_total, sort_order
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          `, [id, item.itemName, item.description || null, item.unitCode, item.quantity, item.unitPrice, item.lineTotal, item.sortOrder]);
+        }
       }
     }
 
     // 4. Update Header details
     const setClauses: string[] = [
       'subtotal_amount = $2',
-      'tax_amount = $3',
-      'total_amount = $4',
+      'vat_rate = $3',
+      'tax_amount = $4',
+      'total_amount = $5',
       'revision_number = revision_number + 1',
       'updated_at = NOW()'
     ];
-    const values: any[] = [id, subtotal, tax, total];
+    const values: any[] = [id, subtotal, vatRate, tax, total];
 
     if (data.termsNote !== undefined) {
       values.push(data.termsNote);
       setClauses.push(`terms_note = $${values.length}`);
+    }
+
+    if (data.expiryDate !== undefined) {
+      values.push(data.expiryDate);
+      setClauses.push(`expiry_date = $${values.length}`);
+    }
+
+    if (data.implementationTime !== undefined) {
+      values.push(data.implementationTime);
+      setClauses.push(`implementation_time = $${values.length}`);
     }
 
     if (data.status !== undefined) {
@@ -406,16 +445,18 @@ export async function convertToContract(quoteId: string, userId: string): Promis
     // 3. Insert Contract (Status: draft, value: quote total)
     const contractRes = await client.query(`
       INSERT INTO app.contracts (
-        code, contract_number, customer_id, quote_id, contract_value, owner_user_id, status, created_by
+        code, contract_number, customer_id, quote_id, contract_name, contract_value, payment_terms, owner_user_id, status, created_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'draft', $9)
       RETURNING id, contract_number as "contractNumber"
     `, [
       contractCode,
       contractNumber,
       quote.customer_id,
       quoteId,
+      `Hop dong tu bao gia ${quote.quote_number}`,
       quote.total_amount,
+      quote.terms_note,
       quote.quoted_by,
       userId
     ]);
@@ -427,8 +468,8 @@ export async function convertToContract(quoteId: string, userId: string): Promis
 
     // 5. Create default first milestone payment (100% of quote total)
     await client.query(`
-      INSERT INTO app.payment_milestones (contract_id, name, due_date, amount_due, amount_paid, status)
-      VALUES ($1, 'Thanh toan hop dong 100%', CURRENT_DATE + INTERVAL '15 days', $2, 0, 'pending')
+      INSERT INTO app.payment_milestones (contract_id, name, payment_rate, due_date, amount_due, amount_paid, status)
+      VALUES ($1, 'Thanh toan hop dong 100%', 100, CURRENT_DATE + INTERVAL '15 days', $2, 0, 'pending')
     `, [contractId, quote.total_amount]);
 
     // 6. Audit Log

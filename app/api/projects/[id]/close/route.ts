@@ -28,7 +28,16 @@ export async function POST(
 
     const { id } = await params;
     const body = await request.json();
-    const { code, closedDate, acceptanceStatus, archiveStatus, notes } = body;
+    const {
+      code,
+      closedDate,
+      acceptanceStatus,
+      archiveStatus,
+      completionSummary,
+      acceptanceFileAssetId,
+      receivableCompleted,
+      notes
+    } = body;
 
     if (!code || !closedDate || !acceptanceStatus || !archiveStatus) {
       return NextResponse.json({ success: false, error: 'Missing required fields: code, closedDate, acceptanceStatus, archiveStatus' }, { status: 400 });
@@ -40,6 +49,9 @@ export async function POST(
       closedDate,
       acceptanceStatus,
       archiveStatus,
+      completionSummary,
+      acceptanceFileAssetId,
+      receivableCompleted,
       notes,
       userId: user.id
     });

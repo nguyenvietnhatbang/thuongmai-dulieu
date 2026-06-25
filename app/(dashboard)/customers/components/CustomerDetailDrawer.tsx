@@ -2,12 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { Customer, CustomerContact } from '@/features/customers/services/customer.service';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { getStatusBadgeClass, getStatusText } from './CustomersTable';
 
 interface UserDropdown {
   id: string;
   fullName: string;
   email: string;
+}
+
+interface CatalogOption {
+  id: string;
+  name: string;
+  code: string;
 }
 
 interface CustomerDetailDrawerProps {
@@ -42,11 +49,16 @@ export function CustomerDetailDrawer({
   const [newContact, setNewContact] = useState({
     fullName: '',
     title: '',
+    department: '',
+    contactRoleId: '',
     phone: '',
     email: '',
     isPrimary: false,
     notes: '',
   });
+  const [industryOptions, setIndustryOptions] = useState<CatalogOption[]>([]);
+  const [sourceOptions, setSourceOptions] = useState<CatalogOption[]>([]);
+  const [contactRoleOptions, setContactRoleOptions] = useState<CatalogOption[]>([]);
 
   // History States
   const [historyData, setHistoryData] = useState<{
@@ -113,6 +125,30 @@ export function CustomerDetailDrawer({
   }, [activeCustomer]);
 
   useEffect(() => {
+    const fetchCatalogOptions = async () => {
+      try {
+        const [industryRes, sourceRes, contactRoleRes] = await Promise.all([
+          fetch('/api/catalog?group=industry'),
+          fetch('/api/catalog?group=customer_source'),
+          fetch('/api/catalog?group=contact_role'),
+        ]);
+        const [industryJson, sourceJson, contactRoleJson] = await Promise.all([
+          industryRes.json(),
+          sourceRes.json(),
+          contactRoleRes.json(),
+        ]);
+        if (industryJson.success) setIndustryOptions(industryJson.data || []);
+        if (sourceJson.success) setSourceOptions(sourceJson.data || []);
+        if (contactRoleJson.success) setContactRoleOptions(contactRoleJson.data || []);
+      } catch (error) {
+        console.error('Failed to load customer catalog options:', error);
+      }
+    };
+
+    if (activeCustomer) fetchCatalogOptions();
+  }, [activeCustomer]);
+
+  useEffect(() => {
     if (activeCustomer && activeTab !== 'info' && activeTab !== 'contacts') {
       fetchHistory(activeCustomer.id);
     }
@@ -144,6 +180,8 @@ export function CustomerDetailDrawer({
         setNewContact({
           fullName: '',
           title: '',
+          department: '',
+          contactRoleId: '',
           phone: '',
           email: '',
           isPrimary: false,
@@ -165,6 +203,8 @@ export function CustomerDetailDrawer({
     setNewContact({
       fullName: contact.fullName,
       title: contact.title || '',
+      department: contact.department || '',
+      contactRoleId: contact.contactRoleId || '',
       phone: contact.phone || '',
       email: contact.email || '',
       isPrimary: contact.isPrimary,
@@ -174,7 +214,7 @@ export function CustomerDetailDrawer({
 
   const cancelEditContact = () => {
     setEditingContactId(null);
-    setNewContact({ fullName: '', title: '', phone: '', email: '', isPrimary: false, notes: '' });
+    setNewContact({ fullName: '', title: '', department: '', contactRoleId: '', phone: '', email: '', isPrimary: false, notes: '' });
   };
 
   const handleDeleteContact = async (contactId: string) => {
@@ -198,11 +238,6 @@ export function CustomerDetailDrawer({
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      alert('Hệ thống chỉ hỗ trợ upload tệp định dạng hình ảnh (image/*) do cấu trúc cơ sở dữ liệu!');
-      return;
-    }
 
     setUploadingFile(true);
     const formData = new FormData();
@@ -370,6 +405,37 @@ export function CustomerDetailDrawer({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ngành nghề</label>
+                  <SearchableSelect
+                    value={editCustomer.industryId || ''}
+                    placeholder="-- Chọn ngành nghề --"
+                    searchPlaceholder="Tìm ngành nghề..."
+                    options={industryOptions.map((item) => ({
+                      value: item.id,
+                      label: item.name,
+                      description: item.code,
+                    }))}
+                    onChange={(industryId) => setEditCustomer({ ...editCustomer, industryId })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nguồn khách hàng</label>
+                  <SearchableSelect
+                    value={editCustomer.customerSourceId || ''}
+                    placeholder="-- Chọn nguồn --"
+                    searchPlaceholder="Tìm nguồn khách hàng..."
+                    options={sourceOptions.map((item) => ({
+                      value: item.id,
+                      label: item.name,
+                      description: item.code,
+                    }))}
+                    onChange={(customerSourceId) => setEditCustomer({ ...editCustomer, customerSourceId })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Loại khách hàng</label>
                   <select
                     value={editCustomer.customerType || 'service'}
@@ -521,6 +587,14 @@ export function CustomerDetailDrawer({
                     {activeCustomer.customerType === 'both' ? 'Dịch vụ & Thương mại' : activeCustomer.customerType === 'service' ? 'Chuyên dịch vụ' : 'Chuyên thương mại'}
                   </p>
                 </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase">Ngành nghề</p>
+                  <p className="font-semibold text-foreground mt-0.5">{activeCustomer.industryName || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase">Nguồn khách hàng</p>
+                  <p className="font-semibold text-foreground mt-0.5">{activeCustomer.customerSourceName || '-'}</p>
+                </div>
               </div>
 
               <div>
@@ -576,6 +650,11 @@ export function CustomerDetailDrawer({
                               {con.title}
                             </span>
                           )}
+                          {con.contactRoleName && (
+                            <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                              {con.contactRoleName}
+                            </span>
+                          )}
                           {con.isPrimary && (
                             <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1 border border-emerald-200 rounded">
                               Liên hệ chính
@@ -583,6 +662,8 @@ export function CustomerDetailDrawer({
                           )}
                         </div>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-2 text-xs text-muted-foreground">
+                          <span>Phòng ban: {con.department || '-'}</span>
+                          <span>Vai trò: {con.contactRoleName || '-'}</span>
                           <span>SĐT: {con.phone || '-'}</span>
                           <span>Email: {con.email || '-'}</span>
                         </div>
@@ -656,6 +737,33 @@ export function CustomerDetailDrawer({
                       value={newContact.title}
                       onChange={(e) => setNewContact({ ...newContact, title: e.target.value })}
                       className="premium-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Phòng ban</label>
+                    <input
+                      type="text"
+                      placeholder="Kinh doanh, kế toán..."
+                      value={newContact.department}
+                      onChange={(e) => setNewContact({ ...newContact, department: e.target.value })}
+                      className="premium-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Vai trò liên hệ</label>
+                    <SearchableSelect
+                      value={newContact.contactRoleId}
+                      placeholder="-- Chọn vai trò --"
+                      searchPlaceholder="Tìm vai trò liên hệ..."
+                      options={contactRoleOptions.map((item) => ({
+                        value: item.id,
+                        label: item.name,
+                        description: item.code,
+                      }))}
+                      onChange={(contactRoleId) => setNewContact({ ...newContact, contactRoleId })}
                     />
                   </div>
                 </div>
@@ -1018,7 +1126,7 @@ export function CustomerDetailDrawer({
                 {uploadingFile ? 'Đang tải lên...' : 'Tải tài liệu mới'}
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv"
                   disabled={uploadingFile}
                   onChange={handleFileUpload}
                   className="hidden"
@@ -1033,21 +1141,32 @@ export function CustomerDetailDrawer({
                 <svg className="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <p>Chưa có hình ảnh tài liệu đính kèm nào.</p>
-                <p className="text-[10px] text-slate-400">(Chỉ hỗ trợ upload các định dạng ảnh: JPG, PNG, GIF, WEBP,...)</p>
+                <p>Chưa có tài liệu đính kèm nào.</p>
+                <p className="text-[10px] text-slate-400">(Hỗ trợ ảnh, PDF, Word, Excel và CSV)</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4">
-                {historyData.files.map(file => (
+                {historyData.files.map(file => {
+                  const isImage = typeof file.contentType === 'string' && file.contentType.startsWith('image/');
+
+                  return (
                   <div key={file.id} className="border border-border rounded-xl overflow-hidden bg-card flex flex-col group relative shadow-sm hover:shadow-md transition-all">
-                    {/* Thumbnail View */}
-                    <div className="relative aspect-video bg-slate-100 border-b border-border overflow-hidden">
-                      <img
-                        src={file.publicUrl}
-                        alt={file.originalName}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
-                        loading="lazy"
-                      />
+                    <div className="relative aspect-video bg-slate-100 border-b border-border overflow-hidden flex items-center justify-center">
+                      {isImage ? (
+                        <img
+                          src={file.publicUrl}
+                          alt={file.originalName}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="px-3 text-center">
+                          <div className="mx-auto w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-xs font-extrabold mb-2">
+                            FILE
+                          </div>
+                          <p className="text-[10px] text-muted-foreground truncate max-w-full">{file.contentType || 'Tài liệu'}</p>
+                        </div>
+                      )}
                     </div>
                     {/* File Meta */}
                     <div className="p-3 space-y-1">
@@ -1067,7 +1186,7 @@ export function CustomerDetailDrawer({
                         rel="noreferrer"
                         className="flex-1 text-center py-2 text-[10px] font-bold text-primary hover:bg-slate-50 border-r border-border cursor-pointer"
                       >
-                        Xem ảnh rộng
+                        Xem tài liệu
                       </a>
                       <button
                         type="button"
@@ -1078,7 +1197,8 @@ export function CustomerDetailDrawer({
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

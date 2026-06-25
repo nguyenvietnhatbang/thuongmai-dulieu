@@ -47,6 +47,8 @@ export function OpportunitiesTable({
                 <th className="px-6 py-4"><SortableHeader label="Mã số" sortKey="code" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4"><SortableHeader label="Tiêu đề cơ hội" sortKey="title" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4"><SortableHeader label="Khách hàng" sortKey="customerName" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4">Liên hệ</th>
+                <th className="px-6 py-4"><SortableHeader label="Dịch vụ" sortKey="serviceName" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4"><SortableHeader label="Giá trị dự kiến" sortKey="expectedValue" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4"><SortableHeader label="Hạn chốt" sortKey="expectedCloseDate" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4">Phụ trách</th>
@@ -67,6 +69,8 @@ export function OpportunitiesTable({
                     <td className="px-6 py-4 font-mono text-xs font-semibold text-primary">{opportunity.code}</td>
                     <td className="px-6 py-4 font-bold text-foreground">{opportunity.title}</td>
                     <td className="px-6 py-4 font-medium text-slate-700">{opportunity.customerName}</td>
+                    <td className="px-6 py-4 text-xs font-medium text-slate-700">{opportunity.contactName || '-'}</td>
+                    <td className="px-6 py-4 text-xs font-medium text-slate-700">{opportunity.serviceName || '-'}</td>
                     <td className="px-6 py-4 font-bold text-foreground">{formatCurrency(opportunity.expectedValue)}</td>
                     <td className="px-6 py-4 text-xs">
                       {opportunity.expectedCloseDate ? new Date(opportunity.expectedCloseDate).toLocaleDateString('vi-VN') : '-'}

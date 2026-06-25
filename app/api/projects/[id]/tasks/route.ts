@@ -58,7 +58,18 @@ export async function POST(
 
     const { id } = await params;
     const body = await request.json();
-    const { customerId, title, description, assigneeUserId, startDate, dueDate, priority } = body;
+    const {
+      customerId,
+      title,
+      description,
+      assigneeUserId,
+      startDate,
+      dueDate,
+      priority,
+      progressPercent,
+      result,
+      collaboratorUserIds
+    } = body;
 
     if (!title || !customerId) {
       return NextResponse.json({ success: false, error: 'Missing required fields: title, customerId' }, { status: 400 });
@@ -73,7 +84,9 @@ export async function POST(
       startDate,
       dueDate,
       priority: priority || 'normal',
-      status: 'todo',
+      progressPercent: Number(progressPercent || 0),
+      result,
+      collaboratorUserIds,
       userId: user.id
     });
 

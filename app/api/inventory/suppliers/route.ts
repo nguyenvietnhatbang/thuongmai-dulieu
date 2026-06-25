@@ -41,13 +41,23 @@ export async function POST(request: Request) {
     if (!allowed) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
 
     const body = await request.json();
-    const { code, name, phone, email, address, status } = body;
+    const { code, name, phone, email, address, taxCode, paymentTerms, creditLimit, status } = body;
 
     if (!code || !name) {
       return NextResponse.json({ success: false, error: 'code and name are required' }, { status: 400 });
     }
 
-    const supplier = await createSupplier({ code, name, phone, email, address, status: status || 'active' });
+    const supplier = await createSupplier({
+      code,
+      name,
+      phone,
+      email,
+      address,
+      taxCode,
+      paymentTerms,
+      creditLimit: Number(creditLimit || 0),
+      status: status || 'active'
+    });
     return NextResponse.json({ success: true, data: supplier }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -63,13 +73,23 @@ export async function PATCH(request: Request) {
     if (!allowed) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
 
     const body = await request.json();
-    const { id, code, name, phone, email, address, status } = body;
+    const { id, code, name, phone, email, address, taxCode, paymentTerms, creditLimit, status } = body;
     if (!id) return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 });
     if (code === '' || name === '') {
       return NextResponse.json({ success: false, error: 'code and name cannot be empty' }, { status: 400 });
     }
 
-    const supplier = await updateSupplier(id, { code, name, phone, email, address, status });
+    const supplier = await updateSupplier(id, {
+      code,
+      name,
+      phone,
+      email,
+      address,
+      taxCode,
+      paymentTerms,
+      creditLimit: creditLimit !== undefined ? Number(creditLimit) : undefined,
+      status
+    });
     return NextResponse.json({ success: true, data: supplier });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

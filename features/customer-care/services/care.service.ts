@@ -7,6 +7,10 @@ export interface CustomerCareReminder {
   customerId: string;
   customerName: string;
   customerCode: string;
+  contactId: string | null;
+  contactName: string | null;
+  careTypeId: string | null;
+  careTypeName: string | null;
   contractId: string | null;
   contractNumber: string | null;
   projectId: string | null;
@@ -95,12 +99,16 @@ export async function getReminders(params: {
     const res = await query(`
       SELECT 
         r.id, r.customer_id as "customerId", c.name as "customerName", c.code as "customerCode",
+        r.contact_id as "contactId", cc.full_name as "contactName",
+        r.care_type_id as "careTypeId", care_type.name as "careTypeName",
         r.contract_id as "contractId", ctr.contract_number as "contractNumber",
         r.project_id as "projectId", p.name as "projectName",
         r.reminder_date::text as "reminderDate", r.owner_user_id as "ownerUserId", u.full_name as "ownerName",
         r.content, r.result, r.status, r.next_care_date::text as "nextCareDate", r.completed_at::text as "completedAt"
       FROM app.customer_care_reminders r
       INNER JOIN app.customers c ON r.customer_id = c.id
+      LEFT JOIN app.customer_contacts cc ON r.contact_id = cc.id
+      LEFT JOIN app.catalog_items care_type ON r.care_type_id = care_type.id
       LEFT JOIN app.contracts ctr ON r.contract_id = ctr.id
       LEFT JOIN app.projects p ON r.project_id = p.id
       LEFT JOIN app.users u ON r.owner_user_id = u.id
@@ -121,13 +129,17 @@ async function getReminderById(id: string, client?: PoolClient): Promise<Custome
   const res = await executeQuery(`
     SELECT 
       r.id, r.customer_id as "customerId", c.name as "customerName", c.code as "customerCode",
-      r.contract_id as "contractId", ctr.contract_number as "contractNumber",
+        r.contact_id as "contactId", cc.full_name as "contactName",
+        r.care_type_id as "careTypeId", care_type.name as "careTypeName",
+        r.contract_id as "contractId", ctr.contract_number as "contractNumber",
       r.project_id as "projectId", p.name as "projectName",
       r.reminder_date::text as "reminderDate", r.owner_user_id as "ownerUserId", u.full_name as "ownerName",
       r.content, r.result, r.status, r.next_care_date::text as "nextCareDate", r.completed_at::text as "completedAt"
     FROM app.customer_care_reminders r
-    INNER JOIN app.customers c ON r.customer_id = c.id
-    LEFT JOIN app.contracts ctr ON r.contract_id = ctr.id
+      INNER JOIN app.customers c ON r.customer_id = c.id
+      LEFT JOIN app.customer_contacts cc ON r.contact_id = cc.id
+      LEFT JOIN app.catalog_items care_type ON r.care_type_id = care_type.id
+      LEFT JOIN app.contracts ctr ON r.contract_id = ctr.id
     LEFT JOIN app.projects p ON r.project_id = p.id
     LEFT JOIN app.users u ON r.owner_user_id = u.id
     WHERE r.id = $1 AND r.deleted_at IS NULL
@@ -142,6 +154,8 @@ async function getReminderById(id: string, client?: PoolClient): Promise<Custome
 export async function createReminder(
   data: {
     customerId: string;
+    contactId?: string | null;
+    careTypeId?: string | null;
     contractId?: string | null;
     projectId?: string | null;
     reminderDate: string;
@@ -152,12 +166,14 @@ export async function createReminder(
 ): Promise<CustomerCareReminder> {
   const res = await query(`
     INSERT INTO app.customer_care_reminders (
-      customer_id, contract_id, project_id, reminder_date, owner_user_id, content, status
+      customer_id, contact_id, care_type_id, contract_id, project_id, reminder_date, owner_user_id, content, status
     )
-    VALUES ($1, $2, $3, $4, $5, $6, 'scheduled')
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'scheduled')
     RETURNING id
   `, [
     data.customerId,
+    data.contactId || null,
+    data.careTypeId || null,
     data.contractId || null,
     data.projectId || null,
     data.reminderDate,
@@ -187,6 +203,8 @@ export async function updateReminder(
     customerId?: string;
     contractId?: string | null;
     projectId?: string | null;
+    contactId?: string | null;
+    careTypeId?: string | null;
     reminderDate?: string;
     content?: string;
     ownerUserId?: string | null;
@@ -208,6 +226,8 @@ export async function updateReminder(
     customerId: 'customer_id',
     contractId: 'contract_id',
     projectId: 'project_id',
+    contactId: 'contact_id',
+    careTypeId: 'care_type_id',
     reminderDate: 'reminder_date',
     content: 'content',
     ownerUserId: 'owner_user_id',
@@ -307,11 +327,13 @@ export async function completeReminder(
       const nextContent = data.nextCareContent || `Cham soc dinh ky tiep theo (Sau hoan thanh nhac hen truoc: ${reminder.content.substring(0, 30)})`;
       await client.query(`
         INSERT INTO app.customer_care_reminders (
-          customer_id, contract_id, project_id, reminder_date, owner_user_id, content, status
+          customer_id, contact_id, care_type_id, contract_id, project_id, reminder_date, owner_user_id, content, status
         )
-        VALUES ($1, $2, $3, $4, $5, $6, 'scheduled')
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'scheduled')
       `, [
         reminder.customer_id,
+        reminder.contact_id || null,
+        reminder.care_type_id || null,
         reminder.contract_id || null,
         reminder.project_id || null,
         data.nextCareDate,

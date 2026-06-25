@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     if (!scope) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
 
     const body = await request.json();
-    const { customerId, contractId, projectId, reminderDate, content, ownerUserId } = body;
+    const { customerId, contactId, careTypeId, contractId, projectId, reminderDate, content, ownerUserId } = body;
 
     if (!customerId || !reminderDate || !content) {
       return NextResponse.json({ success: false, error: 'customerId, reminderDate, and content are required' }, { status: 400 });
@@ -59,6 +59,8 @@ export async function POST(request: Request) {
 
     const newReminder = await createReminder({
       customerId,
+      contactId,
+      careTypeId,
       contractId,
       projectId,
       reminderDate,

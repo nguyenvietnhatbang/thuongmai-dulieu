@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 
 interface ContractMilestonePayload {
   name?: string;
+  paymentRate?: number | string | null;
   dueDate?: string;
   amountDue?: number | string;
 }
@@ -82,9 +83,13 @@ export async function POST(request: Request) {
     const {
       code,
       contractNumber,
+      contractName,
       customerId,
       quoteId,
       contractValue,
+      startDate,
+      expectedEndDate,
+      paymentTerms,
       ownerUserId,
       notes,
       milestones
@@ -119,13 +124,20 @@ export async function POST(request: Request) {
     const created = await createContract({
       code,
       contractNumber,
+      contractName: contractName || null,
       customerId,
       quoteId: quoteId || null,
       contractValue: numericContractValue,
+      startDate: startDate || null,
+      expectedEndDate: expectedEndDate || null,
+      paymentTerms: paymentTerms || null,
       ownerUserId: ownerUserId || user.id,
       notes: notes || null,
       milestones: milestones?.map((milestone: ContractMilestonePayload) => ({
         name: milestone.name,
+        paymentRate: milestone.paymentRate !== undefined && milestone.paymentRate !== null
+          ? Number(milestone.paymentRate)
+          : null,
         dueDate: milestone.dueDate,
         amountDue: Number(milestone.amountDue)
       })),

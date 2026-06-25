@@ -8,8 +8,10 @@ export const dynamic = 'force-dynamic';
 const receiptSorts = {
   code: 'sr.code',
   purchaseOrderCode: 'po.code',
+  supplierName: 'supplierName',
   warehouseName: 'w.name',
   receiptDate: 'sr.receipt_date',
+  totalQuantity: 'sr.total_quantity',
   totalAmount: 'sr.total_amount',
   status: 'sr.status',
 };
@@ -31,6 +33,8 @@ export async function GET(request: Request) {
       search: searchParams.get('search') || undefined,
       status: searchParams.get('status') || undefined,
       warehouseId: searchParams.get('warehouseId') || undefined,
+      supplierId: searchParams.get('supplierId') || undefined,
+      qualityStatusId: searchParams.get('qualityStatusId') || undefined,
     });
     return NextResponse.json({ success: true, data: receipts.data, pagination: receipts.pagination });
   } catch (error: any) {
@@ -48,7 +52,16 @@ export async function POST(request: Request) {
     if (!allowed) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
 
     const body = await request.json();
-    const { code, purchaseOrderId, warehouseId, receiptDate, items, notes } = body;
+    const {
+      code,
+      purchaseOrderId,
+      supplierId,
+      warehouseId,
+      receiptDate,
+      qualityStatusId,
+      items,
+      notes
+    } = body;
 
     if (!code || !warehouseId || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ success: false, error: 'code, warehouseId, and non-empty items array are required' }, { status: 400 });
@@ -57,8 +70,10 @@ export async function POST(request: Request) {
     const receiptId = await createStockReceipt({
       code,
       purchaseOrderId,
+      supplierId,
       warehouseId,
       receiptDate,
+      qualityStatusId,
       items,
       notes,
       userId: user.id

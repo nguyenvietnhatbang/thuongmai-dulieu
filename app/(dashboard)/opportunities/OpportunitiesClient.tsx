@@ -48,6 +48,8 @@ export function OpportunitiesClient({ currentUser }: { currentUser: UserSession 
   const [newOpp, setNewOpp] = useState<OpportunityFormState>({
     code: '',
     customerId: '',
+    contactId: '',
+    serviceId: '',
     title: '',
     needDescription: '',
     expectedValue: '',
@@ -60,6 +62,8 @@ export function OpportunitiesClient({ currentUser }: { currentUser: UserSession 
   const [editOpp, setEditOpp] = useState<OpportunityFormState>({
     code: '',
     customerId: '',
+    contactId: '',
+    serviceId: '',
     title: '',
     needDescription: '',
     expectedValue: '',
@@ -73,6 +77,8 @@ export function OpportunitiesClient({ currentUser }: { currentUser: UserSession 
     setEditOpp({
       code: opp.code,
       customerId: opp.customerId,
+      contactId: opp.contactId || '',
+      serviceId: opp.serviceId || '',
       title: opp.title,
       needDescription: opp.needDescription || '',
       expectedValue: opp.expectedValue.toString(),
@@ -176,6 +182,8 @@ export function OpportunitiesClient({ currentUser }: { currentUser: UserSession 
         setNewOpp({
           code: '',
           customerId: '',
+          contactId: '',
+          serviceId: '',
           title: '',
           needDescription: '',
           expectedValue: '',
@@ -203,6 +211,8 @@ export function OpportunitiesClient({ currentUser }: { currentUser: UserSession 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: editOpp.title,
+          contactId: editOpp.contactId || null,
+          serviceId: editOpp.serviceId || null,
           expectedValue: Number(editOpp.expectedValue),
           stage: editOpp.stage,
           expectedCloseDate: editOpp.expectedCloseDate || null,

@@ -23,12 +23,14 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || undefined;
     const stage = searchParams.get('stage') || undefined;
+    const serviceId = searchParams.get('serviceId') || undefined;
     const pagination = parsePagination(searchParams);
     const sort = parseSort(searchParams, {
       createdAt: 'o.created_at',
       code: 'o.code',
       title: 'o.title',
       customerName: 'c.name',
+      serviceName: 'service.name',
       expectedValue: 'o.expected_value',
       expectedCloseDate: 'o.expected_close_date',
       stage: 'o.stage',
@@ -37,6 +39,7 @@ export async function GET(request: Request) {
     const result = await getOpportunities({
       search,
       stage,
+      serviceId,
       scope: (scope === 'department' ? 'team' : scope) as 'own' | 'team' | 'all',
       currentUserId: user.id,
       currentUserDeptId: user.departmentId,
@@ -74,7 +77,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { code, customerId, title, needDescription, expectedValue, expectedCloseDate, ownerUserId, stage, notes } = body;
+    const { code, customerId, contactId, serviceId, title, needDescription, expectedValue, expectedCloseDate, ownerUserId, stage, notes } = body;
 
     if (!code || !customerId || !title) {
       return NextResponse.json({ success: false, error: 'Missing required fields: code, customerId, title' }, { status: 400 });
@@ -83,6 +86,8 @@ export async function POST(request: Request) {
     const newOpp = await createOpportunity({
       code,
       customerId,
+      contactId,
+      serviceId,
       title,
       needDescription,
       expectedValue: Number(expectedValue || 0),

@@ -48,7 +48,16 @@ export async function POST(
 
     const { id } = await params;
     const body = await request.json();
-    const { customerId, recipientUserId, content, parentNoteId } = body;
+    const {
+      customerId,
+      recipientUserId,
+      recipientUserIds,
+      noteTitle,
+      content,
+      requiresResponse,
+      responseDueDate,
+      parentNoteId
+    } = body;
 
     if (!content || !customerId || !recipientUserId) {
       return NextResponse.json({ success: false, error: 'Missing required fields: content, customerId, recipientUserId' }, { status: 400 });
@@ -59,7 +68,11 @@ export async function POST(
       customerId,
       senderUserId: user.id,
       recipientUserId,
+      recipientUserIds,
+      noteTitle,
       content,
+      requiresResponse,
+      responseDueDate,
       parentNoteId
     });
 

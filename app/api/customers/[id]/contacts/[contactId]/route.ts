@@ -21,7 +21,7 @@ export async function PATCH(
 
     const { contactId } = await params;
     const body = await request.json();
-    const { fullName, title, phone, email, isPrimary, notes } = body;
+    const { fullName, title, department, contactRoleId, phone, email, isPrimary, notes } = body;
 
     if (!fullName) {
       return NextResponse.json({ success: false, error: 'fullName is required' }, { status: 400 });
@@ -30,6 +30,8 @@ export async function PATCH(
     const contact = await updateCustomerContact(contactId, {
       fullName,
       title,
+      department,
+      contactRoleId,
       phone,
       email,
       isPrimary: !!isPrimary,

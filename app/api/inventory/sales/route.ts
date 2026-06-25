@@ -9,6 +9,7 @@ const salesSorts = {
   code: 'so.code',
   customerName: 'c.name',
   saleDate: 'so.sale_date',
+  expectedDeliveryDate: 'so.expected_delivery_date',
   totalAmount: 'so.total_amount',
   paidAmount: 'so.paid_amount',
   debtAmount: 'so.debt_amount',
@@ -32,6 +33,7 @@ export async function GET(request: Request) {
       search: searchParams.get('search') || undefined,
       status: searchParams.get('status') || undefined,
       customerId: searchParams.get('customerId') || undefined,
+      warehouseId: searchParams.get('warehouseId') || undefined,
     });
     return NextResponse.json({ success: true, data: sales.data, pagination: sales.pagination });
   } catch (error: any) {
@@ -49,7 +51,18 @@ export async function POST(request: Request) {
     if (!allowed) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
 
     const body = await request.json();
-    const { code, customerId, saleDate, paidAmount, items, notes } = body;
+    const {
+      code,
+      customerId,
+      contactId,
+      saleDate,
+      expectedDeliveryDate,
+      warehouseId,
+      paymentDueDate,
+      paidAmount,
+      items,
+      notes
+    } = body;
 
     if (!code || !customerId || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ success: false, error: 'code, customerId, and non-empty items array are required' }, { status: 400 });
@@ -58,7 +71,11 @@ export async function POST(request: Request) {
     const salesOrderId = await createSalesOrder({
       code,
       customerId,
+      contactId,
       saleDate,
+      expectedDeliveryDate,
+      warehouseId,
+      paymentDueDate,
       paidAmount: Number(paidAmount || 0),
       items,
       notes,

@@ -17,13 +17,18 @@ export interface ContractSelectOption {
 export interface ContractCreateFormState {
   code: string;
   contractNumber: string;
+  contractName: string;
   customerId: string;
   quoteId: string;
   contractValue: string;
+  startDate: string;
+  expectedEndDate: string;
+  paymentTerms: string;
   ownerUserId: string;
   notes: string;
   milestoneName: string;
   milestoneDueDate: string;
+  milestoneRate: string;
   milestoneAmount: string;
 }
 
@@ -77,6 +82,15 @@ export function ContractCreateModal({
               value={form.contractNumber}
               onChange={(event) => setForm({ ...form, contractNumber: event.target.value })}
               className="premium-input text-sm"
+            />
+          </div>
+          <div className="lg:col-span-2">
+            <label className="block text-xs font-bold text-slate-600 mb-1">Tên hợp đồng</label>
+            <input
+              value={form.contractName}
+              onChange={(event) => setForm({ ...form, contractName: event.target.value })}
+              className="premium-input text-sm"
+              placeholder="Tên gói dịch vụ/hợp đồng theo khách hàng"
             />
           </div>
           <div>
@@ -134,11 +148,29 @@ export function ContractCreateModal({
               onChange={(ownerUserId) => setForm({ ...form, ownerUserId })}
             />
           </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Ngày bắt đầu</label>
+            <input
+              type="date"
+              value={form.startDate}
+              onChange={(event) => setForm({ ...form, startDate: event.target.value })}
+              className="premium-input text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1">Dự kiến kết thúc</label>
+            <input
+              type="date"
+              value={form.expectedEndDate}
+              onChange={(event) => setForm({ ...form, expectedEndDate: event.target.value })}
+              className="premium-input text-sm"
+            />
+          </div>
         </div>
 
         <div className="rounded-xl border border-border bg-slate-50/50 p-3">
           <p className="text-xs font-bold uppercase text-slate-700 mb-3">Đợt thanh toán đầu tiên</p>
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
             <div className="sm:col-span-1">
               <label className="block text-xs font-bold text-slate-600 mb-1">Tên đợt</label>
               <input
@@ -159,6 +191,18 @@ export function ContractCreateModal({
               />
             </div>
             <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1">Tỷ lệ (%)</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={form.milestoneRate}
+                onChange={(event) => setForm({ ...form, milestoneRate: event.target.value })}
+                className="premium-input text-sm"
+              />
+            </div>
+            <div>
               <label className="block text-xs font-bold text-slate-600 mb-1">Số tiền</label>
               <input
                 required
@@ -170,6 +214,16 @@ export function ContractCreateModal({
               />
             </div>
           </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-600 mb-1">Điều khoản thanh toán</label>
+          <textarea
+            value={form.paymentTerms}
+            onChange={(event) => setForm({ ...form, paymentTerms: event.target.value })}
+            className="premium-input h-20 text-sm"
+            placeholder="Điều kiện thanh toán, thời hạn, phương thức..."
+          />
         </div>
 
         <div>

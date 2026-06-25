@@ -51,8 +51,10 @@ export function ContractsTable({
             <thead>
               <tr className="bg-slate-50 border-b border-border text-muted-foreground text-xs uppercase font-semibold">
                 <th className="px-6 py-4"><SortableHeader label="Số Hợp đồng" sortKey="contractNumber" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4">Tên hợp đồng</th>
                 <th className="px-6 py-4"><SortableHeader label="Khách hàng" sortKey="customerName" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4"><SortableHeader label="Giá trị hợp đồng" sortKey="contractValue" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4">Thời hạn</th>
                 <th className="px-6 py-4"><SortableHeader label="Ngày ký" sortKey="signedDate" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4">Đồng bộ dự án</th>
                 <th className="px-6 py-4">Người phụ trách</th>
@@ -68,8 +70,14 @@ export function ContractsTable({
                   className="hover:bg-slate-50/50 transition-colors cursor-pointer"
                 >
                   <td className="px-6 py-4 font-mono text-xs font-semibold text-primary">{contract.contractNumber}</td>
+                  <td className="px-6 py-4 text-xs font-semibold text-slate-700">{contract.contractName || '-'}</td>
                   <td className="px-6 py-4 font-bold text-foreground">{contract.customerName}</td>
                   <td className="px-6 py-4 font-bold text-foreground">{formatCurrency(contract.contractValue)}</td>
+                  <td className="px-6 py-4 text-xs">
+                    {contract.startDate ? new Date(contract.startDate).toLocaleDateString('vi-VN') : '-'}
+                    {' -> '}
+                    {contract.expectedEndDate ? new Date(contract.expectedEndDate).toLocaleDateString('vi-VN') : '-'}
+                  </td>
                   <td className="px-6 py-4 text-xs">
                     {contract.signedDate ? new Date(contract.signedDate).toLocaleDateString('vi-VN') : 'Chưa ký'}
                   </td>

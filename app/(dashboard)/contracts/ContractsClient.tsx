@@ -23,13 +23,18 @@ const getDefaultDueDate = () => {
 const buildInitialContractForm = (currentUserId: string): ContractCreateFormState => ({
   code: `HD-${Date.now()}`,
   contractNumber: `HD-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Date.now()).slice(-4)}`,
+  contractName: '',
   customerId: '',
   quoteId: '',
   contractValue: '',
+  startDate: new Date().toISOString().slice(0, 10),
+  expectedEndDate: '',
+  paymentTerms: '',
   ownerUserId: currentUserId,
   notes: '',
   milestoneName: 'Thanh toán hợp đồng 100%',
   milestoneDueDate: getDefaultDueDate(),
+  milestoneRate: '100',
   milestoneAmount: ''
 });
 
@@ -134,6 +139,7 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
     setCreateForm((current) => ({
       ...current,
       quoteId,
+      contractName: current.contractName || (selectedQuote ? `Hợp đồng ${selectedQuote.quoteNumber || ''}`.trim() : current.contractName),
       customerId: selectedQuote?.customerId || current.customerId,
       contractValue: selectedQuote?.totalAmount ? String(selectedQuote.totalAmount) : current.contractValue,
       milestoneAmount: selectedQuote?.totalAmount ? String(selectedQuote.totalAmount) : current.milestoneAmount
@@ -144,6 +150,7 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
     event.preventDefault();
     const contractValue = Number(createForm.contractValue);
     const milestoneAmount = Number(createForm.milestoneAmount || createForm.contractValue);
+    const milestoneRate = createForm.milestoneRate ? Number(createForm.milestoneRate) : null;
 
     if (!createForm.code || !createForm.contractNumber || !createForm.customerId || !Number.isFinite(contractValue) || contractValue <= 0) {
       alert('Vui lòng nhập mã, số hợp đồng, khách hàng và giá trị hợp đồng hợp lệ.');
@@ -155,6 +162,11 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
       return;
     }
 
+    if (milestoneRate !== null && (!Number.isFinite(milestoneRate) || milestoneRate < 0 || milestoneRate > 100)) {
+      alert('Tỷ lệ đợt thanh toán phải nằm trong khoảng 0-100%.');
+      return;
+    }
+
     setCreateSaving(true);
     try {
       const res = await fetch('/api/contracts', {
@@ -163,14 +175,19 @@ export function ContractsClient({ currentUser }: { currentUser: UserSession }) {
         body: JSON.stringify({
           code: createForm.code,
           contractNumber: createForm.contractNumber,
+          contractName: createForm.contractName || null,
           customerId: createForm.customerId,
           quoteId: createForm.quoteId || null,
           contractValue,
+          startDate: createForm.startDate || null,
+          expectedEndDate: createForm.expectedEndDate || null,
+          paymentTerms: createForm.paymentTerms || null,
           ownerUserId: createForm.ownerUserId || currentUser.id,
           notes: createForm.notes,
           milestones: [{
             name: createForm.milestoneName || 'Thanh toán hợp đồng 100%',
             dueDate: createForm.milestoneDueDate,
+            paymentRate: milestoneRate,
             amountDue: milestoneAmount
           }]
         })

@@ -79,6 +79,8 @@ export function CustomersTable({
                 <th className="px-6 py-4"><SortableHeader label="Mã số" sortKey="code" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4"><SortableHeader label="Tên khách hàng" sortKey="name" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4"><SortableHeader label="Loại hình" sortKey="customerType" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Ngành" sortKey="industryName" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4"><SortableHeader label="Nguồn" sortKey="customerSourceName" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4">Liên hệ chính</th>
                 <th className="px-6 py-4"><SortableHeader label="Người phụ trách" sortKey="ownerName" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4"><SortableHeader label="Trạng thái" sortKey="status" activeSort={sort} order={order} onSort={onSort} /></th>
@@ -97,6 +99,8 @@ export function CustomersTable({
                   <td className="px-6 py-4 text-xs font-semibold text-muted-foreground capitalize">
                     {c.customerType === 'both' ? 'Dịch vụ & TM' : c.customerType === 'service' ? 'Dịch vụ' : 'Thương mại'}
                   </td>
+                  <td className="px-6 py-4 text-xs font-medium text-slate-700">{c.industryName || '-'}</td>
+                  <td className="px-6 py-4 text-xs font-medium text-slate-700">{c.customerSourceName || '-'}</td>
                   <td className="px-6 py-4">
                     <div className="text-xs">
                       <p className="font-semibold text-foreground">{c.phone || '-'}</p>

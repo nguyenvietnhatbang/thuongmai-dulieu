@@ -1,6 +1,6 @@
 'use client';
 
-import { Dispatch, FormEvent, SetStateAction } from 'react';
+import { Dispatch, FormEvent, SetStateAction, useEffect, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Customer } from '@/features/customers/services/customer.service';
@@ -8,6 +8,8 @@ import { Customer } from '@/features/customers/services/customer.service';
 export interface OpportunityFormState {
   code: string;
   customerId: string;
+  contactId: string;
+  serviceId: string;
   title: string;
   needDescription: string;
   expectedValue: string;
@@ -20,6 +22,19 @@ export interface OpportunityFormState {
 interface UserDropdown {
   id: string;
   fullName: string;
+}
+
+interface CatalogOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+interface ContactOption {
+  id: string;
+  fullName: string;
+  title?: string | null;
+  department?: string | null;
 }
 
 interface OpportunityFormModalProps {
@@ -43,6 +58,44 @@ export function OpportunityFormModal({
   onClose,
   onSubmit,
 }: OpportunityFormModalProps) {
+  const [serviceOptions, setServiceOptions] = useState<CatalogOption[]>([]);
+  const [contactOptions, setContactOptions] = useState<ContactOption[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchServices = async () => {
+      try {
+        const res = await fetch('/api/catalog?group=service');
+        const json = await res.json();
+        if (json.success) setServiceOptions(json.data || []);
+      } catch (error) {
+        console.error('Failed to load service catalog:', error);
+      }
+    };
+
+    fetchServices();
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !form.customerId) {
+      setContactOptions([]);
+      return;
+    }
+
+    const fetchContacts = async () => {
+      try {
+        const res = await fetch(`/api/customers/${form.customerId}/contacts`);
+        const json = await res.json();
+        if (json.success) setContactOptions(json.data || []);
+      } catch (error) {
+        console.error('Failed to load customer contacts:', error);
+      }
+    };
+
+    fetchContacts();
+  }, [isOpen, form.customerId]);
+
   return (
     <Modal
       isOpen={isOpen}
@@ -76,7 +129,39 @@ export function OpportunityFormModal({
                 label: `${customer.name} (${customer.code})`,
                 description: customer.email || customer.phone || customer.customerType,
               }))}
-              onChange={(customerId) => setForm({ ...form, customerId })}
+              onChange={(customerId) => setForm({ ...form, customerId, contactId: '' })}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Người liên hệ</label>
+            <SearchableSelect
+              value={form.contactId}
+              disabled={!form.customerId}
+              placeholder="-- Chọn liên hệ --"
+              searchPlaceholder="Tìm người liên hệ..."
+              options={contactOptions.map((contact) => ({
+                value: contact.id,
+                label: contact.fullName,
+                description: contact.title || contact.department || undefined,
+              }))}
+              onChange={(contactId) => setForm({ ...form, contactId })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Dịch vụ quan tâm</label>
+            <SearchableSelect
+              value={form.serviceId}
+              placeholder="-- Chọn dịch vụ --"
+              searchPlaceholder="Tìm dịch vụ..."
+              options={serviceOptions.map((service) => ({
+                value: service.id,
+                label: service.name,
+                description: service.code,
+              }))}
+              onChange={(serviceId) => setForm({ ...form, serviceId })}
             />
           </div>
         </div>

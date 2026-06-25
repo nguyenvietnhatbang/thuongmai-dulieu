@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { MastersTab } from '../inventory/components/MastersTab';
+import { CatalogManagementPanel } from './CatalogManagementPanel';
 
 interface UserSession {
   id: string;
@@ -305,7 +306,8 @@ export function MastersClient({}: { currentUser: UserSession }) {
     <div className="flex h-full w-full items-stretch overflow-hidden gap-6">
       <div className="flex-1 overflow-y-auto pr-2 pb-8 space-y-6">
         {/* DYNAMIC CONTENT AREA */}
-        <div className="relative animate-fade-in">
+        <div className="relative animate-fade-in space-y-6">
+          <CatalogManagementPanel />
           <MastersTab
             products={productRows}
             suppliers={supplierRows}

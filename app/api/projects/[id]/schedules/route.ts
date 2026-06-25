@@ -48,7 +48,17 @@ export async function POST(
 
     const { id } = await params;
     const body = await request.json();
-    const { customerId, scheduleType, title, startsAt, endsAt, ownerUserId, notes } = body;
+    const {
+      customerId,
+      scheduleType,
+      title,
+      startsAt,
+      endsAt,
+      ownerUserId,
+      location,
+      internalAttendeeIds,
+      notes
+    } = body;
 
     if (!title || !customerId || !startsAt || !scheduleType) {
       return NextResponse.json({ success: false, error: 'Missing required fields: title, customerId, startsAt, scheduleType' }, { status: 400 });
@@ -62,7 +72,8 @@ export async function POST(
       startsAt,
       endsAt,
       ownerUserId,
-      status: 'planned',
+      location,
+      internalAttendeeIds,
       notes,
       userId: user.id
     });

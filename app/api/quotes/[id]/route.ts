@@ -97,6 +97,13 @@ export async function PATCH(
     }
 
     const body = await request.json();
+    if (body.vatRate !== undefined && body.vatRate !== null && body.vatRate !== '') {
+      const vatRate = Number(body.vatRate);
+      if (!Number.isFinite(vatRate) || vatRate < 0) {
+        return NextResponse.json({ success: false, error: 'vatRate must be a non-negative number' }, { status: 400 });
+      }
+      body.vatRate = vatRate;
+    }
 
     // Enforce Approval permission if updating status to "approved"
     if (body.status === 'approved') {

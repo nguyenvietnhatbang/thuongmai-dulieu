@@ -74,7 +74,7 @@ export async function POST(
 
     const { id } = await params;
     const body = await request.json();
-    const { fullName, title, phone, email, isPrimary, notes } = body;
+    const { fullName, title, department, contactRoleId, phone, email, isPrimary, notes } = body;
 
     if (!fullName) {
       return NextResponse.json({ success: false, error: 'Missing required field: fullName' }, { status: 400 });
@@ -84,6 +84,8 @@ export async function POST(
       customerId: id,
       fullName,
       title,
+      department,
+      contactRoleId,
       phone,
       email,
       isPrimary: !!isPrimary,

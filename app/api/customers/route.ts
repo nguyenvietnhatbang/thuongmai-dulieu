@@ -25,12 +25,16 @@ export async function GET(request: Request) {
     const search = searchParams.get('search') || undefined;
     const status = searchParams.get('status') || undefined;
     const customerType = searchParams.get('customerType') || undefined;
+    const industryId = searchParams.get('industryId') || undefined;
+    const customerSourceId = searchParams.get('customerSourceId') || undefined;
     const pagination = parsePagination(searchParams);
     const sort = parseSort(searchParams, {
       createdAt: 'c.created_at',
       code: 'c.code',
       name: 'c.name',
       customerType: 'c.customer_type',
+      industryName: 'industry.name',
+      customerSourceName: 'source.name',
       ownerName: 'u.full_name',
       status: 'c.status',
     }, 'createdAt');
@@ -40,6 +44,8 @@ export async function GET(request: Request) {
       search,
       status,
       customerType,
+      industryId,
+      customerSourceId,
       ...pagination,
       ...sort,
       scope: (scope === 'department' ? 'team' : scope) as 'own' | 'team' | 'all',
@@ -84,7 +90,20 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { code, name, customerType, ownerUserId, status, phone, email, taxCode, address, notes } = body;
+    const {
+      code,
+      name,
+      customerType,
+      industryId,
+      customerSourceId,
+      ownerUserId,
+      status,
+      phone,
+      email,
+      taxCode,
+      address,
+      notes
+    } = body;
 
     // Validation
     if (!code || !name || !customerType) {
@@ -100,6 +119,8 @@ export async function POST(request: Request) {
       code,
       name,
       customerType,
+      industryId,
+      customerSourceId,
       ownerUserId,
       status,
       phone,

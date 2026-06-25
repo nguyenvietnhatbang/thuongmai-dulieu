@@ -8,8 +8,11 @@ export const dynamic = 'force-dynamic';
 const productSorts = {
   code: 'code',
   name: 'name',
+  productGroupName: 'productGroupName',
   unitCode: 'unit_code',
   minStockQuantity: 'min_stock_quantity',
+  standardCost: 'standardCost',
+  sellingPrice: 'sellingPrice',
   status: 'status',
 };
 
@@ -42,7 +45,18 @@ export async function POST(request: Request) {
     if (!allowed) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
 
     const body = await request.json();
-    const { code, name, unitCode, minStockQuantity, status } = body;
+    const {
+      code,
+      name,
+      productGroupId,
+      specification,
+      unitCode,
+      minStockQuantity,
+      standardCost,
+      sellingPrice,
+      defaultSupplierId,
+      status
+    } = body;
 
     if (!code || !name || !unitCode) {
       return NextResponse.json({ success: false, error: 'code, name, and unitCode are required' }, { status: 400 });
@@ -51,8 +65,13 @@ export async function POST(request: Request) {
     const product = await createProduct({
       code,
       name,
+      productGroupId: productGroupId || null,
+      specification,
       unitCode,
       minStockQuantity: Number(minStockQuantity || 0),
+      standardCost: Number(standardCost || 0),
+      sellingPrice: Number(sellingPrice || 0),
+      defaultSupplierId: defaultSupplierId || null,
       status: status || 'active'
     });
     return NextResponse.json({ success: true, data: product }, { status: 201 });
@@ -70,13 +89,36 @@ export async function PATCH(request: Request) {
     if (!allowed) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
 
     const body = await request.json();
-    const { id, code, name, unitCode, minStockQuantity, status } = body;
+    const {
+      id,
+      code,
+      name,
+      productGroupId,
+      specification,
+      unitCode,
+      minStockQuantity,
+      standardCost,
+      sellingPrice,
+      defaultSupplierId,
+      status
+    } = body;
     if (!id) return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 });
     if (code === '' || name === '' || unitCode === '') {
       return NextResponse.json({ success: false, error: 'code, name, and unitCode cannot be empty' }, { status: 400 });
     }
 
-    const product = await updateProduct(id, { code, name, unitCode, minStockQuantity, status });
+    const product = await updateProduct(id, {
+      code,
+      name,
+      productGroupId,
+      specification,
+      unitCode,
+      minStockQuantity: minStockQuantity !== undefined ? Number(minStockQuantity) : undefined,
+      standardCost: standardCost !== undefined ? Number(standardCost) : undefined,
+      sellingPrice: sellingPrice !== undefined ? Number(sellingPrice) : undefined,
+      defaultSupplierId,
+      status
+    });
     return NextResponse.json({ success: true, data: product });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

@@ -19,6 +19,7 @@ export async function GET(request: Request) {
     const pagination = parsePagination(searchParams);
     const sort = parseSort(searchParams, {
       dueDate: 'r.due_date',
+      invoiceDate: 'r.invoice_date',
       code: 'r.code',
       customerName: 'c.name',
       amountDue: 'r.amount_due',

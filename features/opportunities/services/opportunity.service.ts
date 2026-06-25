@@ -6,6 +6,10 @@ export interface Opportunity {
   code: string;
   customerId: string;
   customerName: string;
+  contactId: string | null;
+  contactName: string | null;
+  serviceId: string | null;
+  serviceName: string | null;
   title: string;
   needDescription: string | null;
   expectedValue: number;
@@ -23,13 +27,14 @@ export interface Opportunity {
 export async function getOpportunities(params: {
   search?: string;
   stage?: string;
+  serviceId?: string;
   scope?: 'own' | 'team' | 'all';
   currentUserId?: string;
   currentUserDeptId?: string | null;
   limit?: number;
   offset?: number;
   page?: number;
-  sort?: 'createdAt' | 'code' | 'title' | 'customerName' | 'expectedValue' | 'expectedCloseDate' | 'stage';
+  sort?: 'createdAt' | 'code' | 'title' | 'customerName' | 'serviceName' | 'expectedValue' | 'expectedCloseDate' | 'stage';
   order?: SortDirection;
 }): Promise<PaginatedResult<Opportunity>> {
   try {
@@ -52,6 +57,7 @@ export async function getOpportunities(params: {
       code: 'o.code',
       title: 'o.title',
       customerName: 'c.name',
+      serviceName: 'service.name',
       expectedValue: 'o.expected_value',
       expectedCloseDate: 'o.expected_close_date',
       stage: 'o.stage',
@@ -65,6 +71,11 @@ export async function getOpportunities(params: {
     if (stage) {
       values.push(stage);
       whereClauses.push(`o.stage = $${values.length}`);
+    }
+
+    if (params.serviceId) {
+      values.push(params.serviceId);
+      whereClauses.push(`o.service_id = $${values.length}`);
     }
 
     // RBAC Filter Scope
@@ -82,6 +93,8 @@ export async function getOpportunities(params: {
       SELECT COUNT(*)::int as count
       FROM app.opportunities o
       INNER JOIN app.customers c ON o.customer_id = c.id
+      LEFT JOIN app.customer_contacts contact ON o.contact_id = contact.id
+      LEFT JOIN app.catalog_items service ON o.service_id = service.id
       LEFT JOIN app.users u ON o.owner_user_id = u.id
       ${whereSql}
     `, countValues);
@@ -94,6 +107,10 @@ export async function getOpportunities(params: {
         o.code,
         o.customer_id as "customerId",
         c.name as "customerName",
+        o.contact_id as "contactId",
+        contact.full_name as "contactName",
+        o.service_id as "serviceId",
+        service.name as "serviceName",
         o.title,
         o.need_description as "needDescription",
         o.expected_value::numeric as "expectedValue",
@@ -105,6 +122,8 @@ export async function getOpportunities(params: {
         o.created_at as "createdAt"
       FROM app.opportunities o
       INNER JOIN app.customers c ON o.customer_id = c.id
+      LEFT JOIN app.customer_contacts contact ON o.contact_id = contact.id
+      LEFT JOIN app.catalog_items service ON o.service_id = service.id
       LEFT JOIN app.users u ON o.owner_user_id = u.id
       ${whereSql}
       ORDER BY ${getSortSql(sort, order, sortColumns)}
@@ -128,6 +147,10 @@ export async function getOpportunityById(id: string): Promise<Opportunity | null
       o.code,
       o.customer_id as "customerId",
       c.name as "customerName",
+      o.contact_id as "contactId",
+      contact.full_name as "contactName",
+      o.service_id as "serviceId",
+      service.name as "serviceName",
       o.title,
       o.need_description as "needDescription",
       o.expected_value::numeric as "expectedValue",
@@ -139,6 +162,8 @@ export async function getOpportunityById(id: string): Promise<Opportunity | null
       o.created_at as "createdAt"
     FROM app.opportunities o
     INNER JOIN app.customers c ON o.customer_id = c.id
+    LEFT JOIN app.customer_contacts contact ON o.contact_id = contact.id
+    LEFT JOIN app.catalog_items service ON o.service_id = service.id
     LEFT JOIN app.users u ON o.owner_user_id = u.id
     WHERE o.id = $1 AND o.deleted_at IS NULL
   `, [id]);
@@ -151,18 +176,20 @@ export async function getOpportunityById(id: string): Promise<Opportunity | null
  * Create a new opportunity
  */
 export async function createOpportunity(
-  data: Omit<Opportunity, 'id' | 'customerName' | 'ownerName' | 'createdAt'> & { userId: string }
+  data: Omit<Opportunity, 'id' | 'customerName' | 'contactName' | 'serviceName' | 'ownerName' | 'createdAt'> & { userId: string }
 ): Promise<Opportunity> {
   return transaction(async (client) => {
     const res = await client.query(`
       INSERT INTO app.opportunities (
-        code, customer_id, title, need_description, expected_value, expected_close_date, owner_user_id, stage, notes, created_by
+        code, customer_id, contact_id, service_id, title, need_description, expected_value, expected_close_date, owner_user_id, stage, notes, created_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING id
     `, [
       data.code,
       data.customerId,
+      data.contactId || null,
+      data.serviceId || null,
       data.title,
       data.needDescription || null,
       data.expectedValue || 0,
@@ -184,11 +211,15 @@ export async function createOpportunity(
     const finalRes = await client.query(`
       SELECT 
         o.id, o.code, o.customer_id as "customerId", c.name as "customerName",
+        o.contact_id as "contactId", contact.full_name as "contactName",
+        o.service_id as "serviceId", service.name as "serviceName",
         o.title, o.need_description as "needDescription", o.expected_value::numeric as "expectedValue",
         o.expected_close_date::text as "expectedCloseDate", o.owner_user_id as "ownerUserId",
         u.full_name as "ownerName", o.stage, o.notes, o.created_at as "createdAt"
       FROM app.opportunities o
       INNER JOIN app.customers c ON o.customer_id = c.id
+      LEFT JOIN app.customer_contacts contact ON o.contact_id = contact.id
+      LEFT JOIN app.catalog_items service ON o.service_id = service.id
       LEFT JOIN app.users u ON o.owner_user_id = u.id
       WHERE o.id = $1
     `, [oppId]);
@@ -202,7 +233,7 @@ export async function createOpportunity(
  */
 export async function updateOpportunity(
   id: string,
-  data: Partial<Omit<Opportunity, 'id' | 'customerName' | 'ownerName' | 'createdAt'>>,
+  data: Partial<Omit<Opportunity, 'id' | 'customerName' | 'contactName' | 'serviceName' | 'ownerName' | 'createdAt'>>,
   userId: string
 ): Promise<Opportunity> {
   return transaction(async (client) => {
@@ -212,6 +243,8 @@ export async function updateOpportunity(
     const fieldsMapping: Record<string, string> = {
       code: 'code',
       customerId: 'customer_id',
+      contactId: 'contact_id',
+      serviceId: 'service_id',
       title: 'title',
       needDescription: 'need_description',
       expectedValue: 'expected_value',
@@ -246,11 +279,15 @@ export async function updateOpportunity(
     const finalRes = await client.query(`
       SELECT 
         o.id, o.code, o.customer_id as "customerId", c.name as "customerName",
+        o.contact_id as "contactId", contact.full_name as "contactName",
+        o.service_id as "serviceId", service.name as "serviceName",
         o.title, o.need_description as "needDescription", o.expected_value::numeric as "expectedValue",
         o.expected_close_date::text as "expectedCloseDate", o.owner_user_id as "ownerUserId",
         u.full_name as "ownerName", o.stage, o.notes, o.created_at as "createdAt"
       FROM app.opportunities o
       INNER JOIN app.customers c ON o.customer_id = c.id
+      LEFT JOIN app.customer_contacts contact ON o.contact_id = contact.id
+      LEFT JOIN app.catalog_items service ON o.service_id = service.id
       LEFT JOIN app.users u ON o.owner_user_id = u.id
       WHERE o.id = $1
     `, [id]);

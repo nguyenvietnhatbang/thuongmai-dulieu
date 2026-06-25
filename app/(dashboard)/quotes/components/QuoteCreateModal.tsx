@@ -18,6 +18,9 @@ interface QuoteCreateModalProps {
     customerId: string;
     opportunityId: string;
     quoteDate: string;
+    expiryDate: string;
+    vatRate: number;
+    implementationTime: string;
     termsNote: string;
     items: Array<{
       itemName: string;
@@ -44,6 +47,9 @@ export function QuoteCreateModal({
     customerId: '',
     opportunityId: '',
     quoteDate: new Date().toISOString().substring(0, 10),
+    expiryDate: '',
+    vatRate: 10,
+    implementationTime: '',
     termsNote: '',
     items: [] as any[]
   });
@@ -74,7 +80,7 @@ export function QuoteCreateModal({
 
   const calculateTotal = (itemsList: any[]) => {
     const subtotal = itemsList.reduce((acc, curr) => acc + (Number(curr.quantity || 0) * Number(curr.unitPrice || 0)), 0);
-    const tax = subtotal * 0.1;
+    const tax = subtotal * (Number(newQuote.vatRate || 0) / 100);
     const total = subtotal + tax;
     return { subtotal, tax, total };
   };
@@ -138,6 +144,9 @@ export function QuoteCreateModal({
           customerId: '',
           opportunityId: '',
           quoteDate: new Date().toISOString().substring(0, 10),
+          expiryDate: '',
+          vatRate: 10,
+          implementationTime: '',
           termsNote: '',
           items: []
         });
@@ -185,6 +194,15 @@ export function QuoteCreateModal({
               className="premium-input"
             />
           </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">Hạn hiệu lực</label>
+            <input
+              type="date"
+              value={newQuote.expiryDate}
+              onChange={(e) => setNewQuote({ ...newQuote, expiryDate: e.target.value })}
+              className="premium-input"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -214,6 +232,31 @@ export function QuoteCreateModal({
                 description: o.customerName || o.stage,
               }))}
               onChange={handleOpportunityChange}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">VAT (%)</label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              value={newQuote.vatRate}
+              onChange={(e) => setNewQuote({ ...newQuote, vatRate: Number(e.target.value || 0) })}
+              className="premium-input"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">Thời gian triển khai</label>
+            <input
+              type="text"
+              placeholder="Ví dụ: 30 ngày sau khi ký hợp đồng"
+              value={newQuote.implementationTime}
+              onChange={(e) => setNewQuote({ ...newQuote, implementationTime: e.target.value })}
+              className="premium-input"
             />
           </div>
         </div>
@@ -333,7 +376,7 @@ export function QuoteCreateModal({
               <span className="text-foreground text-sm font-mono">{formatCurrency(newQuoteCalculations.subtotal)}</span>
             </div>
             <div>
-              <span className="text-muted-foreground block text-[10px] uppercase">Thuế VAT (10%):</span>
+              <span className="text-muted-foreground block text-[10px] uppercase">Thuế VAT ({Number(newQuote.vatRate || 0)}%):</span>
               <span className="text-foreground text-sm font-mono">{formatCurrency(newQuoteCalculations.tax)}</span>
             </div>
             <div>

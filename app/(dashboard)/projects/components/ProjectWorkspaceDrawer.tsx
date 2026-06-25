@@ -27,6 +27,9 @@ interface ProjectWorkspaceDrawerProps {
     title: string;
     description: string;
     assigneeUserId: string;
+    collaboratorUserIds: string[];
+    progressPercent: number;
+    result: string;
     startDate: string;
     dueDate: string;
     priority: 'low' | 'normal' | 'high' | 'urgent';
@@ -35,6 +38,9 @@ interface ProjectWorkspaceDrawerProps {
     title: string;
     description: string;
     assigneeUserId: string;
+    collaboratorUserIds: string[];
+    progressPercent: number;
+    result: string;
     startDate: string;
     dueDate: string;
     priority: 'low' | 'normal' | 'high' | 'urgent';
@@ -44,13 +50,19 @@ interface ProjectWorkspaceDrawerProps {
     scheduleType: 'meeting' | 'survey' | 'deployment' | 'acceptance' | 'customer_care' | 'other';
     startsAt: string;
     endsAt: string;
+    location: string;
+    internalAttendeeIds: string[];
     notes: string;
   }) => Promise<boolean>;
   onUpdateSchedule: (scheduleId: string, scheduleData: any) => Promise<boolean>;
   onDeleteSchedule: (scheduleId: string) => Promise<boolean>;
   onCreateNote: (noteData: {
     recipientUserId: string;
+    recipientUserIds: string[];
+    noteTitle: string;
     content: string;
+    requiresResponse: boolean;
+    responseDueDate: string;
   }) => Promise<boolean>;
   onUpdateNoteStatus: (noteId: string, status: string) => Promise<boolean>;
   onCloseProjectSubmit: (closureData: {
@@ -58,13 +70,18 @@ interface ProjectWorkspaceDrawerProps {
     closedDate: string;
     acceptanceStatus: 'accepted' | 'rejected';
     archiveStatus: 'archived' | 'not_archived';
+    completionSummary: string;
+    receivableCompleted: boolean;
     notes: string;
   }) => Promise<boolean>;
   onUpdateProject: (projectData: {
     name: string;
     projectManagerUserId: string;
+    memberUserIds: string[];
     startDate: string;
     plannedEndDate: string;
+    projectScope: string;
+    folderUrl: string;
     status: string;
     notes: string;
   }) => Promise<boolean>;
@@ -106,6 +123,9 @@ export function ProjectWorkspaceDrawer({
     title: '',
     description: '',
     assigneeUserId: '',
+    collaboratorUserIds: [] as string[],
+    progressPercent: 0,
+    result: '',
     startDate: '',
     dueDate: '',
     priority: 'normal' as 'low' | 'normal' | 'high' | 'urgent'
@@ -118,6 +138,8 @@ export function ProjectWorkspaceDrawer({
     scheduleType: 'meeting' as 'meeting' | 'survey' | 'deployment' | 'acceptance' | 'customer_care' | 'other',
     startsAt: '',
     endsAt: '',
+    location: '',
+    internalAttendeeIds: [] as string[],
     notes: ''
   });
 
@@ -125,6 +147,10 @@ export function ProjectWorkspaceDrawer({
 
   const [newNote, setNewNote] = useState({
     recipientUserId: '',
+    recipientUserIds: [] as string[],
+    noteTitle: '',
+    requiresResponse: false,
+    responseDueDate: '',
     content: ''
   });
 
@@ -133,14 +159,19 @@ export function ProjectWorkspaceDrawer({
     closedDate: new Date().toISOString().substring(0, 10),
     acceptanceStatus: 'accepted' as 'accepted' | 'rejected',
     archiveStatus: 'archived' as 'archived' | 'not_archived',
+    completionSummary: '',
+    receivableCompleted: false,
     notes: ''
   });
 
   const [projSettings, setProjSettings] = useState({
     name: '',
     projectManagerUserId: '',
+    memberUserIds: [] as string[],
     startDate: '',
     plannedEndDate: '',
+    projectScope: '',
+    folderUrl: '',
     status: '',
     notes: ''
   });
@@ -152,12 +183,17 @@ export function ProjectWorkspaceDrawer({
         closedDate: new Date().toISOString().substring(0, 10),
         acceptanceStatus: 'accepted',
         archiveStatus: 'archived',
+        completionSummary: '',
+        receivableCompleted: false,
         notes: ''
       });
       setNewTask({
         title: '',
         description: '',
         assigneeUserId: '',
+        collaboratorUserIds: [],
+        progressPercent: 0,
+        result: '',
         startDate: '',
         dueDate: '',
         priority: 'normal'
@@ -168,18 +204,27 @@ export function ProjectWorkspaceDrawer({
         scheduleType: 'meeting',
         startsAt: '',
         endsAt: '',
+        location: '',
+        internalAttendeeIds: [],
         notes: ''
       });
       setEditingSchedule(null);
       setNewNote({
         recipientUserId: '',
+        recipientUserIds: [],
+        noteTitle: '',
+        requiresResponse: false,
+        responseDueDate: '',
         content: ''
       });
       setProjSettings({
         name: activeProj.name,
         projectManagerUserId: activeProj.projectManagerUserId || '',
+        memberUserIds: activeProj.memberUserIds || [],
         startDate: activeProj.startDate ? activeProj.startDate.substring(0, 10) : '',
         plannedEndDate: activeProj.plannedEndDate ? activeProj.plannedEndDate.substring(0, 10) : '',
+        projectScope: activeProj.projectScope || '',
+        folderUrl: activeProj.folderUrl || '',
         status: activeProj.status,
         notes: activeProj.notes || ''
       });
@@ -197,6 +242,9 @@ export function ProjectWorkspaceDrawer({
           title: '',
           description: '',
           assigneeUserId: '',
+          collaboratorUserIds: [],
+          progressPercent: 0,
+          result: '',
           startDate: '',
           dueDate: '',
           priority: 'normal'
@@ -210,6 +258,9 @@ export function ProjectWorkspaceDrawer({
           title: '',
           description: '',
           assigneeUserId: '',
+          collaboratorUserIds: [],
+          progressPercent: 0,
+          result: '',
           startDate: '',
           dueDate: '',
           priority: 'normal'
@@ -228,6 +279,8 @@ export function ProjectWorkspaceDrawer({
           scheduleType: 'meeting',
           startsAt: '',
           endsAt: '',
+          location: '',
+          internalAttendeeIds: [],
           notes: ''
         });
         setEditingSchedule(null);
@@ -240,6 +293,8 @@ export function ProjectWorkspaceDrawer({
           scheduleType: 'meeting',
           startsAt: '',
           endsAt: '',
+          location: '',
+          internalAttendeeIds: [],
           notes: ''
         });
       }
@@ -250,7 +305,7 @@ export function ProjectWorkspaceDrawer({
     e.preventDefault();
     const success = await onCreateNote(newNote);
     if (success) {
-      setNewNote({ recipientUserId: '', content: '' });
+      setNewNote({ recipientUserId: '', recipientUserIds: [], noteTitle: '', requiresResponse: false, responseDueDate: '', content: '' });
     }
   };
 
@@ -449,6 +504,13 @@ export function ProjectWorkspaceDrawer({
                           {t.description && (
                             <p className="text-xs text-muted-foreground mt-1 leading-normal line-clamp-2">{t.description}</p>
                           )}
+                          <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-semibold text-muted-foreground">
+                            <span>Tiến độ: {t.progressPercent || 0}%</span>
+                            {t.collaboratorNames && t.collaboratorNames.length > 0 && (
+                              <span>Phối hợp: {t.collaboratorNames.join(', ')}</span>
+                            )}
+                            {t.result && <span>Kết quả: {t.result}</span>}
+                          </div>
                           <div className="flex gap-4 text-[10px] text-muted-foreground mt-2 font-semibold justify-between items-center">
                             <div>
                               <span>Phụ trách: {t.assigneeName || 'Chưa gán'}</span>
@@ -463,6 +525,9 @@ export function ProjectWorkspaceDrawer({
                                     title: t.title,
                                     description: t.description || '',
                                     assigneeUserId: t.assigneeUserId || '',
+                                    collaboratorUserIds: t.collaboratorUserIds || [],
+                                    progressPercent: t.progressPercent || 0,
+                                    result: t.result || '',
                                     startDate: t.startDate ? t.startDate.substring(0, 10) : '',
                                     dueDate: t.dueDate ? t.dueDate.substring(0, 10) : '',
                                     priority: t.priority
@@ -494,7 +559,17 @@ export function ProjectWorkspaceDrawer({
                       type="button"
                       onClick={() => {
                         setEditingTask(null);
-                        setNewTask({ title: '', description: '', assigneeUserId: '', startDate: '', dueDate: '', priority: 'normal' });
+                        setNewTask({
+                          title: '',
+                          description: '',
+                          assigneeUserId: '',
+                          collaboratorUserIds: [],
+                          progressPercent: 0,
+                          result: '',
+                          startDate: '',
+                          dueDate: '',
+                          priority: 'normal',
+                        });
                       }}
                       className="text-[10px] text-muted-foreground hover:underline cursor-pointer"
                     >
@@ -558,6 +633,47 @@ export function ProjectWorkspaceDrawer({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Nhân sự phối hợp</label>
+                    <select
+                      multiple
+                      value={newTask.collaboratorUserIds}
+                      onChange={(e) => setNewTask({
+                        ...newTask,
+                        collaboratorUserIds: Array.from(e.target.selectedOptions).map((option) => option.value),
+                      })}
+                      className="premium-input min-h-24 py-1.5 text-xs"
+                    >
+                      {users.filter(u => u.id !== newTask.assigneeUserId).map(u => (
+                        <option key={u.id} value={u.id}>{u.fullName}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Tiến độ (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={newTask.progressPercent}
+                        onChange={(e) => setNewTask({ ...newTask, progressPercent: Number(e.target.value || 0) })}
+                        className="premium-input py-1.5 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Kết quả</label>
+                      <input
+                        type="text"
+                        value={newTask.result}
+                        onChange={(e) => setNewTask({ ...newTask, result: e.target.value })}
+                        className="premium-input py-1.5 text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
                     <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Ngày bắt đầu</label>
                     <input
                       type="date"
@@ -608,6 +724,10 @@ export function ProjectWorkspaceDrawer({
                         <p className="text-xs text-muted-foreground mt-2 font-semibold">
                           Bắt đầu: {new Date(sch.startsAt).toLocaleString('vi-VN')}
                         </p>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          Địa điểm: {sch.location || '-'}
+                          {sch.internalAttendeeIds?.length ? ` · Nội bộ: ${sch.internalAttendeeIds.length} người` : ''}
+                        </p>
                         {sch.notes && (
                           <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded mt-2 border border-slate-100 italic">
                             Chú thích: {sch.notes}
@@ -619,15 +739,29 @@ export function ProjectWorkspaceDrawer({
                       <div className="flex flex-col items-end gap-2 shrink-0">
                         <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold border ${
                           sch.status === 'done' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                          sch.status === 'confirmed' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                          sch.status === 'postponed' ? 'bg-amber-50 text-amber-700 border-amber-100' :
                           sch.status === 'cancelled' ? 'bg-rose-50 text-rose-700 border-rose-100' :
                           'bg-slate-50 text-slate-700 border-slate-200'
                         }`}>
-                          {sch.status === 'done' ? 'Hoàn tất' : sch.status === 'cancelled' ? 'Đã hủy' : 'Lên kế hoạch'}
+                          {sch.status === 'done' ? 'Hoàn tất' : sch.status === 'confirmed' ? 'Đã xác nhận' : sch.status === 'postponed' ? 'Hoãn' : sch.status === 'cancelled' ? 'Đã hủy' : 'Lên kế hoạch'}
                         </span>
                         
                         <div className="flex gap-1.5 mt-1">
                           {sch.status === 'planned' && (
                             <>
+                              <button
+                                onClick={() => onUpdateSchedule(sch.id, { status: 'confirmed' })}
+                                className="px-1.5 py-0.5 text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 cursor-pointer"
+                              >
+                                Xác nhận
+                              </button>
+                              <button
+                                onClick={() => onUpdateSchedule(sch.id, { status: 'postponed' })}
+                                className="px-1.5 py-0.5 text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200 rounded hover:bg-amber-100 cursor-pointer"
+                              >
+                                Hoãn
+                              </button>
                               <button
                                 onClick={() => onUpdateSchedule(sch.id, { status: 'done' })}
                                 className="px-1.5 py-0.5 text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded hover:bg-emerald-100 cursor-pointer"
@@ -650,6 +784,8 @@ export function ProjectWorkspaceDrawer({
                                 scheduleType: sch.scheduleType,
                                 startsAt: sch.startsAt ? sch.startsAt.substring(0, 16) : '',
                                 endsAt: sch.endsAt ? sch.endsAt.substring(0, 16) : '',
+                                location: sch.location || '',
+                                internalAttendeeIds: sch.internalAttendeeIds || [],
                                 notes: sch.notes || ''
                               });
                             }}
@@ -682,7 +818,7 @@ export function ProjectWorkspaceDrawer({
                     type="button"
                     onClick={() => {
                       setEditingSchedule(null);
-                      setNewSchedule({ title: '', scheduleType: 'meeting', startsAt: '', endsAt: '', notes: '' });
+                      setNewSchedule({ title: '', scheduleType: 'meeting', startsAt: '', endsAt: '', location: '', internalAttendeeIds: [], notes: '' });
                     }}
                     className="text-[10px] text-muted-foreground hover:underline cursor-pointer"
                   >
@@ -732,6 +868,44 @@ export function ProjectWorkspaceDrawer({
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Thời gian kết thúc</label>
+                  <input
+                    type="datetime-local"
+                    value={newSchedule.endsAt}
+                    onChange={(e) => setNewSchedule({ ...newSchedule, endsAt: e.target.value })}
+                    className="premium-input py-1.5 text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Địa điểm</label>
+                  <input
+                    type="text"
+                    value={newSchedule.location}
+                    onChange={(e) => setNewSchedule({ ...newSchedule, location: e.target.value })}
+                    className="premium-input py-1.5 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Người tham dự nội bộ</label>
+                <select
+                  multiple
+                  value={newSchedule.internalAttendeeIds}
+                  onChange={(e) => setNewSchedule({
+                    ...newSchedule,
+                    internalAttendeeIds: Array.from(e.target.selectedOptions).map((option) => option.value),
+                  })}
+                  className="premium-input min-h-24 py-1.5 text-xs"
+                >
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>{u.fullName}</option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Nội dung cuộc hẹn</label>
                 <input
@@ -764,12 +938,18 @@ export function ProjectWorkspaceDrawer({
                   return (
                     <div key={n.id} className={`flex flex-col max-w-[75%] ${isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`}>
                       <span className="text-[10px] text-muted-foreground font-semibold px-1">
-                        {isMe ? 'Bạn' : n.senderName} &rarr; {n.recipientName}
+                        {isMe ? 'Bạn' : n.senderName} &rarr; {(n.recipientNames?.length ? n.recipientNames : [n.recipientName]).join(', ')}
                       </span>
                       <div className={`p-3 rounded-2xl text-xs mt-1.5 leading-normal ${
                         isMe ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-card border border-border rounded-tl-none text-foreground'
                       }`}>
+                        {n.noteTitle && <p className="font-bold mb-1">{n.noteTitle}</p>}
                         <p className="whitespace-pre-wrap">{n.content}</p>
+                        {n.requiresResponse && (
+                          <p className="mt-2 text-[10px] font-bold opacity-80">
+                            Cần phản hồi{n.responseDueDate ? ` trước ${n.responseDueDate}` : ''}
+                          </p>
+                        )}
                       </div>
                       <div className="flex gap-2 items-center mt-1 text-[9px] px-1">
                         <span className="text-muted-foreground font-mono">
@@ -821,6 +1001,15 @@ export function ProjectWorkspaceDrawer({
 
             {/* Send Note Form */}
             <form onSubmit={handleNoteSubmit} className="space-y-3 pt-2 border-t border-border/60">
+              <div>
+                <input
+                  type="text"
+                  placeholder="Tiêu đề ghi chú"
+                  value={newNote.noteTitle}
+                  onChange={(e) => setNewNote({ ...newNote, noteTitle: e.target.value })}
+                  className="premium-input py-1.5 text-xs"
+                />
+              </div>
               <div className="flex items-center gap-3">
                 <div className="w-48 shrink-0">
                   <select
@@ -830,6 +1019,21 @@ export function ProjectWorkspaceDrawer({
                     className="premium-input py-1.5 text-xs"
                   >
                     <option value="">-- Gửi tới ai? --</option>
+                    {users.filter(u => u.id !== currentUser.id).map(u => (
+                      <option key={u.id} value={u.id}>{u.fullName}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="w-56 shrink-0">
+                  <select
+                    multiple
+                    value={newNote.recipientUserIds}
+                    onChange={(e) => setNewNote({
+                      ...newNote,
+                      recipientUserIds: Array.from(e.target.selectedOptions).map((option) => option.value),
+                    })}
+                    className="premium-input min-h-10 py-1.5 text-xs"
+                  >
                     {users.filter(u => u.id !== currentUser.id).map(u => (
                       <option key={u.id} value={u.id}>{u.fullName}</option>
                     ))}
@@ -851,6 +1055,23 @@ export function ProjectWorkspaceDrawer({
                 >
                   Gửi
                 </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={newNote.requiresResponse}
+                    onChange={(e) => setNewNote({ ...newNote, requiresResponse: e.target.checked })}
+                    className="rounded border-border text-primary"
+                  />
+                  Cần phản hồi
+                </label>
+                <input
+                  type="date"
+                  value={newNote.responseDueDate}
+                  onChange={(e) => setNewNote({ ...newNote, responseDueDate: e.target.value })}
+                  className="premium-input py-1.5 text-xs"
+                />
               </div>
             </form>
           </div>

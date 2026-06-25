@@ -5,6 +5,35 @@ import { uploadFile, deleteFile, getPublicUrl } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
+const allowedFileTypes = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/csv',
+]);
+
+const blockedExtensions = new Set([
+  'bat',
+  'cmd',
+  'com',
+  'exe',
+  'js',
+  'jar',
+  'msi',
+  'ps1',
+  'scr',
+  'sh',
+  'vbs',
+]);
+
+function isAllowedUpload(file: File): boolean {
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+  if (blockedExtensions.has(extension)) return false;
+  return file.type.startsWith('image/') || allowedFileTypes.has(file.type);
+}
+
 // GET: List files for a specific entity
 export async function GET(request: Request) {
   try {
@@ -58,9 +87,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'File, entityType and entityId are required' }, { status: 400 });
     }
 
-    // Enforce check constraint: must be an image
-    if (!file.type.startsWith('image/')) {
-      return NextResponse.json({ success: false, error: 'Hệ thống chỉ hỗ trợ upload tệp định dạng hình ảnh (image/*)' }, { status: 400 });
+    if (!isAllowedUpload(file)) {
+      return NextResponse.json({
+        success: false,
+        error: 'Hệ thống chỉ hỗ trợ PDF, Word, Excel, CSV và hình ảnh; các tệp thực thi bị từ chối.'
+      }, { status: 400 });
     }
 
     // Convert file to buffer

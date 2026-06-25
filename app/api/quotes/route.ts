@@ -73,10 +73,29 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { code, quoteNumber, customerId, opportunityId, quoteDate, quotedBy, termsNote, items } = body;
+    const {
+      code,
+      quoteNumber,
+      customerId,
+      opportunityId,
+      quoteDate,
+      expiryDate,
+      quotedBy,
+      vatRate,
+      termsNote,
+      implementationTime,
+      items
+    } = body;
 
     if (!code || !quoteNumber || !customerId || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ success: false, error: 'Missing required fields: code, quoteNumber, customerId, items[]' }, { status: 400 });
+    }
+
+    const normalizedVatRate = vatRate === undefined || vatRate === null || vatRate === ''
+      ? 10
+      : Number(vatRate);
+    if (!Number.isFinite(normalizedVatRate) || normalizedVatRate < 0) {
+      return NextResponse.json({ success: false, error: 'vatRate must be a non-negative number' }, { status: 400 });
     }
 
     const newQuote = await createQuote({
@@ -85,8 +104,11 @@ export async function POST(request: Request) {
       customerId,
       opportunityId,
       quoteDate,
+      expiryDate,
       quotedBy,
+      vatRate: normalizedVatRate,
       termsNote,
+      implementationTime,
       items,
       userId: user.id
     });

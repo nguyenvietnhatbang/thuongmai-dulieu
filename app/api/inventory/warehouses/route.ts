@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 const warehouseSorts = {
   code: 'code',
   name: 'name',
+  warehouseManagerName: 'warehouseManagerName',
   status: 'status',
 };
 
@@ -40,13 +41,19 @@ export async function POST(request: Request) {
     if (!allowed) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
 
     const body = await request.json();
-    const { code, name, address, status } = body;
+    const { code, name, address, warehouseManagerId, status } = body;
 
     if (!code || !name) {
       return NextResponse.json({ success: false, error: 'code and name are required' }, { status: 400 });
     }
 
-    const warehouse = await createWarehouse({ code, name, address, status: status || 'active' });
+    const warehouse = await createWarehouse({
+      code,
+      name,
+      address,
+      warehouseManagerId: warehouseManagerId || null,
+      status: status || 'active'
+    });
     return NextResponse.json({ success: true, data: warehouse }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -62,7 +69,7 @@ export async function PATCH(request: Request) {
     if (!allowed) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
 
     const body = await request.json();
-    const { id, code, name, address, status } = body;
+    const { id, code, name, address, warehouseManagerId, status } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'id is required' }, { status: 400 });
@@ -72,7 +79,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: 'code and name cannot be empty' }, { status: 400 });
     }
 
-    const warehouse = await updateWarehouse(id, { code, name, address, status });
+    const warehouse = await updateWarehouse(id, { code, name, address, warehouseManagerId, status });
     return NextResponse.json({ success: true, data: warehouse });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

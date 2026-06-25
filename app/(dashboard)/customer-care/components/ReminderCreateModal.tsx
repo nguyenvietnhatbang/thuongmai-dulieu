@@ -16,12 +16,27 @@ interface ReminderCreateModalProps {
   editingReminder: CustomerCareReminder | null;
   onSubmit: (reminderData: {
     customerId: string;
+    contactId: string | null;
+    careTypeId: string | null;
     contractId: string | null;
     projectId: string | null;
     reminderDate: string;
     content: string;
     ownerUserId: string;
   }) => Promise<boolean>;
+}
+
+interface CatalogOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+interface ContactOption {
+  id: string;
+  fullName: string;
+  title?: string | null;
+  department?: string | null;
 }
 
 export function ReminderCreateModal({
@@ -37,19 +52,60 @@ export function ReminderCreateModal({
 }: ReminderCreateModalProps) {
   const [form, setForm] = useState({
     customerId: '',
+    contactId: '',
+    careTypeId: '',
     contractId: '',
     projectId: '',
     reminderDate: '',
     content: '',
     ownerUserId: currentUserId,
   });
+  const [contacts, setContacts] = useState<ContactOption[]>([]);
+  const [careTypes, setCareTypes] = useState<CatalogOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchCareTypes = async () => {
+      try {
+        const res = await fetch('/api/catalog?group=care_type');
+        const json = await res.json();
+        if (json.success) setCareTypes(json.data || []);
+      } catch (error) {
+        console.error('Failed to load care type catalog:', error);
+      }
+    };
+
+    fetchCareTypes();
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !form.customerId) {
+      setContacts([]);
+      return;
+    }
+
+    const fetchContacts = async () => {
+      try {
+        const res = await fetch(`/api/customers/${form.customerId}/contacts`);
+        const json = await res.json();
+        if (json.success) setContacts(json.data || []);
+      } catch (error) {
+        console.error('Failed to load reminder contacts:', error);
+      }
+    };
+
+    fetchContacts();
+  }, [isOpen, form.customerId]);
 
   useEffect(() => {
     if (isOpen) {
       if (editingReminder) {
         setForm({
           customerId: editingReminder.customerId,
+          contactId: editingReminder.contactId || '',
+          careTypeId: editingReminder.careTypeId || '',
           contractId: editingReminder.contractId || '',
           projectId: editingReminder.projectId || '',
           reminderDate: editingReminder.reminderDate,
@@ -59,6 +115,8 @@ export function ReminderCreateModal({
       } else {
         setForm({
           customerId: '',
+          contactId: '',
+          careTypeId: '',
           contractId: '',
           projectId: '',
           reminderDate: '',
@@ -79,6 +137,8 @@ export function ReminderCreateModal({
     try {
       const success = await onSubmit({
         customerId: form.customerId,
+        contactId: form.contactId || null,
+        careTypeId: form.careTypeId || null,
         contractId: form.contractId || null,
         projectId: form.projectId || null,
         reminderDate: form.reminderDate,
@@ -115,8 +175,40 @@ export function ReminderCreateModal({
               label: `${c.name} (${c.code})`,
               description: c.email || c.phone || c.customerType,
             }))}
-            onChange={(customerId) => setForm({ ...form, customerId, contractId: '', projectId: '' })}
+            onChange={(customerId) => setForm({ ...form, customerId, contactId: '', contractId: '', projectId: '' })}
           />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Người liên hệ</label>
+            <SearchableSelect
+              value={form.contactId}
+              disabled={!form.customerId}
+              placeholder="-- Chọn liên hệ --"
+              searchPlaceholder="Tìm người liên hệ..."
+              options={contacts.map((contact) => ({
+                value: contact.id,
+                label: contact.fullName,
+                description: contact.title || contact.department || undefined,
+              }))}
+              onChange={(contactId) => setForm({ ...form, contactId })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Loại chăm sóc</label>
+            <SearchableSelect
+              value={form.careTypeId}
+              placeholder="-- Chọn loại --"
+              searchPlaceholder="Tìm loại chăm sóc..."
+              options={careTypes.map((careType) => ({
+                value: careType.id,
+                label: careType.name,
+                description: careType.code,
+              }))}
+              onChange={(careTypeId) => setForm({ ...form, careTypeId })}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

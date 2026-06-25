@@ -7,6 +7,10 @@ export interface CustomerCareReminder {
   customerId: string;
   customerName: string;
   customerCode: string;
+  contactId: string | null;
+  contactName: string | null;
+  careTypeId: string | null;
+  careTypeName: string | null;
   contractId: string | null;
   contractNumber: string | null;
   projectId: string | null;
@@ -111,6 +115,12 @@ export function RemindersTable({
                     <div>
                       <p>{r.customerName}</p>
                       <span className="font-mono text-[10px] text-muted-foreground">{r.customerCode}</span>
+                      {(r.contactName || r.careTypeName) && (
+                        <div className="mt-1 space-y-0.5 text-[10px] font-semibold text-muted-foreground">
+                          {r.contactName && <p>Liên hệ: {r.contactName}</p>}
+                          {r.careTypeName && <p>Loại: {r.careTypeName}</p>}
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-xs font-semibold text-slate-700 whitespace-nowrap">

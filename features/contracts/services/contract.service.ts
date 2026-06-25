@@ -6,6 +6,7 @@ export interface PaymentMilestone {
   id: string;
   contractId: string;
   name: string;
+  paymentRate: number | null;
   dueDate: string;
   amountDue: number;
   amountPaid: number;
@@ -16,16 +17,21 @@ export interface Contract {
   id: string;
   code: string;
   contractNumber: string;
+  contractName: string | null;
   customerId: string;
   customerName: string;
   quoteId: string | null;
   quoteNumber: string | null;
   signedDate: string | null;
+  startDate: string | null;
+  expectedEndDate: string | null;
   contractValue: number;
+  paymentTerms: string | null;
   ownerUserId: string | null;
   ownerName: string | null;
   status: 'draft' | 'sent' | 'negotiating' | 'signed' | 'paused' | 'cancelled' | 'completed';
   projectCreated: boolean;
+  createdProjectId: string | null;
   notes: string | null;
   createdAt: Date;
   milestones?: PaymentMilestone[];
@@ -34,13 +40,18 @@ export interface Contract {
 export interface CreateContractInput {
   code: string;
   contractNumber: string;
+  contractName?: string | null;
   customerId: string;
   quoteId?: string | null;
   contractValue: number;
+  startDate?: string | null;
+  expectedEndDate?: string | null;
+  paymentTerms?: string | null;
   ownerUserId?: string | null;
   notes?: string | null;
   milestones?: Array<{
     name: string;
+    paymentRate?: number | null;
     dueDate: string;
     amountDue: number;
   }>;
@@ -121,10 +132,14 @@ export async function getContracts(params: {
     const res = await query(`
       SELECT 
         ctr.id, ctr.code, ctr.contract_number as "contractNumber", ctr.customer_id as "customerId",
+        ctr.contract_name as "contractName",
         c.name as "customerName", ctr.quote_id as "quoteId", q.quote_number as "quoteNumber",
-        ctr.signed_date::text as "signedDate", ctr.contract_value::numeric as "contractValue",
+        ctr.signed_date::text as "signedDate", ctr.start_date::text as "startDate",
+        ctr.expected_end_date::text as "expectedEndDate", ctr.contract_value::numeric as "contractValue",
+        ctr.payment_terms as "paymentTerms",
         ctr.owner_user_id as "ownerUserId", u.full_name as "ownerName", ctr.status,
-        ctr.project_created as "projectCreated", ctr.notes, ctr.created_at as "createdAt"
+        ctr.project_created as "projectCreated", ctr.created_project_id as "createdProjectId",
+        ctr.notes, ctr.created_at as "createdAt"
       FROM app.contracts ctr
       INNER JOIN app.customers c ON ctr.customer_id = c.id
       LEFT JOIN app.quotes q ON ctr.quote_id = q.id
@@ -150,10 +165,14 @@ export async function getContractById(id: string, client?: PoolClient): Promise<
   const res = await executeQuery(`
     SELECT 
       ctr.id, ctr.code, ctr.contract_number as "contractNumber", ctr.customer_id as "customerId",
+      ctr.contract_name as "contractName",
       c.name as "customerName", ctr.quote_id as "quoteId", q.quote_number as "quoteNumber",
-      ctr.signed_date::text as "signedDate", ctr.contract_value::numeric as "contractValue",
+      ctr.signed_date::text as "signedDate", ctr.start_date::text as "startDate",
+      ctr.expected_end_date::text as "expectedEndDate", ctr.contract_value::numeric as "contractValue",
+      ctr.payment_terms as "paymentTerms",
       ctr.owner_user_id as "ownerUserId", u.full_name as "ownerName", ctr.status,
-      ctr.project_created as "projectCreated", ctr.notes, ctr.created_at as "createdAt"
+      ctr.project_created as "projectCreated", ctr.created_project_id as "createdProjectId",
+      ctr.notes, ctr.created_at as "createdAt"
     FROM app.contracts ctr
     INNER JOIN app.customers c ON ctr.customer_id = c.id
     LEFT JOIN app.quotes q ON ctr.quote_id = q.id
@@ -167,7 +186,7 @@ export async function getContractById(id: string, client?: PoolClient): Promise<
   // Fetch payment milestones
   const milestonesRes = await executeQuery(`
     SELECT 
-      id, contract_id as "contractId", name, due_date::text as "dueDate",
+      id, contract_id as "contractId", name, payment_rate::numeric as "paymentRate", due_date::text as "dueDate",
       amount_due::numeric as "amountDue", amount_paid::numeric as "amountPaid", status
     FROM app.payment_milestones
     WHERE contract_id = $1
@@ -176,6 +195,7 @@ export async function getContractById(id: string, client?: PoolClient): Promise<
 
   contract.milestones = milestonesRes.rows.map(row => ({
     ...row,
+    paymentRate: row.paymentRate === null ? null : Number(row.paymentRate),
     amountDue: Number(row.amountDue),
     amountPaid: Number(row.amountPaid)
   })) as PaymentMilestone[];
@@ -213,9 +233,10 @@ export async function createContract(data: CreateContractInput): Promise<Contrac
     const contractRes = await client.query(`
       INSERT INTO app.contracts (
         code, contract_number, customer_id, quote_id, contract_value,
+        contract_name, start_date, expected_end_date, payment_terms,
         owner_user_id, status, notes, created_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7, $8)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'draft', $11, $12)
       RETURNING id
     `, [
       data.code,
@@ -223,6 +244,10 @@ export async function createContract(data: CreateContractInput): Promise<Contrac
       data.customerId,
       data.quoteId || null,
       data.contractValue,
+      data.contractName || null,
+      data.startDate || null,
+      data.expectedEndDate || null,
+      data.paymentTerms || null,
       data.ownerUserId || data.userId,
       data.notes || null,
       data.userId
@@ -234,15 +259,16 @@ export async function createContract(data: CreateContractInput): Promise<Contrac
       ? data.milestones
       : [{
         name: 'Thanh toan hop dong 100%',
+        paymentRate: 100,
         dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
         amountDue: data.contractValue
       }];
 
     for (const milestone of milestones) {
       await client.query(`
-        INSERT INTO app.payment_milestones (contract_id, name, due_date, amount_due, amount_paid, status)
-        VALUES ($1, $2, $3, $4, 0, 'pending')
-      `, [createdContractId, milestone.name, milestone.dueDate, milestone.amountDue]);
+        INSERT INTO app.payment_milestones (contract_id, name, payment_rate, due_date, amount_due, amount_paid, status)
+        VALUES ($1, $2, $3, $4, $5, 0, 'pending')
+      `, [createdContractId, milestone.name, milestone.paymentRate ?? null, milestone.dueDate, milestone.amountDue]);
     }
 
     if (data.quoteId) {
@@ -274,6 +300,10 @@ export async function updateContract(
   data: {
     status?: 'draft' | 'sent' | 'negotiating' | 'signed' | 'paused' | 'cancelled' | 'completed';
     notes?: string;
+    contractName?: string | null;
+    startDate?: string | null;
+    expectedEndDate?: string | null;
+    paymentTerms?: string | null;
     userId: string;
   }
 ): Promise<Contract> {
@@ -290,6 +320,26 @@ export async function updateContract(
     if (data.notes !== undefined) {
       values.push(data.notes);
       setClauses.push(`notes = $${values.length}`);
+    }
+
+    if (data.contractName !== undefined) {
+      values.push(data.contractName);
+      setClauses.push(`contract_name = $${values.length}`);
+    }
+
+    if (data.startDate !== undefined) {
+      values.push(data.startDate);
+      setClauses.push(`start_date = $${values.length}`);
+    }
+
+    if (data.expectedEndDate !== undefined) {
+      values.push(data.expectedEndDate);
+      setClauses.push(`expected_end_date = $${values.length}`);
+    }
+
+    if (data.paymentTerms !== undefined) {
+      values.push(data.paymentTerms);
+      setClauses.push(`payment_terms = $${values.length}`);
     }
 
     if (data.status !== undefined) {
@@ -313,27 +363,30 @@ export async function updateContract(
 
     if (data.status === 'signed' && !contract.project_created) {
       const projectCode = `PJ-${contract.code}`;
-      const projectName = `Du an - ${contract.contract_number}`;
+      const projectName = contract.contract_name || `Du an - ${contract.contract_number}`;
       
       // Auto-insert project
       const projRes = await client.query(`
         INSERT INTO app.projects (
-          code, name, contract_id, customer_id, project_manager_user_id, start_date, planned_end_date, status, progress_percent
+          code, name, contract_id, customer_id, project_manager_user_id, start_date, planned_end_date, status, progress_percent, project_scope
         )
-        VALUES ($1, $2, $3, $4, $5, CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 'new', 0)
+        VALUES ($1, $2, $3, $4, $5, COALESCE($6::date, CURRENT_DATE), COALESCE($7::date, CURRENT_DATE + INTERVAL '30 days'), 'new', 0, $8)
         RETURNING id
       `, [
         projectCode,
         projectName,
         id,
         contract.customer_id,
-        contract.owner_user_id // Assign contract owner as the default PM
+        contract.owner_user_id,
+        contract.start_date,
+        contract.expected_end_date,
+        contract.payment_terms
       ]);
 
       projectId = projRes.rows[0].id;
 
       // Update contract setting project_created = true
-      await client.query('UPDATE app.contracts SET project_created = true WHERE id = $1', [id]);
+      await client.query('UPDATE app.contracts SET project_created = true, created_project_id = $2 WHERE id = $1', [id, projectId]);
 
       // Write audit log for project creation
       await client.query(`
@@ -482,7 +535,7 @@ export async function updatePaymentMilestone(
     }
 
     const finalRes = await client.query(`
-      SELECT id, contract_id as "contractId", name, due_date::text as "dueDate",
+      SELECT id, contract_id as "contractId", name, payment_rate::numeric as "paymentRate", due_date::text as "dueDate",
              amount_due::numeric as "amountDue", amount_paid::numeric as "amountPaid", status
       FROM app.payment_milestones
       WHERE id = $1
@@ -490,6 +543,7 @@ export async function updatePaymentMilestone(
 
     return {
       ...finalRes.rows[0],
+      paymentRate: finalRes.rows[0].paymentRate === null ? null : Number(finalRes.rows[0].paymentRate),
       amountDue: Number(finalRes.rows[0].amountDue),
       amountPaid: Number(finalRes.rows[0].amountPaid)
     } as PaymentMilestone;

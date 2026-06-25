@@ -13,6 +13,10 @@ export interface ProjectTask {
   dueDate: string | null;
   priority: 'low' | 'normal' | 'high' | 'urgent';
   status: 'todo' | 'in_progress' | 'waiting_feedback' | 'completed' | 'overdue' | 'cancelled';
+  progressPercent: number;
+  result: string | null;
+  collaboratorUserIds?: string[];
+  collaboratorNames?: string[];
 }
 
 export interface Schedule {
@@ -25,7 +29,9 @@ export interface Schedule {
   endsAt: string | null;
   ownerUserId: string | null;
   ownerName: string | null;
-  status: 'planned' | 'done' | 'cancelled';
+  location: string | null;
+  internalAttendeeIds: string[];
+  status: 'planned' | 'confirmed' | 'done' | 'postponed' | 'cancelled';
   notes: string | null;
 }
 
@@ -39,7 +45,12 @@ export interface InternalNote {
   senderName: string;
   recipientUserId: string;
   recipientName: string;
+  noteTitle: string | null;
+  recipientUserIds: string[];
+  recipientNames: string[];
   content: string;
+  requiresResponse: boolean;
+  responseDueDate: string | null;
   status: 'unread' | 'read' | 'processed' | 'archived';
   createdAt: Date;
 }
@@ -56,6 +67,10 @@ export interface Project {
   projectManagerName: string | null;
   startDate: string | null;
   plannedEndDate: string | null;
+  projectScope: string | null;
+  folderUrl: string | null;
+  memberUserIds?: string[];
+  memberNames?: string[];
   status: 'new' | 'waiting_deployment' | 'in_progress' | 'paused' | 'waiting_acceptance' | 'accepted' | 'closed' | 'cancelled';
   progressPercent: number;
   notes: string | null;
@@ -139,6 +154,7 @@ export async function getProjects(params: {
         p.customer_id as "customerId", c.name as "customerName",
         p.project_manager_user_id as "projectManagerUserId", u.full_name as "projectManagerName",
         p.start_date::text as "startDate", p.planned_end_date::text as "plannedEndDate",
+        p.project_scope as "projectScope", p.folder_url as "folderUrl",
         p.status, p.progress_percent as "progressPercent", p.notes, p.created_at as "createdAt"
       FROM app.projects p
       INNER JOIN app.customers c ON p.customer_id = c.id
@@ -166,6 +182,7 @@ export async function getProjectById(id: string): Promise<Project | null> {
       p.customer_id as "customerId", c.name as "customerName",
       p.project_manager_user_id as "projectManagerUserId", u.full_name as "projectManagerName",
       p.start_date::text as "startDate", p.planned_end_date::text as "plannedEndDate",
+      p.project_scope as "projectScope", p.folder_url as "folderUrl",
       p.status, p.progress_percent as "progressPercent", p.notes, p.created_at as "createdAt"
     FROM app.projects p
     INNER JOIN app.customers c ON p.customer_id = c.id
@@ -175,7 +192,17 @@ export async function getProjectById(id: string): Promise<Project | null> {
   `, [id]);
 
   if (res.rows.length === 0) return null;
-  return res.rows[0] as Project;
+  const project = res.rows[0] as Project;
+  const membersRes = await query(`
+    SELECT ptm.user_id as "userId", u.full_name as "fullName"
+    FROM app.project_team_members ptm
+    INNER JOIN app.users u ON ptm.user_id = u.id
+    WHERE ptm.project_id = $1
+    ORDER BY u.full_name ASC
+  `, [id]);
+  project.memberUserIds = membersRes.rows.map(row => row.userId);
+  project.memberNames = membersRes.rows.map(row => row.fullName);
+  return project;
 }
 
 /**
@@ -186,27 +213,47 @@ export async function getProjectTasks(projectId: string): Promise<ProjectTask[]>
     SELECT 
       t.id, t.project_id as "projectId", t.customer_id as "customerId", t.title, t.description,
       t.assignee_user_id as "assigneeUserId", u.full_name as "assigneeName",
-      t.start_date::text as "startDate", t.due_date::text as "dueDate", t.priority, t.status
+      t.start_date::text as "startDate", t.due_date::text as "dueDate",
+      t.priority, t.status, t.progress_percent as "progressPercent", t.result,
+      COALESCE(ARRAY_REMOVE(ARRAY_AGG(DISTINCT ptc.user_id), NULL), '{}') as "collaboratorUserIds",
+      COALESCE(ARRAY_REMOVE(ARRAY_AGG(DISTINCT cu.full_name), NULL), '{}') as "collaboratorNames"
     FROM app.project_tasks t
     LEFT JOIN app.users u ON t.assignee_user_id = u.id
+    LEFT JOIN app.project_task_collaborators ptc ON t.id = ptc.task_id
+    LEFT JOIN app.users cu ON ptc.user_id = cu.id
     WHERE t.project_id = $1 AND t.deleted_at IS NULL
+    GROUP BY t.id, u.full_name
     ORDER BY t.due_date ASC, t.created_at ASC
   `, [projectId]);
-  return res.rows as ProjectTask[];
+  return res.rows.map(row => ({ ...row, progressPercent: Number(row.progressPercent) })) as ProjectTask[];
 }
 
 /**
  * Create a project task
  */
 export async function createProjectTask(
-  data: Omit<ProjectTask, 'id' | 'assigneeName'> & { userId: string }
+  data: {
+    projectId: string;
+    customerId: string;
+    title: string;
+    description?: string | null;
+    assigneeUserId?: string | null;
+    startDate?: string | null;
+    dueDate?: string | null;
+    priority?: ProjectTask['priority'];
+    progressPercent?: number;
+    result?: string | null;
+    collaboratorUserIds?: string[];
+    userId: string;
+  }
 ): Promise<ProjectTask> {
   return transaction(async (client) => {
     const res = await client.query(`
       INSERT INTO app.project_tasks (
-        project_id, customer_id, title, description, assignee_user_id, start_date, due_date, priority, status, created_by
+        project_id, customer_id, title, description, assignee_user_id, start_date, due_date,
+        priority, status, progress_percent, result, created_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'todo', $9)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'todo', $9, $10, $11)
       RETURNING id
     `, [
       data.projectId,
@@ -217,10 +264,22 @@ export async function createProjectTask(
       data.startDate || null,
       data.dueDate || null,
       data.priority || 'normal',
+      data.progressPercent || 0,
+      data.result || null,
       data.userId
     ]);
 
     const taskId = res.rows[0].id;
+
+    for (const collaboratorId of data.collaboratorUserIds || []) {
+      if (collaboratorId && collaboratorId !== data.assigneeUserId) {
+        await client.query(`
+          INSERT INTO app.project_task_collaborators (task_id, user_id)
+          VALUES ($1, $2)
+          ON CONFLICT (task_id, user_id) DO NOTHING
+        `, [taskId, collaboratorId]);
+      }
+    }
 
     // Send notification to assignee
     if (data.assigneeUserId) {
@@ -239,13 +298,19 @@ export async function createProjectTask(
       SELECT 
         t.id, t.project_id as "projectId", t.customer_id as "customerId", t.title, t.description,
         t.assignee_user_id as "assigneeUserId", u.full_name as "assigneeName",
-        t.start_date::text as "startDate", t.due_date::text as "dueDate", t.priority, t.status
+        t.start_date::text as "startDate", t.due_date::text as "dueDate",
+        t.priority, t.status, t.progress_percent as "progressPercent", t.result,
+        COALESCE(ARRAY_REMOVE(ARRAY_AGG(DISTINCT ptc.user_id), NULL), '{}') as "collaboratorUserIds",
+        COALESCE(ARRAY_REMOVE(ARRAY_AGG(DISTINCT cu.full_name), NULL), '{}') as "collaboratorNames"
       FROM app.project_tasks t
       LEFT JOIN app.users u ON t.assignee_user_id = u.id
+      LEFT JOIN app.project_task_collaborators ptc ON t.id = ptc.task_id
+      LEFT JOIN app.users cu ON ptc.user_id = cu.id
       WHERE t.id = $1
+      GROUP BY t.id, u.full_name
     `, [taskId]);
 
-    return finalRes.rows[0] as ProjectTask;
+    return { ...finalRes.rows[0], progressPercent: Number(finalRes.rows[0].progressPercent) } as ProjectTask;
   });
 }
 
@@ -268,7 +333,9 @@ export async function updateProjectTask(
       startDate: 'start_date',
       dueDate: 'due_date',
       priority: 'priority',
-      status: 'status'
+      status: 'status',
+      progressPercent: 'progress_percent',
+      result: 'result'
     };
 
     Object.entries(data).forEach(([key, val]) => {
@@ -284,6 +351,19 @@ export async function updateProjectTask(
       SET ${setClauses.join(', ')}
       WHERE id = $1
     `, values);
+
+    if (data.collaboratorUserIds !== undefined) {
+      await client.query('DELETE FROM app.project_task_collaborators WHERE task_id = $1', [taskId]);
+      for (const collaboratorId of data.collaboratorUserIds || []) {
+        if (collaboratorId) {
+          await client.query(`
+            INSERT INTO app.project_task_collaborators (task_id, user_id)
+            VALUES ($1, $2)
+            ON CONFLICT (task_id, user_id) DO NOTHING
+          `, [taskId, collaboratorId]);
+        }
+      }
+    }
 
     await client.query(`
       INSERT INTO app.audit_logs(actor_user_id, action, entity_type, entity_id, metadata)
@@ -311,13 +391,19 @@ export async function updateProjectTask(
       SELECT 
         t.id, t.project_id as "projectId", t.customer_id as "customerId", t.title, t.description,
         t.assignee_user_id as "assigneeUserId", u.full_name as "assigneeName",
-        t.start_date::text as "startDate", t.due_date::text as "dueDate", t.priority, t.status
+        t.start_date::text as "startDate", t.due_date::text as "dueDate",
+        t.priority, t.status, t.progress_percent as "progressPercent", t.result,
+        COALESCE(ARRAY_REMOVE(ARRAY_AGG(DISTINCT ptc.user_id), NULL), '{}') as "collaboratorUserIds",
+        COALESCE(ARRAY_REMOVE(ARRAY_AGG(DISTINCT cu.full_name), NULL), '{}') as "collaboratorNames"
       FROM app.project_tasks t
       LEFT JOIN app.users u ON t.assignee_user_id = u.id
+      LEFT JOIN app.project_task_collaborators ptc ON t.id = ptc.task_id
+      LEFT JOIN app.users cu ON ptc.user_id = cu.id
       WHERE t.id = $1
+      GROUP BY t.id, u.full_name
     `, [taskId]);
 
-    return finalRes.rows[0] as ProjectTask;
+    return { ...finalRes.rows[0], progressPercent: Number(finalRes.rows[0].progressPercent) } as ProjectTask;
   });
 }
 
@@ -330,7 +416,7 @@ export async function getProjectSchedules(projectId: string): Promise<Schedule[]
       id, project_id as "projectId", customer_id as "customerId", schedule_type as "scheduleType",
       title, starts_at::text as "startsAt", ends_at::text as "endsAt",
       owner_user_id as "ownerUserId", (SELECT full_name FROM app.users WHERE id = owner_user_id) as "ownerName",
-      status, notes
+      location, internal_attendee_ids as "internalAttendeeIds", status, notes
     FROM app.schedules
     WHERE project_id = $1 AND deleted_at IS NULL
     ORDER BY starts_at ASC
@@ -342,15 +428,30 @@ export async function getProjectSchedules(projectId: string): Promise<Schedule[]
  * Create a project schedule
  */
 export async function createProjectSchedule(
-  data: Omit<Schedule, 'id' | 'ownerName'> & { userId: string }
+  data: {
+    projectId: string | null;
+    customerId: string;
+    scheduleType: Schedule['scheduleType'];
+    title: string;
+    startsAt: string;
+    endsAt?: string | null;
+    ownerUserId?: string | null;
+    location?: string | null;
+    internalAttendeeIds?: string[];
+    status?: Schedule['status'];
+    notes?: string | null;
+    userId: string;
+  }
 ): Promise<Schedule> {
   const res = await query(`
     INSERT INTO app.schedules (
-      project_id, customer_id, schedule_type, title, starts_at, ends_at, owner_user_id, status, notes
+      project_id, customer_id, schedule_type, title, starts_at, ends_at,
+      owner_user_id, location, internal_attendee_ids, status, notes
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, 'planned', $8)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'planned', $10)
     RETURNING id, project_id as "projectId", customer_id as "customerId", schedule_type as "scheduleType",
-              title, starts_at::text as "startsAt", ends_at::text as "endsAt", owner_user_id as "ownerUserId", status, notes
+              title, starts_at::text as "startsAt", ends_at::text as "endsAt",
+              owner_user_id as "ownerUserId", location, internal_attendee_ids as "internalAttendeeIds", status, notes
   `, [
     data.projectId,
     data.customerId,
@@ -359,6 +460,8 @@ export async function createProjectSchedule(
     data.startsAt,
     data.endsAt || null,
     data.ownerUserId || data.userId,
+    data.location || null,
+    data.internalAttendeeIds || [],
     data.notes || null
   ]);
 
@@ -374,7 +477,15 @@ export async function getProjectNotes(projectId: string): Promise<InternalNote[]
       n.id, n.customer_id as "customerId", n.project_id as "projectId", n.task_id as "taskId",
       n.parent_note_id as "parentNoteId", n.sender_user_id as "senderUserId", u_send.full_name as "senderName",
       n.recipient_user_id as "recipientUserId", u_rec.full_name as "recipientName",
-      n.content, n.status, n.created_at as "createdAt"
+      n.note_title as "noteTitle",
+      COALESCE(n.recipient_user_ids, ARRAY[n.recipient_user_id]) as "recipientUserIds",
+      (
+        SELECT COALESCE(ARRAY_AGG(u_multi.full_name ORDER BY u_multi.full_name), '{}')
+        FROM app.users u_multi
+        WHERE u_multi.id = ANY(COALESCE(n.recipient_user_ids, ARRAY[n.recipient_user_id]))
+      ) as "recipientNames",
+      n.content, n.requires_response as "requiresResponse",
+      n.response_due_date::text as "responseDueDate", n.status, n.created_at as "createdAt"
     FROM app.internal_notes n
     INNER JOIN app.users u_send ON n.sender_user_id = u_send.id
     INNER JOIN app.users u_rec ON n.recipient_user_id = u_rec.id
@@ -393,24 +504,39 @@ export async function createProjectNote(
     customerId: string;
     senderUserId: string;
     recipientUserId: string;
+    recipientUserIds?: string[];
+    noteTitle?: string | null;
     content: string;
+    requiresResponse?: boolean;
+    responseDueDate?: string | null;
     parentNoteId?: string;
   }
 ): Promise<InternalNote> {
   return transaction(async (client) => {
+    const recipientUserIds = Array.from(new Set([
+      data.recipientUserId,
+      ...(data.recipientUserIds || []),
+    ].filter(Boolean)));
+    const primaryRecipientId = recipientUserIds[0];
+
     // 1. Insert note record
     const noteRes = await client.query(`
       INSERT INTO app.internal_notes (
-        project_id, customer_id, sender_user_id, recipient_user_id, content, parent_note_id, status
+        project_id, customer_id, sender_user_id, recipient_user_id, recipient_user_ids,
+        note_title, content, requires_response, response_due_date, parent_note_id, status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, 'unread')
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'unread')
       RETURNING id
     `, [
       data.projectId,
       data.customerId,
       data.senderUserId,
-      data.recipientUserId,
+      primaryRecipientId,
+      recipientUserIds,
+      data.noteTitle || null,
       data.content,
+      Boolean(data.requiresResponse),
+      data.responseDueDate || null,
       data.parentNoteId || null
     ]);
 
@@ -420,23 +546,25 @@ export async function createProjectNote(
     const senderRes = await client.query('SELECT full_name FROM app.users WHERE id = $1', [data.senderUserId]);
     const senderName = senderRes.rows[0].full_name;
 
-    // 3. Trigger notification to recipient
-    await client.query(`
-      INSERT INTO app.notifications (recipient_user_id, actor_user_id, title, body, entity_type, entity_id)
-      VALUES ($1, $2, 'Ghi chu noi bo moi', $3, 'project', $4)
-    `, [
-      data.recipientUserId,
-      data.senderUserId,
-      `${senderName} gui ghi chu cho ban: "${data.content.substring(0, 50)}${data.content.length > 50 ? '...' : ''}"`,
-      data.projectId
-    ]);
+    // 3. Trigger notification to every recipient
+    for (const recipientId of recipientUserIds) {
+      await client.query(`
+        INSERT INTO app.notifications (recipient_user_id, actor_user_id, title, body, entity_type, entity_id)
+        VALUES ($1, $2, 'Ghi chu noi bo moi', $3, 'project', $4)
+      `, [
+        recipientId,
+        data.senderUserId,
+        `${senderName} gui ghi chu cho ban: "${data.content.substring(0, 50)}${data.content.length > 50 ? '...' : ''}"`,
+        data.projectId
+      ]);
+    }
 
     // 4. If this is a reply (parentNoteId specified), notify the parent sender too if different
     if (data.parentNoteId) {
       const parentRes = await client.query('SELECT sender_user_id FROM app.internal_notes WHERE id = $1', [data.parentNoteId]);
       if (parentRes.rows.length > 0) {
         const parentSender = parentRes.rows[0].sender_user_id;
-        if (parentSender !== data.senderUserId && parentSender !== data.recipientUserId) {
+        if (parentSender !== data.senderUserId && !recipientUserIds.includes(parentSender)) {
           await client.query(`
             INSERT INTO app.notifications (recipient_user_id, actor_user_id, title, body, entity_type, entity_id)
             VALUES ($1, $2, 'Phan hoi ghi chu noi bo', $3, 'project', $4)
@@ -455,7 +583,15 @@ export async function createProjectNote(
         n.id, n.customer_id as "customerId", n.project_id as "projectId", n.task_id as "taskId",
         n.parent_note_id as "parentNoteId", n.sender_user_id as "senderUserId", u_send.full_name as "senderName",
         n.recipient_user_id as "recipientUserId", u_rec.full_name as "recipientName",
-        n.content, n.status, n.created_at as "createdAt"
+        n.note_title as "noteTitle",
+        COALESCE(n.recipient_user_ids, ARRAY[n.recipient_user_id]) as "recipientUserIds",
+        (
+          SELECT COALESCE(ARRAY_AGG(u_multi.full_name ORDER BY u_multi.full_name), '{}')
+          FROM app.users u_multi
+          WHERE u_multi.id = ANY(COALESCE(n.recipient_user_ids, ARRAY[n.recipient_user_id]))
+        ) as "recipientNames",
+        n.content, n.requires_response as "requiresResponse",
+        n.response_due_date::text as "responseDueDate", n.status, n.created_at as "createdAt"
       FROM app.internal_notes n
       INNER JOIN app.users u_send ON n.sender_user_id = u_send.id
       INNER JOIN app.users u_rec ON n.recipient_user_id = u_rec.id
@@ -476,6 +612,9 @@ export async function closeProject(
     closedDate: string;
     acceptanceStatus: 'accepted' | 'rejected' | 'pending';
     archiveStatus: 'archived' | 'not_archived';
+    completionSummary?: string | null;
+    acceptanceFileAssetId?: string | null;
+    receivableCompleted?: boolean;
     notes?: string;
     userId: string;
   }
@@ -484,9 +623,11 @@ export async function closeProject(
     // 1. Write closure record
     const closureRes = await client.query(`
       INSERT INTO app.project_closures (
-        code, project_id, closed_date, acceptance_status, archive_status, notes, created_by
+        code, project_id, closed_date, acceptance_status, archive_status,
+        completion_summary, acceptance_file_asset_id, receivable_completed,
+        notes, closed_by, created_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
       RETURNING id
     `, [
       data.code,
@@ -494,6 +635,9 @@ export async function closeProject(
       data.closedDate,
       data.acceptanceStatus,
       data.archiveStatus,
+      data.completionSummary || null,
+      data.acceptanceFileAssetId || null,
+      Boolean(data.receivableCompleted),
       data.notes || null,
       data.userId
     ]);
@@ -535,6 +679,8 @@ export async function updateProject(
       projectManagerUserId: 'project_manager_user_id',
       startDate: 'start_date',
       plannedEndDate: 'planned_end_date',
+      projectScope: 'project_scope',
+      folderUrl: 'folder_url',
       status: 'status',
       notes: 'notes'
     };
@@ -552,6 +698,19 @@ export async function updateProject(
       SET ${setClauses.join(', ')}
       WHERE id = $1
     `, values);
+
+    if (data.memberUserIds !== undefined) {
+      await client.query('DELETE FROM app.project_team_members WHERE project_id = $1', [id]);
+      for (const memberId of data.memberUserIds || []) {
+        if (memberId) {
+          await client.query(`
+            INSERT INTO app.project_team_members (project_id, user_id)
+            VALUES ($1, $2)
+            ON CONFLICT (project_id, user_id) DO NOTHING
+          `, [id, memberId]);
+        }
+      }
+    }
 
     // Audit Log
     await client.query(`
@@ -603,6 +762,8 @@ export async function updateProjectSchedule(
       startsAt: 'starts_at',
       endsAt: 'ends_at',
       ownerUserId: 'owner_user_id',
+      location: 'location',
+      internalAttendeeIds: 'internal_attendee_ids',
       status: 'status',
       notes: 'notes'
     };
@@ -631,7 +792,8 @@ export async function updateProjectSchedule(
       SELECT 
         s.id, s.project_id as "projectId", s.customer_id as "customerId",
         s.schedule_type as "scheduleType", s.title, s.starts_at as "startsAt",
-        s.ends_at as "endsAt", s.owner_user_id as "ownerUserId", s.status, s.notes,
+        s.ends_at as "endsAt", s.owner_user_id as "ownerUserId",
+        s.location, s.internal_attendee_ids as "internalAttendeeIds", s.status, s.notes,
         s.created_at as "createdAt", u.full_name as "ownerName"
       FROM app.schedules s
       LEFT JOIN app.users u ON s.owner_user_id = u.id
@@ -697,7 +859,16 @@ export async function updateProjectNote(
         n.id, n.customer_id as "customerId", n.project_id as "projectId",
         n.task_id as "taskId", n.parent_note_id as "parentNoteId",
         n.sender_user_id as "senderUserId", n.recipient_user_id as "recipientUserId",
-        n.content, n.status, n.read_at as "readAt", n.processed_at as "processedAt",
+        n.note_title as "noteTitle",
+        COALESCE(n.recipient_user_ids, ARRAY[n.recipient_user_id]) as "recipientUserIds",
+        (
+          SELECT COALESCE(ARRAY_AGG(u_multi.full_name ORDER BY u_multi.full_name), '{}')
+          FROM app.users u_multi
+          WHERE u_multi.id = ANY(COALESCE(n.recipient_user_ids, ARRAY[n.recipient_user_id]))
+        ) as "recipientNames",
+        n.content, n.requires_response as "requiresResponse",
+        n.response_due_date::text as "responseDueDate",
+        n.status, n.read_at as "readAt", n.processed_at as "processedAt",
         n.created_at as "createdAt",
         u1.full_name as "senderName", u2.full_name as "recipientName"
       FROM app.internal_notes n
@@ -787,7 +958,8 @@ export async function getSchedules(params: {
         s.id, s.project_id as "projectId", p.name as "projectName", p.code as "projectCode",
         s.customer_id as "customerId", c.name as "customerName", c.code as "customerCode",
         s.schedule_type as "scheduleType", s.title, s.starts_at::text as "startsAt", s.ends_at::text as "endsAt",
-        s.owner_user_id as "ownerUserId", u.full_name as "ownerName", s.status, s.notes
+        s.owner_user_id as "ownerUserId", u.full_name as "ownerName",
+        s.location, s.internal_attendee_ids as "internalAttendeeIds", s.status, s.notes
       FROM app.schedules s
       INNER JOIN app.customers c ON s.customer_id = c.id
       LEFT JOIN app.projects p ON s.project_id = p.id

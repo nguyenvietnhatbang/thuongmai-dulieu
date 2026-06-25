@@ -9,7 +9,9 @@ const purchaseSorts = {
   code: 'po.code',
   supplierName: 's.name',
   purchaseDate: 'po.purchase_date',
+  expectedDeliveryDate: 'po.expected_delivery_date',
   totalAmount: 'po.total_amount',
+  paidAmount: 'po.paid_amount',
   status: 'po.status',
 };
 
@@ -30,6 +32,7 @@ export async function GET(request: Request) {
       search: searchParams.get('search') || undefined,
       status: searchParams.get('status') || undefined,
       supplierId: searchParams.get('supplierId') || undefined,
+      warehouseId: searchParams.get('warehouseId') || undefined,
     });
     return NextResponse.json({ success: true, data: purchases.data, pagination: purchases.pagination });
   } catch (error: any) {
@@ -47,7 +50,18 @@ export async function POST(request: Request) {
     if (!allowed) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
 
     const body = await request.json();
-    const { code, supplierId, purchaseDate, items, notes } = body;
+    const {
+      code,
+      supplierId,
+      purchaseDate,
+      expectedDeliveryDate,
+      warehouseId,
+      paidAmount,
+      paymentDueDate,
+      buyerUserId,
+      items,
+      notes
+    } = body;
 
     if (!code || !supplierId || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ success: false, error: 'code, supplierId, and non-empty items array are required' }, { status: 400 });
@@ -57,6 +71,11 @@ export async function POST(request: Request) {
       code,
       supplierId,
       purchaseDate,
+      expectedDeliveryDate,
+      warehouseId,
+      paidAmount: Number(paidAmount || 0),
+      paymentDueDate,
+      buyerUserId,
       items,
       notes,
       userId: user.id

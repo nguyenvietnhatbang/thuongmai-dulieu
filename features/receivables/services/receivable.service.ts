@@ -10,7 +10,10 @@ export interface Receivable {
   contractNumber: string | null;
   salesOrderId: string | null;
   salesOrderCode: string | null;
+  invoiceNumber: string | null;
+  invoiceDate: string | null;
   dueDate: string;
+  overdueDays: number;
   amountDue: number;
   amountPaid: number;
   remainingAmount: number;
@@ -33,7 +36,7 @@ export async function getReceivables(params: {
   limit?: number;
   offset?: number;
   page?: number;
-  sort?: 'dueDate' | 'code' | 'customerName' | 'amountDue' | 'remainingAmount' | 'status';
+  sort?: 'dueDate' | 'invoiceDate' | 'code' | 'customerName' | 'amountDue' | 'remainingAmount' | 'status';
   order?: SortDirection;
 }): Promise<PaginatedResult<Receivable>> {
   try {
@@ -53,6 +56,7 @@ export async function getReceivables(params: {
     const values: unknown[] = [];
     const sortColumns = {
       dueDate: 'r.due_date',
+      invoiceDate: 'r.invoice_date',
       code: 'r.code',
       customerName: 'c.name',
       amountDue: 'r.amount_due',
@@ -103,7 +107,9 @@ export async function getReceivables(params: {
         r.id, r.code, r.customer_id as "customerId", c.name as "customerName",
         r.contract_id as "contractId", ctr.contract_number as "contractNumber",
         r.sales_order_id as "salesOrderId", so.code as "salesOrderCode",
+        r.invoice_number as "invoiceNumber", r.invoice_date::text as "invoiceDate",
         r.due_date::text as "dueDate", r.amount_due::numeric as "amountDue",
+        GREATEST((CURRENT_DATE - r.due_date), 0)::int as "overdueDays",
         r.amount_paid::numeric as "amountPaid", (r.amount_due - r.amount_paid)::numeric as "remainingAmount",
         r.status, r.collector_user_id as "collectorUserId", u.full_name as "collectorName", r.notes,
         r.last_reminded_at as "lastRemindedAt"

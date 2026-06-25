@@ -10,6 +10,9 @@ interface InventoryBalance {
   warehouseId: string;
   warehouseName: string;
   quantityOnHand: number;
+  reservedQuantity: number;
+  availableQuantity: number;
+  averageCost: number;
   minQuantity: number;
 }
 
@@ -90,6 +93,9 @@ export function StockLevelsTab({
                 <th className="px-6 py-4"><SortableHeader label="Mã hàng" sortKey="productCode" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4"><SortableHeader label="Tên hàng hóa" sortKey="productName" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4 text-center"><SortableHeader label="Tồn thực tế" sortKey="quantityOnHand" activeSort={sort} order={order} onSort={onSort} /></th>
+                <th className="px-6 py-4 text-center">Đã giữ</th>
+                <th className="px-6 py-4 text-center">Khả dụng</th>
+                <th className="px-6 py-4 text-right">Giá vốn TB</th>
                 <th className="px-6 py-4 text-center"><SortableHeader label="Định mức" sortKey="minQuantity" activeSort={sort} order={order} onSort={onSort} /></th>
                 <th className="px-6 py-4">Trạng thái định mức</th>
               </tr>
@@ -97,7 +103,7 @@ export function StockLevelsTab({
             <tbody className="divide-y divide-border">
               {balances.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={9} className="px-6 py-10 text-center text-sm text-muted-foreground">
                     Không có số dư kho phù hợp với bộ lọc.
                   </td>
                 </tr>
@@ -110,6 +116,11 @@ export function StockLevelsTab({
                       <td className="px-6 py-4 font-mono text-xs text-primary">{b.productCode}</td>
                       <td className="px-6 py-4 font-semibold text-foreground">{b.productName}</td>
                       <td className="px-6 py-4 text-center font-extrabold text-slate-800">{b.quantityOnHand} {b.unitCode}</td>
+                      <td className="px-6 py-4 text-center font-medium text-slate-500">{b.reservedQuantity} {b.unitCode}</td>
+                      <td className="px-6 py-4 text-center font-bold text-slate-800">{b.availableQuantity} {b.unitCode}</td>
+                      <td className="px-6 py-4 text-right text-xs font-semibold text-slate-700">
+                        {new Intl.NumberFormat('vi-VN').format(b.averageCost)}
+                      </td>
                       <td className="px-6 py-4 text-center font-medium text-slate-500">{b.minQuantity} {b.unitCode}</td>
                       <td className="px-6 py-4">
                         {isLow ? (
